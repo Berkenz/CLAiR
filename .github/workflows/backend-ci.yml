@@ -1,0 +1,52 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'backend/**'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'backend/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: clair_db
+          POSTGRES_USER: clair_user
+          POSTGRES_PASSWORD: clair_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Run flake8
+        run: flake8 backend --count --show-source --statistics
+
+      - name: Run pytest
+        env:
+          DATABASE_URL: postgresql+asyncpg://clair_user:clair_password@localhost:5432/clair_db
+        run: |
+          cd backend && pytest -v
