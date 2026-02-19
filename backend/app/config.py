@@ -10,6 +10,8 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str
     FIREBASE_PROJECT_ID: str
+    FIREBASE_SERVICE_ACCOUNT_KEY: str | None = None
+    FIREBASE_WEB_API_KEY: str | None = None
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
     ENVIRONMENT: str = "development"
     DEBUG: bool = False

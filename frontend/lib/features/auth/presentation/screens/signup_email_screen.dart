@@ -4,16 +4,25 @@ import 'package:go_router/go_router.dart';
 
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 
-class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+/// Second step of sign-up: collect email & password, then register.
+class SignUpEmailScreen extends ConsumerStatefulWidget {
+  const SignUpEmailScreen({
+    super.key,
+    required this.firstName,
+    required this.lastName,
+  });
+
+  final String firstName;
+  final String lastName;
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<SignUpEmailScreen> createState() => _SignUpEmailScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _SignUpEmailScreenState extends ConsumerState<SignUpEmailScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _loading = false;
 
@@ -21,44 +30,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmController.dispose();
     super.dispose();
   }
 
-  Future<void> _loginWithEmail() async {
+  Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
     try {
       final repo = ref.read(authRepositoryProvider);
-      final user = await repo.loginWithEmail(
+      await repo.registerWithEmail(
         email: _emailController.text.trim(),
         password: _passwordController.text,
+        firstName: widget.firstName,
+        lastName: widget.lastName,
       );
-      ref.read(currentUserProvider.notifier).state = user;
-      if (mounted) context.go('/home');
-    } catch (e) {
+
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _loginWithGoogle() async {
-    setState(() => _loading = true);
-    try {
-      final repo = ref.read(authRepositoryProvider);
-      final result = await repo.signInWithGoogle();
-
-      if (result.isNewUser) {
-        if (mounted) {
-          context.push('/signup', extra: {'is_google_flow': true});
-        }
-      } else {
-        ref.read(currentUserProvider.notifier).state = result.user;
-        if (mounted) context.go('/home');
+        context.go('/verify-email', extra: {
+          'email': _emailController.text.trim(),
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -73,7 +65,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
+      appBar: AppBar(title: const Text('Sign Up')),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Form(
@@ -93,32 +85,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 controller: _passwordController,
                 decoration: const InputDecoration(labelText: 'Password'),
                 obscureText: true,
-                validator: (v) =>
-                    (v == null || v.isEmpty) ? 'Enter your password' : null,
+                validator: (v) => (v == null || v.length < 6)
+                    ? 'Password must be at least 6 characters'
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _confirmController,
+                decoration:
+                    const InputDecoration(labelText: 'Confirm Password'),
+                obscureText: true,
+                validator: (v) => v != _passwordController.text
+                    ? 'Passwords do not match'
+                    : null,
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: _loading ? null : _loginWithEmail,
+                onPressed: _loading ? null : _signUp,
                 child: _loading
                     ? const SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Login'),
-              ),
-              const SizedBox(height: 16),
-              const Row(children: [
-                Expanded(child: Divider()),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Text('OR'),
-                ),
-                Expanded(child: Divider()),
-              ]),
-              const SizedBox(height: 16),
-              OutlinedButton(
-                onPressed: _loading ? null : _loginWithGoogle,
-                child: const Text('Login with Google'),
+                    : const Text('Sign Up'),
               ),
             ],
           ),

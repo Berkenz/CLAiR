@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:clair/features/auth/data/datasources/auth_remote_datasource.dart';
@@ -12,28 +13,12 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepositoryImpl(remoteDataSource: remoteDataSource);
 });
 
-final authStateProvider = StreamProvider<UserEntity?>((ref) {
-  final repository = ref.watch(authRepositoryProvider);
-  return repository.authStateChanges;
+/// Watches Firebase auth state to know if anyone is signed in at all.
+final firebaseAuthStateProvider = StreamProvider<User?>((ref) {
+  return FirebaseAuth.instance.authStateChanges();
 });
 
-final currentUserProvider = FutureProvider<UserEntity?>((ref) {
-  final repository = ref.watch(authRepositoryProvider);
-  return repository.getCurrentUser();
-});
-
-class SignInNotifier extends AsyncNotifier<void> {
-  @override
-  Future<void> build() async {}
-
-  Future<void> signInWithGoogle() async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      final repository = ref.read(authRepositoryProvider);
-      await repository.signInWithGoogle();
-    });
-  }
-}
-
-final signInWithGoogleProvider =
-    AsyncNotifierProvider<SignInNotifier, void>(() => SignInNotifier());
+/// Holds the current app user fetched from the backend.
+/// Set after successful login/register/guest flows.
+final currentUserProvider =
+    StateProvider<UserEntity?>((ref) => null);

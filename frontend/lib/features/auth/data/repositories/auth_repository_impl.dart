@@ -4,35 +4,50 @@ import 'package:clair/features/auth/domain/repositories/auth_repository.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl({required AuthRemoteDataSource remoteDataSource})
-      : _remoteDataSource = remoteDataSource;
+      : _remote = remoteDataSource;
 
-  final AuthRemoteDataSource _remoteDataSource;
-
-  @override
-  Future<UserEntity> signInWithGoogle() async {
-    try {
-      return await _remoteDataSource.signInWithGoogle();
-    } on AuthException {
-      rethrow;
-    } catch (e) {
-      throw AuthException('Sign in failed: $e');
-    }
-  }
+  final AuthRemoteDataSource _remote;
 
   @override
-  Future<void> signOut() async {
-    try {
-      await _remoteDataSource.signOut();
-    } catch (e) {
-      throw AuthException('Sign out failed: $e');
-    }
-  }
+  Future<UserEntity> registerWithEmail({
+    required String email,
+    required String password,
+    required String firstName,
+    required String lastName,
+  }) =>
+      _remote.registerWithEmail(
+        email: email,
+        password: password,
+        firstName: firstName,
+        lastName: lastName,
+      );
 
   @override
-  Stream<UserEntity?> get authStateChanges =>
-      _remoteDataSource.authStateChanges;
+  Future<UserEntity> loginWithEmail({
+    required String email,
+    required String password,
+  }) =>
+      _remote.loginWithEmail(email: email, password: password);
 
   @override
-  Future<UserEntity?> getCurrentUser() =>
-      _remoteDataSource.getCurrentUser();
+  Future<GoogleAuthResult> signInWithGoogle() => _remote.signInWithGoogle();
+
+  @override
+  Future<UserEntity> completeGoogleRegistration({
+    required String firstName,
+    required String lastName,
+  }) =>
+      _remote.completeGoogleRegistration(
+        firstName: firstName,
+        lastName: lastName,
+      );
+
+  @override
+  Future<UserEntity> signInAsGuest() => _remote.signInAsGuest();
+
+  @override
+  Future<void> signOut() => _remote.signOut();
+
+  @override
+  Future<UserEntity?> getCurrentUser() => _remote.getCurrentUser();
 }

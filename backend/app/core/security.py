@@ -4,9 +4,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
 from app.core.firebase import verify_firebase_token
-from app.models.user import User
+from app.database import get_db
 from app.services.user_service import user_service
 
 security = HTTPBearer(auto_error=False)
@@ -15,8 +14,11 @@ security = HTTPBearer(auto_error=False)
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> User:
-    """Extract Bearer token, verify with Firebase, then look up or create user in DB."""
+):
+    """
+    Extract Bearer token, verify with Firebase, look up user in DB.
+    Does NOT auto-create users — auth endpoints handle creation explicitly.
+    """
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -24,8 +26,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    token = credentials.credentials
-    decoded = verify_firebase_token(token)
+    decoded = verify_firebase_token(credentials.credentials)
 
     firebase_uid = decoded.get("uid")
     if not firebase_uid:
@@ -34,17 +35,12 @@ async def get_current_user(
             detail="Invalid token: missing uid",
         )
 
-    email = decoded.get("email") or ""
-    display_name = decoded.get("name")
-    photo_url = decoded.get("picture")
-
-    user = await user_service.get_or_create_user(
-        db=db,
-        firebase_uid=firebase_uid,
-        email=email,
-        display_name=display_name,
-        photo_url=photo_url,
-    )
+    user = await user_service.get_user_by_firebase_uid(db, firebase_uid)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
 
     if not user.is_active:
         raise HTTPException(

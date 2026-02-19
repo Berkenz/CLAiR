@@ -6,9 +6,17 @@ from app.config import settings
 
 
 def init_firebase() -> None:
-    """Initialize Firebase Admin SDK using Application Default Credentials."""
-    if not firebase_admin._apps:
-        firebase_admin.initialize_app(options={"projectId": settings.FIREBASE_PROJECT_ID})
+    """Initialize Firebase Admin SDK."""
+    if firebase_admin._apps:
+        return
+
+    if settings.FIREBASE_SERVICE_ACCOUNT_KEY:
+        cred = credentials.Certificate(settings.FIREBASE_SERVICE_ACCOUNT_KEY)
+        firebase_admin.initialize_app(cred)
+    else:
+        firebase_admin.initialize_app(
+            options={"projectId": settings.FIREBASE_PROJECT_ID}
+        )
 
 
 def verify_firebase_token(token: str) -> dict:
@@ -18,8 +26,7 @@ def verify_firebase_token(token: str) -> dict:
     """
     try:
         init_firebase()
-        decoded_token = auth.verify_id_token(token)
-        return decoded_token
+        return auth.verify_id_token(token)
     except auth.InvalidIdTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
