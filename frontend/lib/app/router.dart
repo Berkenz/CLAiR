@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
+import 'package:clair/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:clair/features/auth/presentation/screens/google_complete_screen.dart';
 import 'package:clair/features/auth/presentation/screens/landing_screen.dart';
 import 'package:clair/features/auth/presentation/screens/login_screen.dart';
@@ -19,7 +20,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isOnAuthPage = state.matchedLocation == '/' ||
           state.matchedLocation.startsWith('/login') ||
           state.matchedLocation.startsWith('/signup') ||
-          state.matchedLocation.startsWith('/verify-email');
+          state.matchedLocation.startsWith('/verify-email') ||
+          state.matchedLocation.startsWith('/forgot-password');
 
       if (user != null && isOnAuthPage) {
         return '/home';
@@ -34,6 +36,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
       ),
       GoRoute(
         path: '/signup',

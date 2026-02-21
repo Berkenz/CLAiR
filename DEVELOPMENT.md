@@ -27,7 +27,7 @@ flutter doctor     # should show all green checkmarks
 docker --version   # should print version
 ```
 
-## Quick Start (New Developer)
+## Quick Start (Do these steps to setup everything)
 
 ### Step 1: Clone and checkout
 
@@ -79,7 +79,7 @@ copy "frontend\android\debug.keystore" "$env:USERPROFILE\.android\debug.keystore
 cp frontend/android/debug.keystore ~/.android/debug.keystore
 ```
 
-### Step 5: Stop local PostgreSQL (if you have one)
+### Step 5: Stop local PostgreSQL (if you have one) (you can ignore this if you don't)
 
 If you have PostgreSQL installed locally, it will conflict with Docker on port 5432:
 

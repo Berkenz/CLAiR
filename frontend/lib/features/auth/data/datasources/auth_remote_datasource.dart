@@ -194,6 +194,10 @@ class AuthRemoteDataSource {
     return UserEntity.fromJson(response.data!);
   }
 
+  Future<void> sendPasswordResetEmail({required String email}) async {
+    await _firebaseAuth.sendPasswordResetEmail(email: email);
+  }
+
   Future<void> signOut() async {
     await Future.wait([
       _firebaseAuth.signOut(),
