@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
+import 'package:clair/features/auth/presentation/screens/profile_screen.dart';
 import 'package:clair/features/auth/presentation/screens/login_screen.dart';
 import 'package:clair/app/main_shell.dart';
 
@@ -24,6 +24,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/home',
         builder: (context, state) => const MainShell(),
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const ProfileScreen(),
       ),
     ],
   );

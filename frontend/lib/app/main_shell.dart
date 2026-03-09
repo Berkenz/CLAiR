@@ -4,6 +4,7 @@ import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/home/presentation/screens/home_screen.dart';
 import 'package:clair/features/chat/presentation/screens/chat_screen.dart';
 import 'package:clair/features/history/presentation/screens/history_screen.dart';
+import 'package:clair/shared/widgets/app_drawer.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -28,6 +29,7 @@ class _MainShellState extends State<MainShell> {
     return Scaffold(
       backgroundColor: Colors.white,
       resizeToAvoidBottomInset: true,
+      drawer: const AppDrawer(),
       body: SafeArea(
         bottom: false,
         child: IndexedStack(
