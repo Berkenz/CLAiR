@@ -75,8 +75,16 @@ class HomeScreen extends ConsumerWidget {
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: () async {
+                    // COMMENTED OUT FOR FRONTEND DEVELOPMENT
+                    // Uncomment when backend is ready
+                    /*
                     final repository = ref.read(authRepositoryProvider);
                     await repository.signOut();
+                    */
+                    
+                    // Mock sign out - clear the mock user (triggers navigation to login)
+                    ref.read(mockUserStateProvider.notifier).state = null;
+                    
                     if (context.mounted) {
                       context.go('/');
                     }

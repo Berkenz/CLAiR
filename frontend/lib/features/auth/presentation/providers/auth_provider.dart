@@ -12,14 +12,33 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepositoryImpl(remoteDataSource: remoteDataSource);
 });
 
+// FRONTEND DEV MODE: Mock user state
+final mockUserStateProvider = StateProvider<UserEntity?>((ref) => null);
+
 final authStateProvider = StreamProvider<UserEntity?>((ref) {
+  // COMMENTED OUT FOR FRONTEND DEVELOPMENT
+  // Uncomment when backend is ready
+  /*
   final repository = ref.watch(authRepositoryProvider);
   return repository.authStateChanges;
+  */
+  
+  // Mock user for frontend development
+  final mockUser = ref.watch(mockUserStateProvider);
+  return Stream.value(mockUser);
 });
 
 final currentUserProvider = FutureProvider<UserEntity?>((ref) {
+  // COMMENTED OUT FOR FRONTEND DEVELOPMENT
+  // Uncomment when backend is ready
+  /*
   final repository = ref.watch(authRepositoryProvider);
   return repository.getCurrentUser();
+  */
+  
+  // Mock user for frontend development
+  final mockUser = ref.watch(mockUserStateProvider);
+  return Future.value(mockUser);
 });
 
 class SignInNotifier extends AsyncNotifier<void> {
@@ -28,10 +47,29 @@ class SignInNotifier extends AsyncNotifier<void> {
 
   Future<void> signInWithGoogle() async {
     state = const AsyncLoading();
+    // COMMENTED OUT FOR FRONTEND DEVELOPMENT
+    // Uncomment when backend is ready
+    /*
     state = await AsyncValue.guard(() async {
       final repository = ref.read(authRepositoryProvider);
       await repository.signInWithGoogle();
     });
+    */
+    
+    // Mock successful sign-in for frontend development
+    await Future.delayed(const Duration(seconds: 1));
+    
+    // Set mock user to simulate login (triggers navigation to home)
+    ref.read(mockUserStateProvider.notifier).state = UserEntity(
+      id: 'mock-123',
+      email: 'test@example.com',
+      displayName: 'Test User',
+      photoUrl: null,
+      isActive: true,
+      createdAt: DateTime.now(),
+    );
+    
+    state = const AsyncData(null);
   }
 }
 
