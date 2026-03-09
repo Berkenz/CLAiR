@@ -13,8 +13,6 @@ class CLAiRApp extends ConsumerWidget {
       title: 'CLAiR',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
       routerConfig: ref.watch(routerProvider),
     );
   }
