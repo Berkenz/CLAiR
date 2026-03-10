@@ -26,6 +26,7 @@ class User(Base):
     first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     photo_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    location: Mapped[str | None] = mapped_column(String(255), nullable=True)
     auth_provider: Mapped[str] = mapped_column(
         String(20), nullable=False, default="email"
     )

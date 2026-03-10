@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -50,20 +51,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) context.go('/home');
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: AppColors.crimson,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+        final detail = _extractErrorDetail(e);
+        if (detail.contains('verify your email')) {
+          context.go('/verify-email', extra: {'email': email});
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(detail),
+              backgroundColor: AppColors.crimson,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-          ),
-        );
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  String _extractErrorDetail(Object e) {
+    if (e is DioException && e.response?.data is Map) {
+      final detail = (e.response!.data as Map)['detail'];
+      if (detail is String) return detail;
+    }
+    return e.toString();
   }
 
   Future<void> _signInWithGoogle() async {
@@ -73,7 +87,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final result = await repo.signInWithGoogle();
       if (result.isNewUser) {
         if (mounted) {
-          context.push('/signup', extra: {'is_google_flow': true});
+          context.push('/signup/google');
         }
       } else if (result.user != null) {
         ref.read(currentUserProvider.notifier).state = result.user;

@@ -34,6 +34,7 @@ class UserUpdate(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
     photo_url: str | None = None
+    location: str | None = None
 
 
 # --- Response schemas ---
@@ -47,6 +48,7 @@ class UserResponse(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
     photo_url: str | None = None
+    location: str | None = None
     auth_provider: str
     is_email_verified: bool
     is_anonymous: bool

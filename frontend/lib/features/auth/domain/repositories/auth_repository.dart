@@ -18,6 +18,12 @@ abstract class AuthRepository {
     required String lastName,
   });
   Future<UserEntity> signInAsGuest();
+  Future<UserEntity> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? photoUrl,
+    String? location,
+  });
   Future<void> sendPasswordResetEmail({required String email});
   Future<void> signOut();
   Future<UserEntity?> getCurrentUser();

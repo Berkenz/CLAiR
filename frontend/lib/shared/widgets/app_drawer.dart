@@ -155,7 +155,8 @@ class AppDrawer extends ConsumerWidget {
                   Navigator.pop(context);
                   final repository = ref.read(authRepositoryProvider);
                   await repository.signOut();
-                  if (context.mounted) context.go('/');
+                  ref.read(currentUserProvider.notifier).state = null;
+                  if (context.mounted) context.go('/login');
                 },
               ),
             ],

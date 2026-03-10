@@ -194,6 +194,30 @@ class AuthRemoteDataSource {
     return UserEntity.fromJson(response.data!);
   }
 
+  Future<UserEntity> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? photoUrl,
+    String? location,
+  }) async {
+    final data = <String, dynamic>{};
+    if (firstName != null) data['first_name'] = firstName;
+    if (lastName != null) data['last_name'] = lastName;
+    if (photoUrl != null) data['photo_url'] = photoUrl;
+    if (location != null) data['location'] = location;
+
+    final response = await _dio.patch<Map<String, dynamic>>(
+      ApiEndpoints.updateProfile,
+      data: data,
+    );
+
+    if (response.data == null) {
+      throw AuthException('Invalid response from server');
+    }
+
+    return UserEntity.fromJson(response.data!);
+  }
+
   Future<void> sendPasswordResetEmail({required String email}) async {
     await _firebaseAuth.sendPasswordResetEmail(email: email);
   }

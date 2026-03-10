@@ -4,10 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:clair/features/auth/presentation/screens/google_complete_screen.dart';
-import 'package:clair/features/auth/presentation/screens/landing_screen.dart';
 import 'package:clair/features/auth/presentation/screens/login_screen.dart';
-import 'package:clair/features/auth/presentation/screens/signup_email_screen.dart';
 import 'package:clair/features/auth/presentation/screens/signup_name_screen.dart';
+import 'package:clair/features/auth/presentation/screens/signup_screen.dart';
 import 'package:clair/features/auth/presentation/screens/verify_email_screen.dart';
 import 'package:clair/features/auth/presentation/screens/profile_screen.dart';
 import 'package:clair/app/main_shell.dart';
@@ -45,21 +44,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/signup',
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
-          final isGoogleFlow = extra?['is_google_flow'] as bool? ?? false;
-          return SignUpNameScreen(isGoogleFlow: isGoogleFlow);
-        },
+        builder: (context, state) => const SignUpScreen(),
       ),
       GoRoute(
-        path: '/signup/email',
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>;
-          return SignUpEmailScreen(
-            firstName: extra['first_name'] as String,
-            lastName: extra['last_name'] as String,
-          );
-        },
+        path: '/signup/google',
+        builder: (context, state) =>
+            const SignUpNameScreen(isGoogleFlow: true),
       ),
       GoRoute(
         path: '/signup/google-complete',
@@ -75,7 +65,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/verify-email',
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>;
-          return VerifyEmailScreen(email: extra['email'] as String);
+          return VerifyEmailScreen(
+            email: extra['email'] as String,
+            isPasswordReset: extra['is_password_reset'] as bool? ?? false,
+          );
         },
       ),
       GoRoute(

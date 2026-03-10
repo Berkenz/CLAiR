@@ -31,7 +31,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       final repo = ref.read(authRepositoryProvider);
       await repo.sendPasswordResetEmail(email: email);
       if (mounted) {
-        context.go('/verify-email', extra: {'email': email});
+        context.go('/verify-email', extra: {
+          'email': email,
+          'is_password_reset': true,
+        });
       }
     } catch (e) {
       if (mounted) {

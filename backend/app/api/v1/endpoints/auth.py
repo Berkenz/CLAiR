@@ -88,6 +88,12 @@ async def login(
     if decoded.get("email_verified") and not user.is_email_verified:
         user = await user_service.set_email_verified(db, user)
 
+    if user.auth_provider == "email" and not user.is_email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Please verify your email before logging in.",
+        )
+
     return user
 
 

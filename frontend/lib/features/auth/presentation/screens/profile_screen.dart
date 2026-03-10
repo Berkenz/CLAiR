@@ -30,12 +30,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void initState() {
     super.initState();
     final user = ref.read(currentUserProvider);
-    final parts = (user?.displayName ?? '').trim().split(' ');
-    _firstNameCtrl =
-        TextEditingController(text: parts.isNotEmpty ? parts.first : '');
-    _lastNameCtrl = TextEditingController(
-        text: parts.length > 1 ? parts.sublist(1).join(' ') : '');
-    _locationCtrl = TextEditingController();
+    _firstNameCtrl = TextEditingController(text: user?.firstName ?? '');
+    _lastNameCtrl = TextEditingController(text: user?.lastName ?? '');
+    _locationCtrl = TextEditingController(text: user?.location ?? '');
     _currentPasswordCtrl = TextEditingController();
     _newPasswordCtrl = TextEditingController();
     _confirmPasswordCtrl = TextEditingController();
@@ -64,23 +61,43 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
-    // TODO: wire to your auth/user repository to persist changes
-    await Future.delayed(const Duration(milliseconds: 800));
-    setState(() => _isSaving = false);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Profile updated successfully.',
-            style:
-                TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w500),
-          ),
-          backgroundColor: AppColors.darkBrown,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
+    try {
+      final repo = ref.read(authRepositoryProvider);
+      final updatedUser = await repo.updateProfile(
+        firstName: _firstNameCtrl.text.trim(),
+        lastName: _lastNameCtrl.text.trim(),
+        location: _locationCtrl.text.trim(),
       );
+      ref.read(currentUserProvider.notifier).state = updatedUser;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Profile updated successfully.',
+              style:
+                  TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w500),
+            ),
+            backgroundColor: AppColors.darkBrown,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update profile: $e'),
+            backgroundColor: AppColors.crimson,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 

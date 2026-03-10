@@ -1,16 +1,19 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 
-class SignUpScreen extends StatefulWidget {
+class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
 
   @override
-  State<SignUpScreen> createState() => _SignUpScreenState();
+  ConsumerState<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _SignUpScreenState extends State<SignUpScreen> {
+class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -26,6 +29,60 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+
+  Future<void> _signUp() async {
+    final firstName = _firstNameController.text.trim();
+    final lastName = _lastNameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    if (firstName.isEmpty || lastName.isEmpty || email.isEmpty || password.isEmpty) {
+      _showError('Please fill in all fields');
+      return;
+    }
+    if (!email.contains('@')) {
+      _showError('Please enter a valid email');
+      return;
+    }
+    if (password.length < 6) {
+      _showError('Password must be at least 6 characters');
+      return;
+    }
+    if (password != confirmPassword) {
+      _showError('Passwords do not match');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final repo = ref.read(authRepositoryProvider);
+      await repo.registerWithEmail(
+        email: email,
+        password: password,
+        firstName: firstName,
+        lastName: lastName,
+      );
+      if (mounted) {
+        context.go('/verify-email', extra: {'email': email});
+      }
+    } catch (e) {
+      if (mounted) _showError(e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.crimson,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -204,11 +261,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           color: Colors.transparent,
                           child: InkWell(
                             borderRadius: BorderRadius.circular(16),
-                            onTap: _isLoading
-                                ? null
-                                : () {
-                                    // TODO: Implement sign up logic
-                                  },
+                            onTap: _isLoading ? null : _signUp,
                             child: Center(
                               child: _isLoading
                                   ? const SizedBox(
@@ -264,9 +317,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             ),
                           ),
                           TextButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                            },
+                            onPressed: () => context.go('/login'),
                             style: TextButton.styleFrom(
                               padding: EdgeInsets.zero,
                               minimumSize: Size.zero,

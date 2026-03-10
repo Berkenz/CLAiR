@@ -5,6 +5,7 @@ class UserEntity {
     this.firstName,
     this.lastName,
     this.photoUrl,
+    this.location,
     required this.authProvider,
     required this.isEmailVerified,
     required this.isAnonymous,
@@ -17,6 +18,7 @@ class UserEntity {
   final String? firstName;
   final String? lastName;
   final String? photoUrl;
+  final String? location;
   final String authProvider;
   final bool isEmailVerified;
   final bool isAnonymous;
@@ -39,6 +41,7 @@ class UserEntity {
       firstName: json['first_name'] as String?,
       lastName: json['last_name'] as String?,
       photoUrl: json['photo_url'] as String?,
+      location: json['location'] as String?,
       authProvider: json['auth_provider'] as String? ?? 'email',
       isEmailVerified: json['is_email_verified'] as bool? ?? false,
       isAnonymous: json['is_anonymous'] as bool? ?? false,

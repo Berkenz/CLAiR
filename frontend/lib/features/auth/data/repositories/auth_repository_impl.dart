@@ -46,6 +46,20 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<UserEntity> signInAsGuest() => _remote.signInAsGuest();
 
   @override
+  Future<UserEntity> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? photoUrl,
+    String? location,
+  }) =>
+      _remote.updateProfile(
+        firstName: firstName,
+        lastName: lastName,
+        photoUrl: photoUrl,
+        location: location,
+      );
+
+  @override
   Future<void> sendPasswordResetEmail({required String email}) =>
       _remote.sendPasswordResetEmail(email: email);
 
