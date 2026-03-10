@@ -1,3 +1,5 @@
+import json
+
 import firebase_admin
 from firebase_admin import auth, credentials
 from fastapi import HTTPException, status
@@ -11,7 +13,11 @@ def init_firebase() -> None:
         return
 
     if settings.FIREBASE_SERVICE_ACCOUNT_KEY:
-        cred = credentials.Certificate(settings.FIREBASE_SERVICE_ACCOUNT_KEY)
+        key = settings.FIREBASE_SERVICE_ACCOUNT_KEY
+        if key.strip().startswith("{"):
+            cred = credentials.Certificate(json.loads(key))
+        else:
+            cred = credentials.Certificate(key)
         firebase_admin.initialize_app(cred)
     else:
         firebase_admin.initialize_app(
