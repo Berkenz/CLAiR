@@ -43,17 +43,7 @@ git checkout develop
 cp .env.example .env
 ```
 
-Open `.env` and paste these exact values:
-
-```
-DATABASE_URL=postgresql+asyncpg://clair_user:clair_password@db:5432/clair_db
-FIREBASE_PROJECT_ID=clair-67
-FIREBASE_WEB_API_KEY=AIzaSyB8-co1E18f0J87zNHFHVbhkLSuq6ULmuM
-FIREBASE_SERVICE_ACCOUNT_KEY=service-account.json
-CORS_ORIGINS=["http://localhost:3000"]
-ENVIRONMENT=development
-DEBUG=true
-```
+Open `.env` and paste the one sent in the group chat:
 
 ### Step 3: Get the Firebase service account key
 

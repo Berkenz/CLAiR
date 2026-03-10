@@ -1,125 +1,55 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
-import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 
-class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  State<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _SignUpScreenState extends State<SignUpScreen> {
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  
+  final _firstNameFocusNode = FocusNode();
+  final _lastNameFocusNode = FocusNode();
   final _emailFocusNode = FocusNode();
   final _passwordFocusNode = FocusNode();
+  final _confirmPasswordFocusNode = FocusNode();
+  
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
+    _firstNameFocusNode.addListener(() => setState(() {}));
+    _lastNameFocusNode.addListener(() => setState(() {}));
     _emailFocusNode.addListener(() => setState(() {}));
     _passwordFocusNode.addListener(() => setState(() {}));
+    _confirmPasswordFocusNode.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _firstNameFocusNode.dispose();
+    _lastNameFocusNode.dispose();
     _emailFocusNode.dispose();
     _passwordFocusNode.dispose();
+    _confirmPasswordFocusNode.dispose();
     super.dispose();
-  }
-
-  Future<void> _loginWithEmail() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
-    if (email.isEmpty || password.isEmpty) return;
-
-    setState(() => _isLoading = true);
-    try {
-      final repo = ref.read(authRepositoryProvider);
-      final user = await repo.loginWithEmail(email: email, password: password);
-      ref.read(currentUserProvider.notifier).state = user;
-      if (mounted) context.go('/home');
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: AppColors.crimson,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _signInWithGoogle() async {
-    setState(() => _isLoading = true);
-    try {
-      final repo = ref.read(authRepositoryProvider);
-      final result = await repo.signInWithGoogle();
-      if (result.isNewUser) {
-        if (mounted) {
-          context.push('/signup', extra: {'is_google_flow': true});
-        }
-      } else if (result.user != null) {
-        ref.read(currentUserProvider.notifier).state = result.user;
-        if (mounted) context.go('/home');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: AppColors.crimson,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _continueAsGuest() async {
-    setState(() => _isLoading = true);
-    try {
-      final repo = ref.read(authRepositoryProvider);
-      final user = await repo.signInAsGuest();
-      ref.read(currentUserProvider.notifier).state = user;
-      if (mounted) context.go('/home');
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: AppColors.crimson,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
   }
 
   @override
@@ -129,38 +59,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: SizedBox(
-            height: size.height - MediaQuery.of(context).padding.top,
-            child: Stack(
-              children: [
-                CustomPaint(
-                  size: Size(size.width, size.height * 0.35),
-                  painter: WavyBackgroundPainter(),
-                ),
-
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 20),
-
-                      Container(
-                        width: 180,
-                        height: 180,
-                        padding: const EdgeInsets.all(25),
-                        child: Image.asset(
-                          'assets/images/CLAiR-icon.png',
-                          fit: BoxFit.contain,
-                        ),
+        child: Stack(
+          children: [
+            // Wavy Gradient Background
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: CustomPaint(
+                size: Size(size.width, size.height * 0.35),
+                painter: WavyBackgroundPainter(),
+              ),
+            ),
+            
+            // Scrollable Content
+            SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 40),
+                    
+                    // App Icon
+                    Container(
+                      width: 140,
+                      height: 140,
+                      padding: const EdgeInsets.all(20),
+                      child: Image.asset(
+                        'assets/images/CLAiR-icon.png',
+                        fit: BoxFit.contain,
                       ),
-
-                      const SizedBox(height: 12),
-
+                    ),
+                    
+                    const SizedBox(height: 16),
+                      
+                      // Sign Up Text
                       const Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          'Welcome\nBack',
+                          'Sign Up',
                           style: TextStyle(
                             fontSize: 42,
                             fontWeight: FontWeight.w700,
@@ -170,22 +108,49 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                       ),
-
+                      
                       const SizedBox(height: 40),
-
+                      
+                      // First Name & Last Name side by side
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildAnimatedInputField(
+                              controller: _firstNameController,
+                              focusNode: _firstNameFocusNode,
+                              label: 'First Name',
+                              icon: Icons.person_outline,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildAnimatedInputField(
+                              controller: _lastNameController,
+                              focusNode: _lastNameFocusNode,
+                              label: 'Last Name',
+                              icon: Icons.person_outline,
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Email Input
                       _buildAnimatedInputField(
                         controller: _emailController,
                         focusNode: _emailFocusNode,
-                        label: 'Email',
+                        label: 'Enter Email',
                         icon: Icons.email_outlined,
                       ),
-
+                      
                       const SizedBox(height: 16),
-
+                      
+                      // Password Input
                       _buildAnimatedInputField(
                         controller: _passwordController,
                         focusNode: _passwordFocusNode,
-                        label: 'Password',
+                        label: 'Enter Password',
                         icon: Icons.lock_outline,
                         isPassword: true,
                         obscureText: _obscurePassword,
@@ -195,9 +160,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           });
                         },
                       ),
-
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Confirm Password Input
+                      _buildAnimatedInputField(
+                        controller: _confirmPasswordController,
+                        focusNode: _confirmPasswordFocusNode,
+                        label: 'Confirm Password',
+                        icon: Icons.lock_outline,
+                        isPassword: true,
+                        obscureText: _obscureConfirmPassword,
+                        onTogglePassword: () {
+                          setState(() {
+                            _obscureConfirmPassword = !_obscureConfirmPassword;
+                          });
+                        },
+                      ),
+                      
                       const SizedBox(height: 24),
-
+                      
+                      // Sign Up Button
                       Container(
                         width: double.infinity,
                         height: 56,
@@ -221,7 +204,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           color: Colors.transparent,
                           child: InkWell(
                             borderRadius: BorderRadius.circular(16),
-                            onTap: _isLoading ? null : _loginWithEmail,
+                            onTap: _isLoading
+                                ? null
+                                : () {
+                                    // TODO: Implement sign up logic
+                                  },
                             child: Center(
                               child: _isLoading
                                   ? const SizedBox(
@@ -229,13 +216,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       width: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                                Colors.white),
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                       ),
                                     )
                                   : const Text(
-                                      'Log in',
+                                      'Sign up',
                                       style: TextStyle(
                                         fontSize: 17,
                                         fontWeight: FontWeight.w600,
@@ -247,47 +232,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                       ),
-
+                      
                       const SizedBox(height: 16),
-
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildGoogleButton(
-                              onTap: _isLoading ? () {} : _signInWithGoogle,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildGuestButton(
-                              onTap: _isLoading ? () {} : _continueAsGuest,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      TextButton(
-                        onPressed: () => context.push('/forgot-password'),
-                        child: const Text(
-                          'Forgot Password ?',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.crimson,
-                            fontFamily: 'Satoshi',
-                          ),
+                      
+                      // Terms of Service
+                      const Text(
+                        'Signing up for a CLAiR account means you agree to the\nPrivacy Policy and Terms of Service',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.darkBrown,
+                          fontFamily: 'Satoshi',
+                          height: 1.4,
                         ),
                       ),
-
-                      const Spacer(),
-
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Log In Link
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Text(
-                            'Don\'t have an account? ',
+                            'Already have an account? ',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w400,
@@ -296,14 +264,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                           ),
                           TextButton(
-                            onPressed: () => context.push('/signup'),
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
                             style: TextButton.styleFrom(
                               padding: EdgeInsets.zero,
                               minimumSize: Size.zero,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
                             child: const Text(
-                              'Sign up',
+                              'Log in',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
@@ -314,17 +284,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ],
                       ),
-
+                      
                       const SizedBox(height: 30),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+                    ],  // closes children array
+                  ),    // closes Column
+                ),      // closes Padding
+              ),        // closes SingleChildScrollView
+            ],          // closes Stack children
+          ),            // closes Stack
+        ),              // closes SafeArea
+    );                  // closes Scaffold
   }
 
   Widget _buildAnimatedInputField({
@@ -350,7 +319,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: hasFocus ? AppColors.crimson : Colors.transparent,
+              color: hasFocus
+                  ? AppColors.crimson
+                  : Colors.transparent,
               width: 2,
             ),
             boxShadow: [
@@ -446,106 +417,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       },
     );
   }
-
-  Widget _buildGoogleButton({required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        height: 50,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.tan.withOpacity(0.5),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.tan.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Icon(
-                Icons.g_mobiledata_rounded,
-                color: AppColors.crimson,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'Google',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AppColors.darkBrown,
-                fontFamily: 'Satoshi',
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGuestButton({required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        height: 50,
-        decoration: BoxDecoration(
-          color: AppColors.tan.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.tan.withOpacity(0.5),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.tan.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.person_outline,
-              color: AppColors.darkBrown,
-              size: 20,
-            ),
-            SizedBox(width: 8),
-            Text(
-              'Guest',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AppColors.darkBrown,
-                fontFamily: 'Satoshi',
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
+// Custom Painter for Wavy Background (same as login screen)
 class WavyBackgroundPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -561,26 +435,31 @@ class WavyBackgroundPainter extends CustomPainter {
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
     final path = Path();
+    
     path.moveTo(0, 0);
     path.lineTo(size.width, 0);
+    
     path.lineTo(size.width, size.height * 0.6);
+    
     path.quadraticBezierTo(
       size.width * 0.75,
       size.height * 0.7,
       size.width * 0.5,
       size.height * 0.65,
     );
+    
     path.quadraticBezierTo(
       size.width * 0.25,
       size.height * 0.6,
       0,
       size.height * 0.7,
     );
+    
     path.lineTo(0, 0);
     path.close();
 
     canvas.drawPath(path, paint);
-
+    
     final paint2 = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topRight,
@@ -590,22 +469,25 @@ class WavyBackgroundPainter extends CustomPainter {
           AppColors.tan.withOpacity(0.3),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-
+    
     final path2 = Path();
     path2.moveTo(size.width, 0);
     path2.lineTo(size.width, size.height * 0.5);
+    
     path2.quadraticBezierTo(
       size.width * 0.6,
       size.height * 0.55,
       size.width * 0.3,
       size.height * 0.45,
     );
+    
     path2.quadraticBezierTo(
       size.width * 0.1,
       size.height * 0.4,
       0,
       size.height * 0.5,
     );
+    
     path2.lineTo(0, 0);
     path2.lineTo(size.width, 0);
     path2.close();

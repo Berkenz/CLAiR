@@ -9,11 +9,12 @@ import 'package:clair/features/auth/presentation/screens/login_screen.dart';
 import 'package:clair/features/auth/presentation/screens/signup_email_screen.dart';
 import 'package:clair/features/auth/presentation/screens/signup_name_screen.dart';
 import 'package:clair/features/auth/presentation/screens/verify_email_screen.dart';
-import 'package:clair/features/home/presentation/screens/home_screen.dart';
+import 'package:clair/features/auth/presentation/screens/profile_screen.dart';
+import 'package:clair/app/main_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/login',
     debugLogDiagnostics: true,
     redirect: (context, state) {
       final user = ref.read(currentUserProvider);
@@ -31,7 +32,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
-        builder: (context, state) => const LandingScreen(),
+        redirect: (_, __) => '/login',
+        builder: (context, state) => const LoginScreen(),
       ),
       GoRoute(
         path: '/login',
@@ -78,7 +80,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/home',
-        builder: (context, state) => const HomeScreen(),
+        builder: (context, state) => const MainShell(),
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const ProfileScreen(),
       ),
     ],
   );
