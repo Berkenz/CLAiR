@@ -294,12 +294,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       controller: _controller,
                       maxLines: 4,
                       minLines: 1,
+                      maxLength: 4000,
                       enabled: !isLoading,
                       style: const TextStyle(
                         fontSize: 14,
                         color: AppColors.darkBrown,
                         fontFamily: 'Satoshi',
                       ),
+                      buildCounter: (_, {required currentLength, required isFocused, required maxLength}) => null,
                       decoration: const InputDecoration(
                         hintText: 'Ask anything',
                         hintStyle: TextStyle(

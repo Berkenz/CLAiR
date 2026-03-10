@@ -47,4 +47,13 @@ async def get_chat_response(
             system_instruction=SYSTEM_INSTRUCTION,
         ),
     )
-    return response.text
+
+    if response.text:
+        return response.text
+
+    parts = []
+    for candidate in (response.candidates or []):
+        for part in (candidate.content.parts or []):
+            if part.text:
+                parts.append(part.text)
+    return "\n".join(parts) if parts else "Sorry, I couldn't generate a response. Please try again."

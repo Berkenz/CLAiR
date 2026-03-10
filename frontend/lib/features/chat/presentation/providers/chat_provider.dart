@@ -49,6 +49,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
   void clearError() {
     state = state.copyWith(error: null);
   }
+
+  void reset() {
+    state = ChatState.initial();
+  }
 }
 
 class ChatState {

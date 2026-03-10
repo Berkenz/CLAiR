@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
+import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Usage:
@@ -156,6 +157,7 @@ class AppDrawer extends ConsumerWidget {
                   final repository = ref.read(authRepositoryProvider);
                   await repository.signOut();
                   ref.read(currentUserProvider.notifier).state = null;
+                  ref.read(chatProvider.notifier).reset();
                   if (context.mounted) context.go('/login');
                 },
               ),

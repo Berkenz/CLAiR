@@ -25,11 +25,22 @@ class ChatRemoteDataSource {
         throw ChatException('Invalid response from server');
       }
 
-      return response.data!['reply'] as String;
+      final reply = response.data!['reply'];
+      if (reply is String) return reply;
+      if (reply is List) return reply.join('\n');
+      return reply.toString();
     } on DioException catch (e) {
-      final detail = e.response?.data;
-      if (detail is Map<String, dynamic> && detail['detail'] != null) {
-        throw ChatException(detail['detail'] as String);
+      final data = e.response?.data;
+      if (data is Map<String, dynamic> && data['detail'] != null) {
+        final detail = data['detail'];
+        if (detail is String) throw ChatException(detail);
+        if (detail is List && detail.isNotEmpty) {
+          final msg = detail.first;
+          if (msg is Map<String, dynamic>) {
+            throw ChatException(msg['msg'] as String? ?? 'Validation error');
+          }
+          throw ChatException(msg.toString());
+        }
       }
       throw ChatException('Could not reach CLAiR. Please check your connection.');
     }
