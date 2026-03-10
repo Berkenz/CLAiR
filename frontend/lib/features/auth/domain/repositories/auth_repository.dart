@@ -24,6 +24,10 @@ abstract class AuthRepository {
     String? photoUrl,
     String? location,
   });
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
   Future<void> sendPasswordResetEmail({required String email});
   Future<void> signOut();
   Future<UserEntity?> getCurrentUser();

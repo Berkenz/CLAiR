@@ -63,12 +63,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     setState(() => _isSaving = true);
     try {
       final repo = ref.read(authRepositoryProvider);
+
       final updatedUser = await repo.updateProfile(
         firstName: _firstNameCtrl.text.trim(),
         lastName: _lastNameCtrl.text.trim(),
         location: _locationCtrl.text.trim(),
       );
       ref.read(currentUserProvider.notifier).state = updatedUser;
+
+      if (_newPasswordCtrl.text.isNotEmpty) {
+        await repo.changePassword(
+          currentPassword: _currentPasswordCtrl.text,
+          newPassword: _newPasswordCtrl.text,
+        );
+        _currentPasswordCtrl.clear();
+        _newPasswordCtrl.clear();
+        _confirmPasswordCtrl.clear();
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -86,9 +98,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
+        String message = 'Failed to update profile';
+        final err = e.toString();
+        if (err.contains('wrong-password') || err.contains('invalid-credential')) {
+          message = 'Current password is incorrect';
+        } else if (err.contains('weak-password')) {
+          message = 'New password is too weak';
+        } else {
+          message = err;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update profile: $e'),
+            content: Text(message),
             backgroundColor: AppColors.crimson,
             behavior: SnackBarBehavior.floating,
             shape:

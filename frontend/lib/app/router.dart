@@ -9,6 +9,8 @@ import 'package:clair/features/auth/presentation/screens/signup_name_screen.dart
 import 'package:clair/features/auth/presentation/screens/signup_screen.dart';
 import 'package:clair/features/auth/presentation/screens/verify_email_screen.dart';
 import 'package:clair/features/auth/presentation/screens/profile_screen.dart';
+import 'package:clair/features/chat/presentation/screens/chat_screen.dart';
+import 'package:clair/features/history/presentation/screens/history_screen.dart';
 import 'package:clair/app/main_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -74,6 +76,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/home',
         builder: (context, state) => const MainShell(),
+      ),
+      GoRoute(
+        path: '/chat',
+        builder: (context, state) => const ChatScreen(),
+      ),
+      GoRoute(
+        path: '/history',
+        builder: (context, state) => const HistoryScreen(),
       ),
       GoRoute(
         path: '/profile',
