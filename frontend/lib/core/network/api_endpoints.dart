@@ -8,4 +8,6 @@ class ApiEndpoints {
   static const String guest = '/auth/guest';
   static const String me = '/auth/me';
   static const String updateProfile = '/users/me';
+
+  static const String chatSend = '/chat/send';
 }

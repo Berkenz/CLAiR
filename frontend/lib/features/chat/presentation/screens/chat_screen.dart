@@ -1,38 +1,21 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
+import 'package:clair/shared/widgets/app_drawer.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 
-class _ChatMessage {
-  final String text;
-  final bool isUser;
-
-  const _ChatMessage({required this.text, required this.isUser});
-}
-
-class ChatScreen extends StatefulWidget {
+class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
 
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
-  bool _isTyping = false;
-
-  final List<_ChatMessage> _messages = [
-    const _ChatMessage(
-      text: "Hi! I'm CLAiR, how may I assist you today?",
-      isUser: false,
-    ),
-    const _ChatMessage(
-      text: "I need assistance for a specific land dispute with my family.",
-      isUser: true,
-    ),
-  ];
 
   @override
   void dispose() {
@@ -45,25 +28,9 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-    setState(() {
-      _messages.add(_ChatMessage(text: text, isUser: true));
-      _isTyping = true;
-    });
     _controller.clear();
+    ref.read(chatProvider.notifier).sendMessage(text);
     _scrollToBottom();
-
-    Timer(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      setState(() {
-        _isTyping = false;
-        _messages.add(const _ChatMessage(
-          text:
-              "I understand your concern. Land dispute cases can be complex. Could you provide more details about the specific nature of the dispute and the parties involved?",
-          isUser: false,
-        ));
-      });
-      _scrollToBottom();
-    });
   }
 
   void _scrollToBottom() {
@@ -80,27 +47,58 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const ClairAppBar(chatTitle: 'Land Dispute Assistance'),
-        Expanded(
-          child: ListView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-            itemCount: _messages.length + (_isTyping ? 1 : 0),
-            itemBuilder: (context, index) {
-              if (index == _messages.length && _isTyping) {
-                return _buildTypingIndicator();
-              }
-              final msg = _messages[index];
-              return msg.isUser
-                  ? _buildUserMessage(msg.text)
-                  : _buildAiMessage(msg.text);
-            },
+    final chatState = ref.watch(chatProvider);
+
+    ref.listen<ChatState>(chatProvider, (prev, next) {
+      if (next.messages.length != (prev?.messages.length ?? 0)) {
+        _scrollToBottom();
+      }
+      if (next.error != null && prev?.error == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.error!),
+            backgroundColor: Colors.red.shade700,
+            action: SnackBarAction(
+              label: 'Dismiss',
+              textColor: Colors.white,
+              onPressed: () => ref.read(chatProvider.notifier).clearError(),
+            ),
           ),
+        );
+        ref.read(chatProvider.notifier).clearError();
+      }
+    });
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      drawer: const AppDrawer(),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const ClairAppBar(chatTitle: 'CLAiR Assistant'),
+            Expanded(
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                itemCount:
+                    chatState.messages.length + (chatState.isLoading ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index == chatState.messages.length &&
+                      chatState.isLoading) {
+                    return _buildTypingIndicator();
+                  }
+                  final msg = chatState.messages[index];
+                  return msg.isUser
+                      ? _buildUserMessage(msg.text)
+                      : _buildAiMessage(msg.text);
+                },
+              ),
+            ),
+            _buildInputBar(chatState.isLoading),
+          ],
         ),
-        _buildInputBar(),
-      ],
+      ),
     );
   }
 
@@ -266,7 +264,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildInputBar() {
+  Widget _buildInputBar(bool isLoading) {
     final bottomPad = MediaQuery.of(context).viewInsets.bottom;
     return AnimatedPadding(
       duration: const Duration(milliseconds: 150),
@@ -296,6 +294,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       controller: _controller,
                       maxLines: 4,
                       minLines: 1,
+                      enabled: !isLoading,
                       style: const TextStyle(
                         fontSize: 14,
                         color: AppColors.darkBrown,
@@ -317,19 +316,29 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
-                    onTap: _sendMessage,
+                    onTap: isLoading ? null : _sendMessage,
                     child: Container(
                       width: 34,
                       height: 34,
-                      decoration: const BoxDecoration(
-                        color: AppColors.darkBrown,
+                      decoration: BoxDecoration(
+                        color: isLoading
+                            ? AppColors.darkBrown.withOpacity(0.5)
+                            : AppColors.darkBrown,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
-                        Icons.arrow_forward_rounded,
-                        color: Colors.white,
-                        size: 18,
-                      ),
+                      child: isLoading
+                          ? const Padding(
+                              padding: EdgeInsets.all(8),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.arrow_forward_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
                     ),
                   ),
                 ],
