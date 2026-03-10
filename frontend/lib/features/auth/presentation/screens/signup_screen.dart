@@ -49,6 +49,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       _showError('Password must be at least 6 characters');
       return;
     }
+    if (!password.contains(RegExp(r'[A-Z]'))) {
+      _showError('Password must contain at least one uppercase letter');
+      return;
+    }
+    if (!password.contains(RegExp(r'[0-9]'))) {
+      _showError('Password must contain at least one number');
+      return;
+    }
     if (password != confirmPassword) {
       _showError('Passwords do not match');
       return;

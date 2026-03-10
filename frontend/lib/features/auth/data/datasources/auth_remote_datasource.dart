@@ -36,27 +36,32 @@ class AuthRemoteDataSource {
       throw AuthException('Failed to create account');
     }
 
-    await firebaseUser.sendEmailVerification();
+    try {
+      await firebaseUser.sendEmailVerification();
 
-    final idToken = await firebaseUser.getIdToken();
-    if (idToken == null) {
-      throw AuthException('Failed to get ID token');
+      final idToken = await firebaseUser.getIdToken();
+      if (idToken == null) {
+        throw AuthException('Failed to get ID token');
+      }
+
+      final response = await _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.register,
+        data: {
+          'firebase_token': idToken,
+          'first_name': firstName,
+          'last_name': lastName,
+        },
+      );
+
+      if (response.data == null) {
+        throw AuthException('Invalid response from server');
+      }
+
+      return UserEntity.fromJson(response.data!);
+    } catch (e) {
+      await firebaseUser.delete();
+      rethrow;
     }
-
-    final response = await _dio.post<Map<String, dynamic>>(
-      ApiEndpoints.register,
-      data: {
-        'firebase_token': idToken,
-        'first_name': firstName,
-        'last_name': lastName,
-      },
-    );
-
-    if (response.data == null) {
-      throw AuthException('Invalid response from server');
-    }
-
-    return UserEntity.fromJson(response.data!);
   }
 
   /// Email/password login.

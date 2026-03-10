@@ -72,9 +72,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ref.read(currentUserProvider.notifier).state = updatedUser;
 
       if (_newPasswordCtrl.text.isNotEmpty) {
+        final newPw = _newPasswordCtrl.text;
+        if (newPw.length < 6) throw Exception('Password must be at least 6 characters');
+        if (!newPw.contains(RegExp(r'[A-Z]'))) throw Exception('Password must contain at least one uppercase letter');
+        if (!newPw.contains(RegExp(r'[0-9]'))) throw Exception('Password must contain at least one number');
+        if (newPw != _confirmPasswordCtrl.text) throw Exception('Passwords do not match');
+
         await repo.changePassword(
           currentPassword: _currentPasswordCtrl.text,
-          newPassword: _newPasswordCtrl.text,
+          newPassword: newPw,
         );
         _currentPasswordCtrl.clear();
         _newPasswordCtrl.clear();
