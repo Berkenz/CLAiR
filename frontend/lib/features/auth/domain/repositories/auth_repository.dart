@@ -1,3 +1,5 @@
+import 'package:image_picker/image_picker.dart';
+
 import 'package:clair/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:clair/features/auth/domain/entities/user_entity.dart';
 
@@ -24,6 +26,8 @@ abstract class AuthRepository {
     String? photoUrl,
     String? location,
   });
+  Future<UserEntity> updateProfilePhoto(XFile file);
+  Future<UserEntity> removeProfilePhoto();
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,

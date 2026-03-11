@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     FIREBASE_SERVICE_ACCOUNT_KEY: str | None = None
     FIREBASE_WEB_API_KEY: str | None = None
     GEMINI_API_KEY: str | None = None
+    SUPABASE_URL: str | None = None
+    SUPABASE_SERVICE_ROLE_KEY: str | None = None
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
     ENVIRONMENT: str = "development"
     DEBUG: bool = False

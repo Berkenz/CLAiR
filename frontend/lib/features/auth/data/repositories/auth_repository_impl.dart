@@ -1,3 +1,5 @@
+import 'package:image_picker/image_picker.dart';
+
 import 'package:clair/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:clair/features/auth/domain/entities/user_entity.dart';
 import 'package:clair/features/auth/domain/repositories/auth_repository.dart';
@@ -58,6 +60,14 @@ class AuthRepositoryImpl implements AuthRepository {
         photoUrl: photoUrl,
         location: location,
       );
+
+  @override
+  Future<UserEntity> updateProfilePhoto(XFile file) =>
+      _remote.uploadProfilePhoto(file);
+
+  @override
+  Future<UserEntity> removeProfilePhoto() =>
+      _remote.updateProfile(photoUrl: '');
 
   @override
   Future<void> changePassword({

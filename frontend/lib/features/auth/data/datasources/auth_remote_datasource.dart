@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:clair/core/network/api_endpoints.dart';
 import 'package:clair/features/auth/domain/entities/user_entity.dart';
@@ -26,17 +27,18 @@ class AuthRemoteDataSource {
     required String firstName,
     required String lastName,
   }) async {
-    final credential = await _firebaseAuth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    final firebaseUser = credential.user;
-    if (firebaseUser == null) {
-      throw AuthException('Failed to create account');
-    }
-
+    User? firebaseUser;
     try {
+      final credential = await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      firebaseUser = credential.user;
+      if (firebaseUser == null) {
+        throw AuthException('Failed to create account');
+      }
+
       await firebaseUser.sendEmailVerification();
 
       final idToken = await firebaseUser.getIdToken();
@@ -59,7 +61,11 @@ class AuthRemoteDataSource {
 
       return UserEntity.fromJson(response.data!);
     } catch (e) {
-      await firebaseUser.delete();
+      if (firebaseUser != null) {
+        try {
+          await firebaseUser.delete();
+        } catch (_) {}
+      }
       rethrow;
     }
   }
@@ -214,6 +220,27 @@ class AuthRemoteDataSource {
     final response = await _dio.patch<Map<String, dynamic>>(
       ApiEndpoints.updateProfile,
       data: data,
+    );
+
+    if (response.data == null) {
+      throw AuthException('Invalid response from server');
+    }
+
+    return UserEntity.fromJson(response.data!);
+  }
+
+  /// Upload a profile photo via backend (Supabase Storage) and return updated user.
+  Future<UserEntity> uploadProfilePhoto(XFile file) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(
+        file.path,
+        filename: file.name,
+      ),
+    });
+
+    final response = await _dio.post<Map<String, dynamic>>(
+      ApiEndpoints.uploadProfilePhoto,
+      data: formData,
     );
 
     if (response.data == null) {

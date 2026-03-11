@@ -1,11 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
 from app.schemas.user import UserResponse, UserUpdate
+from app.services.storage_service import upload_profile_photo
 from app.services.user_service import user_service
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -26,4 +27,28 @@ async def update_current_user_profile(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> User:
     """Update current user profile (protected)."""
+    return await user_service.update_user(db, current_user.id, update_data)
+
+
+@router.post("/me/photo", response_model=UserResponse)
+async def upload_profile_photo_endpoint(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    file: Annotated[UploadFile, File()],
+) -> User:
+    """Upload profile photo to Supabase Storage and update user."""
+    content_type = file.content_type or "image/jpeg"
+    if not content_type.startswith("image/"):
+        raise HTTPException(400, "File must be an image ( JPEG, PNG, WebP, or GIF )")
+
+    content = await file.read()
+
+    try:
+        photo_url = upload_profile_photo(
+            str(current_user.id), content, content_type
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    update_data = UserUpdate(photo_url=photo_url)
     return await user_service.update_user(db, current_user.id, update_data)

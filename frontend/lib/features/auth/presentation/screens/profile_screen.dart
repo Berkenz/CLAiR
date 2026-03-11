@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
@@ -217,13 +218,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           label: 'New Password',
                           controller: _newPasswordCtrl,
                           icon: Icons.lock_outline_rounded,
-                          hint: 'Min. 8 characters',
+                          hint: 'Min. 6 chars, 1 uppercase, 1 number',
                           obscure: _obscureNew,
                           onToggleObscure: () =>
                               setState(() => _obscureNew = !_obscureNew),
                           validator: (v) {
                             if (v == null || v.isEmpty) return null;
-                            if (v.length < 8) return 'At least 8 characters';
+                            if (v.length < 6) return 'At least 6 characters';
+                            if (!v.contains(RegExp(r'[A-Z]'))) {
+                              return 'Must contain one uppercase letter';
+                            }
+                            if (!v.contains(RegExp(r'[0-9]'))) {
+                              return 'Must contain one number';
+                            }
                             return null;
                           },
                         ),
@@ -265,8 +272,98 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => _PhotoPickerSheet(),
+      builder: (_) => _PhotoPickerSheet(
+        onTakePhoto: () => _handlePhotoFromSource(ImageSource.camera),
+        onChooseFromGallery: () =>
+            _handlePhotoFromSource(ImageSource.gallery),
+        onRemovePhoto: _handleRemovePhoto,
+      ),
     );
+  }
+
+  Future<void> _handlePhotoFromSource(ImageSource source) async {
+    Navigator.pop(context);
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: source,
+      maxWidth: 1024,
+      imageQuality: 85,
+    );
+    if (file == null || !mounted) return;
+    setState(() => _isSaving = true);
+    try {
+      final repo = ref.read(authRepositoryProvider);
+      final updatedUser = await repo.updateProfilePhoto(file);
+      if (mounted) {
+        ref.read(currentUserProvider.notifier).state = updatedUser;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Profile photo updated.',
+              style:
+                  TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w500),
+            ),
+            backgroundColor: AppColors.darkBrown,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload photo: ${e.toString()}'),
+            backgroundColor: AppColors.crimson,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _handleRemovePhoto() async {
+    Navigator.pop(context);
+    setState(() => _isSaving = true);
+    try {
+      final repo = ref.read(authRepositoryProvider);
+      final updatedUser = await repo.removeProfilePhoto();
+      if (mounted) {
+        ref.read(currentUserProvider.notifier).state = updatedUser;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Profile photo removed.',
+              style:
+                  TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w500),
+            ),
+            backgroundColor: AppColors.darkBrown,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to remove photo: ${e.toString()}'),
+            backgroundColor: AppColors.crimson,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 }
 
@@ -651,6 +748,16 @@ class _SaveButton extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _PhotoPickerSheet extends StatelessWidget {
+  final VoidCallback onTakePhoto;
+  final VoidCallback onChooseFromGallery;
+  final VoidCallback onRemovePhoto;
+
+  const _PhotoPickerSheet({
+    required this.onTakePhoto,
+    required this.onChooseFromGallery,
+    required this.onRemovePhoto,
+  });
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -686,10 +793,7 @@ class _PhotoPickerSheet extends StatelessWidget {
           _PhotoOption(
             icon: Icons.camera_alt_rounded,
             label: 'Take a Photo',
-            onTap: () {
-              Navigator.pop(context);
-              // TODO: ImagePicker(source: ImageSource.camera)
-            },
+            onTap: onTakePhoto,
           ),
           Divider(
               height: 1,
@@ -698,10 +802,7 @@ class _PhotoPickerSheet extends StatelessWidget {
           _PhotoOption(
             icon: Icons.photo_library_outlined,
             label: 'Choose from Gallery',
-            onTap: () {
-              Navigator.pop(context);
-              // TODO: ImagePicker(source: ImageSource.gallery)
-            },
+            onTap: onChooseFromGallery,
           ),
           Divider(
               height: 1,
@@ -711,10 +812,7 @@ class _PhotoPickerSheet extends StatelessWidget {
             icon: Icons.delete_outline_rounded,
             label: 'Remove Photo',
             isDestructive: true,
-            onTap: () {
-              Navigator.pop(context);
-              // TODO: clear photoUrl from user profile
-            },
+            onTap: onRemovePhoto,
           ),
           const SizedBox(height: 16),
         ],
