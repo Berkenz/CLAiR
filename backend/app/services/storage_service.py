@@ -1,7 +1,5 @@
 """Supabase Storage service for profile photos."""
 
-from io import BytesIO
-
 from supabase import create_client, Client
 
 from app.config import settings
@@ -44,7 +42,7 @@ def upload_profile_photo(user_id: str, content: bytes, content_type: str) -> str
 
     client.storage.from_(BUCKET).upload(
         path,
-        BytesIO(content),
+        content,
         file_options={"content-type": content_type, "upsert": "true"},
     )
 

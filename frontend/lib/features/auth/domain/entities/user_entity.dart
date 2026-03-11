@@ -40,7 +40,9 @@ class UserEntity {
       email: json['email'] as String?,
       firstName: json['first_name'] as String?,
       lastName: json['last_name'] as String?,
-      photoUrl: json['photo_url'] as String?,
+      photoUrl: (json['photo_url'] as String?)?.isNotEmpty == true
+          ? json['photo_url'] as String
+          : null,
       location: json['location'] as String?,
       authProvider: json['auth_provider'] as String? ?? 'email',
       isEmailVerified: json['is_email_verified'] as bool? ?? false,

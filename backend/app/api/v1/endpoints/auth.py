@@ -47,6 +47,13 @@ async def register(
             detail="User already registered",
         )
 
+    existing_by_email = await user_service.get_user_by_email(db, email)
+    if existing_by_email:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email already exists",
+        )
+
     user = await user_service.create_user(
         db,
         firebase_uid=firebase_uid,
@@ -137,10 +144,21 @@ async def google_complete(
 
     existing = await user_service.get_user_by_firebase_uid(db, firebase_uid)
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="User already registered",
-        )
+        return existing
+
+    if email:
+        existing_by_email = await user_service.get_user_by_email(db, email)
+        if existing_by_email:
+            existing_by_email.firebase_uid = firebase_uid
+            existing_by_email.auth_provider = "google"
+            existing_by_email.is_email_verified = True
+            existing_by_email.first_name = body.first_name
+            existing_by_email.last_name = body.last_name
+            if photo_url:
+                existing_by_email.photo_url = photo_url
+            await db.flush()
+            await db.refresh(existing_by_email)
+            return existing_by_email
 
     user = await user_service.create_user(
         db,

@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
 from app.schemas.user import UserResponse, UserUpdate
-from app.services.storage_service import upload_profile_photo
 from app.services.user_service import user_service
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -52,6 +51,8 @@ async def upload_profile_photo_endpoint(
         raise HTTPException(400, "File is empty")
 
     try:
+        from app.services.storage_service import upload_profile_photo
+
         photo_url = upload_profile_photo(
             str(current_user.id), content, content_type
         )
