@@ -269,6 +269,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _pickPhoto() {
+    final user = ref.read(currentUserProvider);
+    final hasPhoto = (user?.photoUrl ?? '').trim().isNotEmpty;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -276,7 +278,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         onTakePhoto: () => _handlePhotoFromSource(ImageSource.camera),
         onChooseFromGallery: () =>
             _handlePhotoFromSource(ImageSource.gallery),
-        onRemovePhoto: _handleRemovePhoto,
+        onRemovePhoto: hasPhoto ? _handleRemovePhoto : null,
       ),
     );
   }
@@ -750,12 +752,12 @@ class _SaveButton extends StatelessWidget {
 class _PhotoPickerSheet extends StatelessWidget {
   final VoidCallback onTakePhoto;
   final VoidCallback onChooseFromGallery;
-  final VoidCallback onRemovePhoto;
+  final VoidCallback? onRemovePhoto;
 
   const _PhotoPickerSheet({
     required this.onTakePhoto,
     required this.onChooseFromGallery,
-    required this.onRemovePhoto,
+    this.onRemovePhoto,
   });
 
   @override
@@ -804,16 +806,18 @@ class _PhotoPickerSheet extends StatelessWidget {
             label: 'Choose from Gallery',
             onTap: onChooseFromGallery,
           ),
-          Divider(
-              height: 1,
-              indent: 60,
-              color: AppColors.darkBrown.withOpacity(0.07)),
-          _PhotoOption(
-            icon: Icons.delete_outline_rounded,
-            label: 'Remove Photo',
-            isDestructive: true,
-            onTap: onRemovePhoto,
-          ),
+          if (onRemovePhoto != null) ...[
+            Divider(
+                height: 1,
+                indent: 60,
+                color: AppColors.darkBrown.withOpacity(0.07)),
+            _PhotoOption(
+              icon: Icons.delete_outline_rounded,
+              label: 'Remove Photo',
+              isDestructive: true,
+              onTap: onRemovePhoto!,
+            ),
+          ],
           const SizedBox(height: 16),
         ],
       ),
