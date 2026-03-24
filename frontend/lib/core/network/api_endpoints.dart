@@ -11,4 +11,7 @@ class ApiEndpoints {
   static const String uploadProfilePhoto = '/users/me/photo';
 
   static const String chatSend = '/chat/send';
+
+  static const String conversations = '/conversations';
+  static String conversationDetail(String id) => '/conversations/$id';
 }

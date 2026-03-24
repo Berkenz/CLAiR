@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/home/presentation/screens/home_screen.dart';
@@ -6,16 +7,16 @@ import 'package:clair/features/chat/presentation/screens/chat_screen.dart';
 import 'package:clair/features/history/presentation/screens/history_screen.dart';
 import 'package:clair/shared/widgets/app_drawer.dart';
 
-class MainShell extends StatefulWidget {
+final mainShellTabProvider = StateProvider<int>((ref) => 0);
+
+class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
 
   @override
-  State<MainShell> createState() => _MainShellState();
+  ConsumerState<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
-  int _currentIndex = 0;
-
+class _MainShellState extends ConsumerState<MainShell> {
   static const _icons = [
     Icons.home_rounded,
     Icons.chat_bubble_rounded,
@@ -26,6 +27,8 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final currentIndex = ref.watch(mainShellTabProvider);
+
     return Scaffold(
       backgroundColor: Colors.white,
       resizeToAvoidBottomInset: true,
@@ -33,7 +36,7 @@ class _MainShellState extends State<MainShell> {
       body: SafeArea(
         bottom: false,
         child: IndexedStack(
-          index: _currentIndex,
+          index: currentIndex,
           children: const [
             HomeScreen(),
             ChatScreen(),
@@ -41,11 +44,11 @@ class _MainShellState extends State<MainShell> {
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: _buildBottomNav(currentIndex),
     );
   }
 
-  Widget _buildBottomNav() {
+  Widget _buildBottomNav(int currentIndex) {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
@@ -66,7 +69,7 @@ class _MainShellState extends State<MainShell> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(
               3,
-              (i) => _buildNavItem(i),
+              (i) => _buildNavItem(i, currentIndex),
             ),
           ),
         ),
@@ -74,10 +77,10 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  Widget _buildNavItem(int index) {
-    final isActive = _currentIndex == index;
+  Widget _buildNavItem(int index, int currentIndex) {
+    final isActive = currentIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () => ref.read(mainShellTabProvider.notifier).state = index,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeInOut,

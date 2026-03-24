@@ -4,6 +4,9 @@ import 'package:clair/features/chat/data/datasources/chat_remote_datasource.dart
 import 'package:clair/features/chat/data/repositories/chat_repository_impl.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/chat/domain/repositories/chat_repository.dart';
+import 'package:clair/features/history/data/datasources/history_remote_datasource.dart';
+import 'package:clair/features/history/data/repositories/history_repository_impl.dart';
+import 'package:clair/features/history/domain/repositories/history_repository.dart';
 import 'package:clair/shared/providers/shared_providers.dart';
 
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {
@@ -12,10 +15,18 @@ final chatRepositoryProvider = Provider<ChatRepository>((ref) {
   return ChatRepositoryImpl(remoteDataSource: remoteDataSource);
 });
 
+final _historyRepoProvider = Provider<HistoryRepository>((ref) {
+  final apiClient = ref.watch(apiClientProvider);
+  final remoteDataSource = HistoryRemoteDataSource(dio: apiClient.dio);
+  return HistoryRepositoryImpl(remoteDataSource: remoteDataSource);
+});
+
 class ChatNotifier extends StateNotifier<ChatState> {
-  ChatNotifier(this._repository) : super(ChatState.initial());
+  ChatNotifier(this._repository, this._historyRepository)
+      : super(ChatState.initial());
 
   final ChatRepository _repository;
+  final HistoryRepository _historyRepository;
 
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty || state.isLoading) return;
@@ -28,14 +39,34 @@ class ChatNotifier extends StateNotifier<ChatState> {
     );
 
     try {
-      final reply = await _repository.sendMessage(
+      final response = await _repository.sendMessage(
         message: text.trim(),
         history: state.messages.where((m) => m != userMessage).toList(),
+        conversationId: state.conversationId,
       );
 
-      final aiMessage = ChatMessageEntity(text: reply, isUser: false);
+      final aiMessage = ChatMessageEntity(text: response.reply, isUser: false);
       state = state.copyWith(
         messages: [...state.messages, aiMessage],
+        isLoading: false,
+        conversationId: response.conversationId,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+    }
+  }
+
+  Future<void> loadConversation(String conversationId) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final messages =
+          await _historyRepository.getConversationMessages(conversationId);
+      state = state.copyWith(
+        messages: messages,
+        conversationId: conversationId,
         isLoading: false,
       );
     } catch (e) {
@@ -59,11 +90,13 @@ class ChatState {
   final List<ChatMessageEntity> messages;
   final bool isLoading;
   final String? error;
+  final String? conversationId;
 
   const ChatState({
     required this.messages,
     required this.isLoading,
     this.error,
+    this.conversationId,
   });
 
   factory ChatState.initial() => const ChatState(
@@ -80,15 +113,18 @@ class ChatState {
     List<ChatMessageEntity>? messages,
     bool? isLoading,
     String? error,
+    String? conversationId,
   }) =>
       ChatState(
         messages: messages ?? this.messages,
         isLoading: isLoading ?? this.isLoading,
         error: error ?? this.error,
+        conversationId: conversationId ?? this.conversationId,
       );
 }
 
 final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>((ref) {
   final repository = ref.watch(chatRepositoryProvider);
-  return ChatNotifier(repository);
+  final historyRepository = ref.watch(_historyRepoProvider);
+  return ChatNotifier(repository, historyRepository);
 });

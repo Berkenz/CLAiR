@@ -1,57 +1,98 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
+import 'package:clair/app/main_shell.dart';
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
+import 'package:clair/features/history/domain/entities/conversation_entity.dart';
+import 'package:clair/features/history/presentation/providers/history_provider.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 
-class _Conversation {
-  final String title;
-  final String lastMessageDate;
-
-  const _Conversation({required this.title, required this.lastMessageDate});
-}
-
-class HistoryScreen extends StatefulWidget {
+class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
 
   @override
-  State<HistoryScreen> createState() => _HistoryScreenState();
+  ConsumerState<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> {
-  final List<_Conversation> _conversations = [
-    const _Conversation(
-      title: 'Land Dispute Assistance',
-      lastMessageDate: 'March 6, 2026',
-    ),
-    const _Conversation(
-      title: 'Vehicular Accident Settlement',
-      lastMessageDate: 'January 6, 2026',
-    ),
-  ];
+class _HistoryScreenState extends ConsumerState<HistoryScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(
+      () => ref.read(historyProvider.notifier).loadConversations(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(mainShellTabProvider, (prev, next) {
+      if (next == 2) {
+        ref.read(historyProvider.notifier).loadConversations();
+      }
+    });
+
+    final state = ref.watch(historyProvider);
+
+    ref.listen<HistoryState>(historyProvider, (prev, next) {
+      if (next.error != null && prev?.error == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.error!),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+        ref.read(historyProvider.notifier).clearError();
+      }
+    });
+
     return Column(
       children: [
         const ClairAppBar(),
-        Expanded(
-          child: _conversations.isEmpty
-              ? _buildEmptyState()
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                  itemCount: _conversations.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) =>
-                      _buildConversationCard(_conversations[index], index),
-                ),
-        ),
+        Expanded(child: _buildBody(state)),
       ],
     );
   }
 
-  Widget _buildConversationCard(_Conversation conversation, int index) {
+  void _openConversation(ConversationEntity conversation) {
+    ref.read(chatProvider.notifier).loadConversation(conversation.id);
+    ref.read(mainShellTabProvider.notifier).state = 1;
+  }
+
+  void _deleteConversation(String id) {
+    ref.read(historyProvider.notifier).deleteConversation(id);
+  }
+
+  Widget _buildBody(HistoryState state) {
+    if (state.isLoading && state.conversations.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.darkBrown),
+      );
+    }
+
+    if (state.conversations.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return RefreshIndicator(
+      color: AppColors.darkBrown,
+      onRefresh: () => ref.read(historyProvider.notifier).loadConversations(),
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        itemCount: state.conversations.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (context, index) =>
+            _buildConversationCard(state.conversations[index]),
+      ),
+    );
+  }
+
+  Widget _buildConversationCard(ConversationEntity conversation) {
+    final dateStr = _formatDate(conversation.updatedAt ?? conversation.createdAt);
+
     return GestureDetector(
-      onTap: () {},
+      onTap: () => _openConversation(conversation),
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
         decoration: BoxDecoration(
@@ -79,10 +120,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       color: AppColors.darkBrown,
                       fontFamily: 'Satoshi',
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Last message: ${conversation.lastMessageDate}',
+                    'Last message: $dateStr',
                     style: TextStyle(
                       fontSize: 12,
                       color: AppColors.darkBrown.withOpacity(0.45),
@@ -93,9 +136,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
             ),
             IconButton(
-              onPressed: () {
-                setState(() => _conversations.removeAt(index));
-              },
+              onPressed: () => _confirmDelete(conversation),
               icon: Icon(
                 Icons.delete_outline_rounded,
                 color: AppColors.darkBrown.withOpacity(0.45),
@@ -105,6 +146,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _confirmDelete(ConversationEntity conversation) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Delete conversation?',
+          style: TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w600),
+        ),
+        content: const Text(
+          'This will permanently delete this conversation and all its messages.',
+          style: TextStyle(fontFamily: 'Satoshi'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel',
+                style: TextStyle(color: AppColors.darkBrown)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _deleteConversation(conversation.id);
+            },
+            child: Text('Delete',
+                style: TextStyle(color: Colors.red.shade700)),
+          ),
+        ],
       ),
     );
   }
@@ -129,8 +201,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
               fontWeight: FontWeight.w500,
             ),
           ),
+          const SizedBox(height: 8),
+          Text(
+            'Start a chat and your conversations will appear here',
+            style: TextStyle(
+              fontSize: 13,
+              color: AppColors.darkBrown.withOpacity(0.3),
+              fontFamily: 'Satoshi',
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+
+    if (diff.inDays == 0) return 'Today';
+    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays < 7) return '${diff.inDays} days ago';
+    return DateFormat('MMMM d, y').format(date);
   }
 }

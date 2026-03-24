@@ -9,7 +9,7 @@ from alembic import context
 
 from app.config import settings
 from app.database import Base
-from app.models import User  # noqa: F401 - Import models for metadata
+from app.models import User, Conversation, Message  # noqa: F401 - Import models for metadata
 
 config = context.config
 

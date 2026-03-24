@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
@@ -149,13 +150,64 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       ),
                     ],
                   ),
-                  child: Text(
-                    text,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.darkBrown,
-                      fontFamily: 'Satoshi',
-                      height: 1.5,
+                  child: MarkdownBody(
+                    data: text,
+                    selectable: true,
+                    styleSheet: MarkdownStyleSheet(
+                      p: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.darkBrown,
+                        fontFamily: 'Satoshi',
+                        height: 1.5,
+                      ),
+                      strong: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.darkBrown,
+                        fontFamily: 'Satoshi',
+                        fontWeight: FontWeight.w700,
+                        height: 1.5,
+                      ),
+                      em: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.darkBrown,
+                        fontFamily: 'Satoshi',
+                        fontStyle: FontStyle.italic,
+                        height: 1.5,
+                      ),
+                      h3: const TextStyle(
+                        fontSize: 16,
+                        color: AppColors.darkBrown,
+                        fontFamily: 'Satoshi',
+                        fontWeight: FontWeight.w700,
+                        height: 1.4,
+                      ),
+                      listBullet: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.darkBrown,
+                        fontFamily: 'Satoshi',
+                        height: 1.5,
+                      ),
+                      blockquoteDecoration: BoxDecoration(
+                        border: Border(
+                          left: BorderSide(
+                            color: AppColors.crimson.withOpacity(0.5),
+                            width: 3,
+                          ),
+                        ),
+                      ),
+                      blockquotePadding: const EdgeInsets.only(left: 12, top: 4, bottom: 4),
+                      blockSpacing: 10,
+                      code: TextStyle(
+                        fontSize: 13,
+                        fontFamily: 'monospace',
+                        color: AppColors.crimson,
+                        backgroundColor: AppColors.tan.withOpacity(0.2),
+                      ),
+                      codeblockDecoration: BoxDecoration(
+                        color: AppColors.darkBrown.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      codeblockPadding: const EdgeInsets.all(12),
                     ),
                   ),
                 ),
