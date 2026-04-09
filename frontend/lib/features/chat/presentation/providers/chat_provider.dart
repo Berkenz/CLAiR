@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:clair/features/chat/data/datasources/chat_remote_datasource.dart';
@@ -122,6 +124,17 @@ class ChatNotifier extends StateNotifier<ChatState> {
       state = ChatState.initial();
     } catch (e) {
       state = state.copyWith(error: e.toString());
+    }
+  }
+
+  Future<Uint8List?> downloadPdf() async {
+    final id = state.conversationId;
+    if (id == null) return null;
+    try {
+      return await _historyRepository.downloadPdf(id);
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return null;
     }
   }
 

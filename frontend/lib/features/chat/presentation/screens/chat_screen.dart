@@ -1,8 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/shared/widgets/app_drawer.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
@@ -129,6 +134,43 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  Future<void> _generatePdf() async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Generating PDF summary...'),
+        backgroundColor: AppColors.darkBrown,
+        duration: Duration(seconds: 10),
+      ),
+    );
+
+    final bytes = await ref.read(chatProvider.notifier).downloadPdf();
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    if (bytes == null) return;
+
+    try {
+      final dir = await getTemporaryDirectory();
+      final title = ref.read(chatProvider).conversationTitle ?? 'conversation';
+      final safeName = title.replaceAll(RegExp(r'[^\w\s-]'), '_').trim();
+      final file = File('${dir.path}/CLAiR_$safeName.pdf');
+      await file.writeAsBytes(bytes);
+
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)]),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to save PDF: $e'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -166,6 +208,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
 
     final hasConversation = chatState.conversationId != null;
+    final user = ref.watch(currentUserProvider);
+    final isRegistered = user != null && !user.isAnonymous;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -203,6 +247,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     elevation: 4,
                     onSelected: (value) {
                       switch (value) {
+                        case 'pdf':
+                          _generatePdf();
+                          break;
                         case 'pin':
                           ref.read(chatProvider.notifier).toggleCurrentPin();
                           break;
@@ -216,6 +263,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       }
                     },
                     itemBuilder: (_) => [
+                      if (isRegistered)
+                        const PopupMenuItem(
+                          value: 'pdf',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.picture_as_pdf_rounded,
+                                size: 18,
+                                color: AppColors.darkBrown,
+                              ),
+                              SizedBox(width: 12),
+                              Text(
+                                'Generate PDF',
+                                style: TextStyle(
+                                  fontFamily: 'Satoshi',
+                                  color: AppColors.darkBrown,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       PopupMenuItem(
                         value: 'pin',
                         child: Row(

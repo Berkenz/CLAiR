@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 
 import 'package:clair/core/network/api_endpoints.dart';
@@ -67,6 +69,18 @@ class HistoryRemoteDataSource {
       );
 
       return ConversationEntity.fromJson(response.data!);
+    } on DioException catch (e) {
+      throw HistoryException(_extractError(e));
+    }
+  }
+
+  Future<Uint8List> downloadPdf(String conversationId) async {
+    try {
+      final response = await _dio.get<List<int>>(
+        ApiEndpoints.conversationPdf(conversationId),
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return Uint8List.fromList(response.data!);
     } on DioException catch (e) {
       throw HistoryException(_extractError(e));
     }

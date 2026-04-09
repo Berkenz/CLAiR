@@ -15,4 +15,5 @@ class ApiEndpoints {
   static const String conversations = '/conversations';
   static String conversationDetail(String id) => '/conversations/$id';
   static String conversationUpdate(String id) => '/conversations/$id';
+  static String conversationPdf(String id) => '/conversations/$id/pdf';
 }
