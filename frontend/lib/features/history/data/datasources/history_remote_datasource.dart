@@ -51,6 +51,27 @@ class HistoryRemoteDataSource {
     }
   }
 
+  Future<ConversationEntity> updateConversation(
+    String conversationId, {
+    String? title,
+    bool? isPinned,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (title != null) body['title'] = title;
+      if (isPinned != null) body['is_pinned'] = isPinned;
+
+      final response = await _dio.patch<Map<String, dynamic>>(
+        ApiEndpoints.conversationUpdate(conversationId),
+        data: body,
+      );
+
+      return ConversationEntity.fromJson(response.data!);
+    } on DioException catch (e) {
+      throw HistoryException(_extractError(e));
+    }
+  }
+
   Future<void> deleteConversation(String conversationId) async {
     try {
       await _dio.delete<void>(

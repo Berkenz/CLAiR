@@ -20,6 +20,14 @@ class HistoryRepositoryImpl implements HistoryRepository {
       _remote.getConversationMessages(conversationId);
 
   @override
+  Future<ConversationEntity> updateConversation(
+    String conversationId, {
+    String? title,
+    bool? isPinned,
+  }) =>
+      _remote.updateConversation(conversationId, title: title, isPinned: isPinned);
+
+  @override
   Future<void> deleteConversation(String conversationId) =>
       _remote.deleteConversation(conversationId);
 }

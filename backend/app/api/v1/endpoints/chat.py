@@ -48,24 +48,29 @@ async def send_message(
             db, conversation_id=conv.id, role="model", text=reply
         )
 
+        conversation_title = conv.title
         if is_new_conversation:
             stripped = body.message.strip()
             if len(stripped) <= MAX_FALLBACK_TITLE_LENGTH:
                 fallback = stripped
             else:
                 fallback = f"{stripped[:197]}..."
-            generated = await generate_conversation_title(
+            conversation_title = await generate_conversation_title(
                 body.message,
                 reply,
                 fallback_title=fallback,
             )
             await conversation_service.update_conversation_title(
-                db, conv.id, generated
+                db, conv.id, conversation_title
             )
 
         await conversation_service.touch_conversation(db, conv.id)
 
-        return ChatResponse(reply=reply, conversation_id=conv.id)
+        return ChatResponse(
+            reply=reply,
+            conversation_id=conv.id,
+            conversation_title=conversation_title,
+        )
 
     except HTTPException:
         raise

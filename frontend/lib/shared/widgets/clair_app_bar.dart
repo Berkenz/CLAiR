@@ -7,8 +7,9 @@ import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 
 class ClairAppBar extends ConsumerWidget {
   final String? chatTitle;
+  final List<Widget>? actions;
 
-  const ClairAppBar({super.key, this.chatTitle});
+  const ClairAppBar({super.key, this.chatTitle, this.actions});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -65,6 +66,9 @@ class ClairAppBar extends ConsumerWidget {
                 ),
               ),
 
+              // ── Optional action buttons ───────────────────────
+              if (actions != null) ...actions!,
+
               // ── Avatar → Profile Screen ────────────────────────
               GestureDetector(
                 onTap: () => context.push('/profile'),
@@ -109,16 +113,18 @@ class ClairAppBar extends ConsumerWidget {
           if (chatTitle != null) ...[
             const SizedBox(height: 2),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
                 chatTitle!,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.darkBrown,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.darkBrown.withOpacity(0.65),
                   fontFamily: 'Satoshi',
                 ),
                 textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             const SizedBox(height: 4),

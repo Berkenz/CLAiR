@@ -67,7 +67,7 @@ class ConversationService:
         result = await db.execute(
             select(Conversation)
             .where(Conversation.user_id == user_id)
-            .order_by(Conversation.updated_at.desc())
+            .order_by(Conversation.is_pinned.desc(), Conversation.updated_at.desc())
         )
         return list(result.scalars().all())
 
@@ -86,6 +86,32 @@ class ConversationService:
             .options(selectinload(Conversation.messages))
         )
         return result.scalar_one_or_none()
+
+    async def update_conversation(
+        self,
+        db: AsyncSession,
+        conversation_id: uuid.UUID,
+        user_id: uuid.UUID,
+        *,
+        title: str | None = None,
+        is_pinned: bool | None = None,
+    ) -> Conversation | None:
+        result = await db.execute(
+            select(Conversation).where(
+                Conversation.id == conversation_id,
+                Conversation.user_id == user_id,
+            )
+        )
+        conv = result.scalar_one_or_none()
+        if not conv:
+            return None
+        if title is not None:
+            conv.title = title[:200]
+        if is_pinned is not None:
+            conv.is_pinned = is_pinned
+        await db.flush()
+        await db.refresh(conv)
+        return conv
 
     async def delete_conversation(
         self,

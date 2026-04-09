@@ -10,6 +10,7 @@ from app.schemas.conversation import (
     ConversationDetail,
     ConversationListResponse,
     ConversationSummary,
+    ConversationUpdate,
 )
 from app.services.conversation_service import conversation_service
 
@@ -44,6 +45,28 @@ async def get_conversation(
             detail="Conversation not found",
         )
     return conv
+
+
+@router.patch("/{conversation_id}", response_model=ConversationSummary)
+async def update_conversation(
+    conversation_id: uuid.UUID,
+    body: ConversationUpdate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    conv = await conversation_service.update_conversation(
+        db,
+        conversation_id,
+        current_user.id,
+        title=body.title,
+        is_pinned=body.is_pinned,
+    )
+    if not conv:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found",
+        )
+    return ConversationSummary.model_validate(conv)
 
 
 @router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)

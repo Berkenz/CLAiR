@@ -39,6 +39,8 @@ class ChatRemoteDataSource {
       return ChatResponseEntity(
         reply: replyText,
         conversationId: response.data!['conversation_id'] as String,
+        conversationTitle:
+            response.data!['conversation_title'] as String? ?? '',
       );
     } on DioException catch (e) {
       final data = e.response?.data;

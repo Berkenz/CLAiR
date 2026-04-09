@@ -56,12 +56,20 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   void _openConversation(ConversationEntity conversation) {
-    ref.read(chatProvider.notifier).loadConversation(conversation.id);
+    ref.read(chatProvider.notifier).loadConversation(
+          conversation.id,
+          title: conversation.title,
+          isPinned: conversation.isPinned,
+        );
     ref.read(mainShellTabProvider.notifier).state = 1;
   }
 
   void _deleteConversation(String id) {
     ref.read(historyProvider.notifier).deleteConversation(id);
+  }
+
+  void _togglePin(String id) {
+    ref.read(historyProvider.notifier).togglePin(id);
   }
 
   Widget _buildBody(HistoryState state) {
@@ -94,7 +102,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     return GestureDetector(
       onTap: () => _openConversation(conversation),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
+        padding: const EdgeInsets.fromLTRB(20, 16, 4, 16),
         decoration: BoxDecoration(
           color: AppColors.offWhite,
           borderRadius: BorderRadius.circular(16),
@@ -108,6 +116,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         ),
         child: Row(
           children: [
+            if (conversation.isPinned)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Icon(
+                  Icons.push_pin_rounded,
+                  size: 16,
+                  color: AppColors.darkBrown.withOpacity(0.5),
+                ),
+              ),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -135,17 +152,154 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 ],
               ),
             ),
-            IconButton(
-              onPressed: () => _confirmDelete(conversation),
+            PopupMenuButton<String>(
               icon: Icon(
-                Icons.delete_outline_rounded,
+                Icons.more_vert_rounded,
                 color: AppColors.darkBrown.withOpacity(0.45),
                 size: 20,
               ),
               splashRadius: 20,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              color: AppColors.offWhite,
+              elevation: 4,
+              onSelected: (value) {
+                switch (value) {
+                  case 'pin':
+                    _togglePin(conversation.id);
+                    break;
+                  case 'rename':
+                    _showRenameDialog(conversation);
+                    break;
+                  case 'delete':
+                    _confirmDelete(conversation);
+                    break;
+                }
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'pin',
+                  child: Row(
+                    children: [
+                      Icon(
+                        conversation.isPinned
+                            ? Icons.push_pin_outlined
+                            : Icons.push_pin_rounded,
+                        size: 18,
+                        color: AppColors.darkBrown,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        conversation.isPinned ? 'Unpin' : 'Pin',
+                        style: const TextStyle(
+                          fontFamily: 'Satoshi',
+                          color: AppColors.darkBrown,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'rename',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.edit_outlined,
+                        size: 18,
+                        color: AppColors.darkBrown,
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Rename',
+                        style: TextStyle(
+                          fontFamily: 'Satoshi',
+                          color: AppColors.darkBrown,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.delete_outline_rounded,
+                        size: 18,
+                        color: Colors.red.shade700,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Delete',
+                        style: TextStyle(
+                          fontFamily: 'Satoshi',
+                          color: Colors.red.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showRenameDialog(ConversationEntity conversation) {
+    final controller = TextEditingController(text: conversation.title);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Rename conversation',
+          style: TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w600),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 200,
+          style: const TextStyle(fontFamily: 'Satoshi'),
+          decoration: InputDecoration(
+            hintText: 'Enter new title',
+            hintStyle: TextStyle(
+              fontFamily: 'Satoshi',
+              color: AppColors.darkBrown.withOpacity(0.4),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.darkBrown, width: 1.5),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel',
+                style: TextStyle(color: AppColors.darkBrown, fontFamily: 'Satoshi')),
+          ),
+          TextButton(
+            onPressed: () {
+              final newTitle = controller.text.trim();
+              if (newTitle.isNotEmpty && newTitle != conversation.title) {
+                ref.read(historyProvider.notifier).renameConversation(
+                      conversation.id, newTitle);
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('Rename',
+                style: TextStyle(
+                    color: AppColors.darkBrown,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Satoshi')),
+          ),
+        ],
       ),
     );
   }
@@ -154,6 +308,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           'Delete conversation?',
           style: TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w600),

@@ -34,6 +34,101 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _scrollToBottom();
   }
 
+  void _newChat() {
+    ref.read(chatProvider.notifier).reset();
+  }
+
+  void _showRenameDialog(String currentTitle) {
+    final controller = TextEditingController(text: currentTitle);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Rename conversation',
+          style: TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w600),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 200,
+          style: const TextStyle(fontFamily: 'Satoshi'),
+          decoration: InputDecoration(
+            hintText: 'Enter new title',
+            hintStyle: TextStyle(
+              fontFamily: 'Satoshi',
+              color: AppColors.darkBrown.withOpacity(0.4),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide:
+                  const BorderSide(color: AppColors.darkBrown, width: 1.5),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel',
+                style:
+                    TextStyle(color: AppColors.darkBrown, fontFamily: 'Satoshi')),
+          ),
+          TextButton(
+            onPressed: () {
+              final newTitle = controller.text.trim();
+              if (newTitle.isNotEmpty && newTitle != currentTitle) {
+                ref
+                    .read(chatProvider.notifier)
+                    .renameCurrentConversation(newTitle);
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('Rename',
+                style: TextStyle(
+                    color: AppColors.darkBrown,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Satoshi')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Delete conversation?',
+          style: TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w600),
+        ),
+        content: const Text(
+          'This will permanently delete this conversation and all its messages.',
+          style: TextStyle(fontFamily: 'Satoshi'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel',
+                style: TextStyle(color: AppColors.darkBrown)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref.read(chatProvider.notifier).deleteCurrentConversation();
+            },
+            child: Text('Delete',
+                style: TextStyle(color: Colors.red.shade700)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -70,6 +165,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     });
 
+    final hasConversation = chatState.conversationId != null;
+
     return Scaffold(
       backgroundColor: Colors.white,
       drawer: const AppDrawer(),
@@ -77,7 +174,110 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         bottom: false,
         child: Column(
           children: [
-            const ClairAppBar(chatTitle: 'CLAiR Assistant'),
+            ClairAppBar(
+              chatTitle: chatState.conversationTitle,
+              actions: [
+                // New Chat button
+                IconButton(
+                  onPressed: _newChat,
+                  tooltip: 'New chat',
+                  icon: const Icon(
+                    Icons.edit_square,
+                    color: AppColors.darkBrown,
+                    size: 22,
+                  ),
+                ),
+                // Triple-dot menu (only when a saved conversation is open)
+                if (hasConversation)
+                  PopupMenuButton<String>(
+                    icon: Icon(
+                      Icons.more_vert_rounded,
+                      color: AppColors.darkBrown.withOpacity(0.7),
+                      size: 22,
+                    ),
+                    splashRadius: 20,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    color: AppColors.offWhite,
+                    elevation: 4,
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'pin':
+                          ref.read(chatProvider.notifier).toggleCurrentPin();
+                          break;
+                        case 'rename':
+                          _showRenameDialog(
+                              chatState.conversationTitle ?? 'Conversation');
+                          break;
+                        case 'delete':
+                          _confirmDelete();
+                          break;
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                        value: 'pin',
+                        child: Row(
+                          children: [
+                            Icon(
+                              chatState.conversationIsPinned
+                                  ? Icons.push_pin_outlined
+                                  : Icons.push_pin_rounded,
+                              size: 18,
+                              color: AppColors.darkBrown,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              chatState.conversationIsPinned
+                                  ? 'Unpin'
+                                  : 'Pin',
+                              style: const TextStyle(
+                                fontFamily: 'Satoshi',
+                                color: AppColors.darkBrown,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'rename',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.edit_outlined,
+                                size: 18, color: AppColors.darkBrown),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Rename',
+                              style: TextStyle(
+                                fontFamily: 'Satoshi',
+                                color: AppColors.darkBrown,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline_rounded,
+                                size: 18, color: Colors.red.shade700),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Delete',
+                              style: TextStyle(
+                                fontFamily: 'Satoshi',
+                                color: Colors.red.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,

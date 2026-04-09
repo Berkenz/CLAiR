@@ -50,6 +50,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
         messages: [...state.messages, aiMessage],
         isLoading: false,
         conversationId: response.conversationId,
+        conversationTitle: response.conversationTitle.isNotEmpty
+            ? response.conversationTitle
+            : state.conversationTitle,
       );
     } catch (e) {
       state = state.copyWith(
@@ -59,7 +62,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
   }
 
-  Future<void> loadConversation(String conversationId) async {
+  Future<void> loadConversation(
+    String conversationId, {
+    String? title,
+    bool isPinned = false,
+  }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final messages =
@@ -67,6 +74,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
       state = state.copyWith(
         messages: messages,
         conversationId: conversationId,
+        conversationTitle: title,
+        conversationIsPinned: isPinned,
         isLoading: false,
       );
     } catch (e) {
@@ -74,6 +83,45 @@ class ChatNotifier extends StateNotifier<ChatState> {
         isLoading: false,
         error: e.toString(),
       );
+    }
+  }
+
+  Future<void> renameCurrentConversation(String newTitle) async {
+    final id = state.conversationId;
+    if (id == null) return;
+    try {
+      final updated =
+          await _historyRepository.updateConversation(id, title: newTitle);
+      state = state.copyWith(
+        conversationTitle: updated.title,
+      );
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
+
+  Future<void> toggleCurrentPin() async {
+    final id = state.conversationId;
+    if (id == null) return;
+    try {
+      final updated = await _historyRepository.updateConversation(
+        id,
+        isPinned: !state.conversationIsPinned,
+      );
+      state = state.copyWith(conversationIsPinned: updated.isPinned);
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
+
+  Future<void> deleteCurrentConversation() async {
+    final id = state.conversationId;
+    if (id == null) return;
+    try {
+      await _historyRepository.deleteConversation(id);
+      state = ChatState.initial();
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
     }
   }
 
@@ -91,12 +139,16 @@ class ChatState {
   final bool isLoading;
   final String? error;
   final String? conversationId;
+  final String? conversationTitle;
+  final bool conversationIsPinned;
 
   const ChatState({
     required this.messages,
     required this.isLoading,
     this.error,
     this.conversationId,
+    this.conversationTitle,
+    this.conversationIsPinned = false,
   });
 
   factory ChatState.initial() => const ChatState(
@@ -114,12 +166,17 @@ class ChatState {
     bool? isLoading,
     String? error,
     String? conversationId,
+    String? conversationTitle,
+    bool? conversationIsPinned,
   }) =>
       ChatState(
         messages: messages ?? this.messages,
         isLoading: isLoading ?? this.isLoading,
         error: error ?? this.error,
         conversationId: conversationId ?? this.conversationId,
+        conversationTitle: conversationTitle ?? this.conversationTitle,
+        conversationIsPinned:
+            conversationIsPinned ?? this.conversationIsPinned,
       );
 }
 
