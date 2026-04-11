@@ -1,546 +1,165 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/features/auth/presentation/widgets/auth_hero.dart';
+import 'package:clair/shared/widgets/spring_button.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
-
   @override
   ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
-  final _emailController = TextEditingController();
-  bool _isLoading = false;
+class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
+    with SingleTickerProviderStateMixin {
+  int _page = 0;
+  bool _loading = false;
+
+  final _emailCtrl = TextEditingController();
+  final _codeCtrl = TextEditingController();
+  final _newCtrl = TextEditingController();
+  final _confCtrl = TextEditingController();
+  final _emailFn = FocusNode(), _codeFn = FocusNode(), _newFn = FocusNode(), _confFn = FocusNode();
+  bool _obsN = true, _obsC = true;
+
+  late final AnimationController _anim;
+  late final CurvedAnimation _f0, _f1, _f2, _f3;
+
+  @override
+  void initState() {
+    super.initState();
+    for (final fn in [_emailFn, _codeFn, _newFn, _confFn]) {
+      fn.addListener(() => setState(() {}));
+    }
+    _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 580))..forward();
+    _f0 = CurvedAnimation(parent: _anim, curve: const Interval(0.00, 0.40, curve: Curves.easeOut));
+    _f1 = CurvedAnimation(parent: _anim, curve: const Interval(0.14, 0.56, curve: Curves.easeOut));
+    _f2 = CurvedAnimation(parent: _anim, curve: const Interval(0.30, 0.72, curve: Curves.easeOut));
+    _f3 = CurvedAnimation(parent: _anim, curve: const Interval(0.48, 1.00, curve: Curves.easeOut));
+  }
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _anim.dispose();
+    for (final c in [_emailCtrl, _codeCtrl, _newCtrl, _confCtrl]) { c.dispose(); }
+    for (final f in [_emailFn, _codeFn, _newFn, _confFn]) { f.dispose(); }
     super.dispose();
   }
 
-  void _sendResetEmail() async {
-    setState(() => _isLoading = true);
-    
-    // Simulate API call
+  Widget _fade(Widget w, CurvedAnimation a) => AnimatedBuilder(
+    animation: a, builder: (_, c) => Opacity(opacity: a.value,
+        child: Transform.translate(offset: Offset(0, (1 - a.value) * 12), child: c)), child: w);
+
+  Future<void> _send() async {
+    setState(() => _loading = true);
     await Future.delayed(const Duration(seconds: 2));
-    
-    if (mounted) {
-      setState(() => _isLoading = false);
-      
-      // Navigate to verify email screen
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const VerifyEmailScreen(),
-        ),
-      );
-    }
+    if (!mounted) return;
+    setState(() { _loading = false; _page = 1; });
+  }
+
+  Future<void> _reset() async {
+    setState(() => _loading = true);
+    await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
+    setState(() => _loading = false);
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: SizedBox(
-            height: size.height - MediaQuery.of(context).padding.top,
-            child: Stack(
-              children: [
-                // Wavy Gradient Background
-                CustomPaint(
-                  size: Size(size.width, size.height * 0.35),
-                  painter: WavyBackgroundPainter(),
-                ),
-                
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 40),
-                      
-                      // App Icon
-                      Container(
-                        width: 140,
-                        height: 140,
-                        padding: const EdgeInsets.all(20),
-                        child: Image.asset(
-                          'assets/images/CLAiR-icon.png',
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Forgot Password Text
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Forgot\nPassword?',
-                          style: TextStyle(
-                            fontSize: 42,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.darkBrown,
-                            fontFamily: 'Satoshi',
-                            height: 1.2,
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Description
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Enter your email to receive a\npassword reset link',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w400,
-                            color: AppColors.darkBrown,
-                            fontFamily: 'Satoshi',
-                            height: 1.5,
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 40),
-                      
-                      // Email Input
-                      _buildInputField(
-                        controller: _emailController,
-                        label: 'Email',
-                        icon: Icons.email_outlined,
-                      ),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // Send Reset Link Button
-                      Container(
-                        width: double.infinity,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          gradient: const LinearGradient(
-                            colors: [
-                              AppColors.crimson,
-                              AppColors.darkBrown,
-                            ],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.crimson.withOpacity(0.4),
-                              blurRadius: 15,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: _isLoading ? null : _sendResetEmail,
-                            child: Center(
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                      ),
-                                    )
-                                  : const Text(
-                                      'Send Reset Link',
-                                      style: TextStyle(
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.w600,
-                                        fontFamily: 'Satoshi',
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      
-                      const Spacer(),
-                      
-                      // Back to Log In Link
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            'Remember your password? ',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                              color: AppColors.darkBrown,
-                              fontFamily: 'Satoshi',
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                            },
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            child: const Text(
-                              'Log in',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.crimson,
-                                fontFamily: 'Satoshi',
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      
-                      const SizedBox(height: 30),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: AppColors.bg,
+        resizeToAvoidBottomInset: true,
+        body: Column(children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: _page == 0
+                ? const AuthHeroPanel(key: ValueKey(0), headline: 'Forgot\nPassword?', subtext: "Enter your email and we'll send a reset link.", showBack: true)
+                : AuthHeroPanel(key: const ValueKey(1), headline: 'Check Your\nEmail', subtext: 'Enter the code sent to ${_emailCtrl.text.isEmpty ? 'your email' : _emailCtrl.text}', showBack: true),
           ),
-        ),
+          Expanded(child: _fade(Container(
+            decoration: const BoxDecoration(color: Colors.white,
+                borderRadius: BorderRadius.only(topLeft: Radius.circular(28), topRight: Radius.circular(28))),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: _page == 0 ? _emailForm(key: const ValueKey('e')) : _verifyForm(key: const ValueKey('v')),
+            ),
+          ), _f0)),
+        ]),
       ),
     );
   }
 
-  Widget _buildInputField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-  }) {
-    return Container(
+  Widget _emailForm({Key? key}) {
+    return SingleChildScrollView(key: key, padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _fade(_field('Email', _emailCtrl, _emailFn, hint: 'your@email.com', type: TextInputType.emailAddress), _f1),
+        const SizedBox(height: 28),
+        _fade(_btn(_loading ? 'Sending…' : 'Send Reset Link', _loading ? null : _send), _f2),
+        const SizedBox(height: 20),
+        _fade(Center(child: GestureDetector(onTap: () => Navigator.pop(context),
+            child: Text('Back to Login', style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMid)))), _f3),
+      ]),
+    );
+  }
+
+  Widget _verifyForm({Key? key}) {
+    return SingleChildScrollView(key: key, padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _field('Verification Code', _codeCtrl, _codeFn, hint: '6-digit code', type: TextInputType.number),
+        const SizedBox(height: 14),
+        _field('New Password', _newCtrl, _newFn, hint: '••••••••', isPass: true, obsc: _obsN, toggle: () => setState(() => _obsN = !_obsN)),
+        const SizedBox(height: 14),
+        _field('Confirm', _confCtrl, _confFn, hint: '••••••••', isPass: true, obsc: _obsC, toggle: () => setState(() => _obsC = !_obsC)),
+        const SizedBox(height: 28),
+        _btn(_loading ? 'Resetting…' : 'Reset Password', _loading ? null : _reset),
+        const SizedBox(height: 18),
+        Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text("Didn't receive it? ", style: GoogleFonts.nunito(fontSize: 13, color: AppColors.textMid)),
+          GestureDetector(onTap: () => setState(() => _page = 0),
+              child: Text('Resend', style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.accent))),
+        ])),
+      ]),
+    );
+  }
+
+  Widget _field(String label, TextEditingController c, FocusNode fn,
+      {String hint = '', bool isPass = false, bool obsc = false, VoidCallback? toggle, TextInputType type = TextInputType.text}) {
+    final f = fn.hasFocus;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w600, color: f ? AppColors.accent : AppColors.textMid)),
+      const SizedBox(height: 6),
+      Container(
+        decoration: BoxDecoration(color: f ? Colors.white : AppColors.fieldBg, borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: f ? AppColors.accent : AppColors.border)),
+        child: TextField(controller: c, focusNode: fn, obscureText: isPass && obsc, keyboardType: type,
+          style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textDark),
+          decoration: InputDecoration(border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            hintText: hint, hintStyle: GoogleFonts.nunito(color: AppColors.textLight, fontSize: 15),
+            suffixIcon: isPass ? IconButton(icon: Icon(obsc ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: AppColors.textLight, size: 18), onPressed: toggle) : null)),
+      ),
+    ]);
+  }
+
+  Widget _btn(String label, VoidCallback? onTap) {
+    final dis = onTap == null;
+    final box = Container(
+      width: double.infinity, height: 52,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.tan.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        gradient: dis ? null : const LinearGradient(colors: [AppColors.accent, AppColors.accentDark]),
+        color: dis ? AppColors.border : null,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: dis ? [] : [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
       ),
-      child: TextField(
-        controller: controller,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-          color: AppColors.darkBrown,
-          fontFamily: 'Satoshi',
-        ),
-        decoration: InputDecoration(
-          hintText: label,
-          hintStyle: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w400,
-            color: AppColors.darkBrown.withOpacity(0.4),
-            fontFamily: 'Satoshi',
-          ),
-          prefixIcon: Icon(
-            icon,
-            color: AppColors.crimson.withOpacity(0.6),
-            size: 20,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 18,
-          ),
-        ),
-      ),
+      child: Center(child: Text(label, style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w700, color: dis ? AppColors.textMid : Colors.white))),
     );
+    return dis ? box : SpringButton(onTap: onTap, child: box);
   }
 }
 
-// Verify Email Screen
-class VerifyEmailScreen extends StatelessWidget {
-  const VerifyEmailScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: SizedBox(
-            height: size.height - MediaQuery.of(context).padding.top,
-            child: Stack(
-              children: [
-                // Wavy Gradient Background
-                CustomPaint(
-                  size: Size(size.width, size.height * 0.35),
-                  painter: WavyBackgroundPainter(),
-                ),
-                
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 40),
-                      
-                      // App Icon
-                      Container(
-                        width: 140,
-                        height: 140,
-                        padding: const EdgeInsets.all(20),
-                        child: Image.asset(
-                          'assets/images/CLAiR-icon.png',
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Verify Email Text
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Verify\nYour Email',
-                          style: TextStyle(
-                            fontSize: 42,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.darkBrown,
-                            fontFamily: 'Satoshi',
-                            height: 1.2,
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Description
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'We\'ve sent a verification link to your email.\nPlease check your inbox and click the link\nto verify your account.',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w400,
-                            color: AppColors.darkBrown,
-                            fontFamily: 'Satoshi',
-                            height: 1.5,
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 40),
-                      
-                      // Email Icon
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: AppColors.crimson.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.email_outlined,
-                          color: AppColors.crimson,
-                          size: 40,
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 40),
-                      
-                      // Resend Email Button
-                      Container(
-                        width: double.infinity,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          gradient: const LinearGradient(
-                            colors: [
-                              AppColors.crimson,
-                              AppColors.darkBrown,
-                            ],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.crimson.withOpacity(0.4),
-                              blurRadius: 15,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text('Verification email sent!'),
-                                  backgroundColor: AppColors.crimson,
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              );
-                            },
-                            child: const Center(
-                              child: Text(
-                                'Resend Email',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w600,
-                                  fontFamily: 'Satoshi',
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      
-                      const Spacer(),
-                      
-                      // Back to Log In Link
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            'Already verified? ',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                              color: AppColors.darkBrown,
-                              fontFamily: 'Satoshi',
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.popUntil(context, (route) => route.isFirst);
-                            },
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            child: const Text(
-                              'Log in',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.crimson,
-                                fontFamily: 'Satoshi',
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      
-                      const SizedBox(height: 30),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Custom Painter for Wavy Background (same as login screen)
-class WavyBackgroundPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          AppColors.tan.withOpacity(0.4),
-          AppColors.crimson.withOpacity(0.3),
-          AppColors.darkBrown.withOpacity(0.2),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-
-    final path = Path();
-    
-    path.moveTo(0, 0);
-    path.lineTo(size.width, 0);
-    
-    path.lineTo(size.width, size.height * 0.6);
-    
-    path.quadraticBezierTo(
-      size.width * 0.75,
-      size.height * 0.7,
-      size.width * 0.5,
-      size.height * 0.65,
-    );
-    
-    path.quadraticBezierTo(
-      size.width * 0.25,
-      size.height * 0.6,
-      0,
-      size.height * 0.7,
-    );
-    
-    path.lineTo(0, 0);
-    path.close();
-
-    canvas.drawPath(path, paint);
-    
-    final paint2 = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topRight,
-        end: Alignment.bottomLeft,
-        colors: [
-          AppColors.crimson.withOpacity(0.2),
-          AppColors.tan.withOpacity(0.3),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-    
-    final path2 = Path();
-    path2.moveTo(size.width, 0);
-    path2.lineTo(size.width, size.height * 0.5);
-    
-    path2.quadraticBezierTo(
-      size.width * 0.6,
-      size.height * 0.55,
-      size.width * 0.3,
-      size.height * 0.45,
-    );
-    
-    path2.quadraticBezierTo(
-      size.width * 0.1,
-      size.height * 0.4,
-      0,
-      size.height * 0.5,
-    );
-    
-    path2.lineTo(0, 0);
-    path2.lineTo(size.width, 0);
-    path2.close();
-
-    canvas.drawPath(path2, paint2);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
+typedef VerifyEmailScreen = ForgotPasswordScreen;
