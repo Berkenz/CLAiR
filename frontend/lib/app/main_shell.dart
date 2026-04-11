@@ -59,7 +59,7 @@ class _MainShellState extends State<MainShell> {
         boxShadow: [BoxShadow(color: AppColors.textDark.withValues(alpha: 0.06), blurRadius: 20, offset: const Offset(0, -4))],
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: List.generate(4, _navItem),
@@ -77,19 +77,19 @@ class _MainShellState extends State<MainShell> {
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
         padding: active
-            ? const EdgeInsets.symmetric(horizontal: 16, vertical: 8)
-            : const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            ? const EdgeInsets.symmetric(horizontal: 18, vertical: 10)
+            : const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: active ? AppColors.accent.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(24),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(active ? _activeIcons[i] : _icons[i], size: 20,
+          Icon(active ? _activeIcons[i] : _icons[i], size: 24,
               color: active ? AppColors.accent : AppColors.textLight),
           if (active) ...[
             const SizedBox(width: 6),
             Text(_labels[i], style: GoogleFonts.nunito(
-                fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.accent)),
+                fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.accent)),
           ],
         ]),
       ),
