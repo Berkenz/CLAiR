@@ -8,8 +8,14 @@ import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 class ClairAppBar extends ConsumerWidget {
   final String? chatTitle;
   final List<Widget>? actions;
+  final bool showNotificationBell;
 
-  const ClairAppBar({super.key, this.chatTitle, this.actions});
+  const ClairAppBar({
+    super.key,
+    this.chatTitle,
+    this.actions,
+    this.showNotificationBell = true,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -23,10 +29,8 @@ class ClairAppBar extends ConsumerWidget {
         children: [
           Row(
             children: [
-              // ── Hamburger → opens AppDrawer ────────────────────
               IconButton(
-                onPressed: () =>
-                    Scaffold.of(context).openDrawer(), // ← this line
+                onPressed: () => Scaffold.of(context).openDrawer(),
                 icon: const Icon(
                   Icons.menu_rounded,
                   color: AppColors.darkBrown,
@@ -34,7 +38,6 @@ class ClairAppBar extends ConsumerWidget {
                 ),
               ),
 
-              // ── Logo ──────────────────────────────────────────
               Expanded(
                 child: Center(
                   child: Row(
@@ -66,10 +69,29 @@ class ClairAppBar extends ConsumerWidget {
                 ),
               ),
 
-              // ── Optional action buttons ───────────────────────
               if (actions != null) ...actions!,
 
-              // ── Avatar → Profile Screen ────────────────────────
+              if (showNotificationBell) ...[
+                GestureDetector(
+                  onTap: () => context.push('/notifications'),
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: AppColors.offWhite,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.tan, width: 1.5),
+                    ),
+                    child: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: AppColors.darkBrown,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+
               GestureDetector(
                 onTap: () => context.push('/profile'),
                 child: Container(
@@ -90,7 +112,9 @@ class ClairAppBar extends ConsumerWidget {
                       : Center(
                           child: user != null
                               ? Text(
-                                  user.displayName[0].toUpperCase(),
+                                  user.displayName.isNotEmpty
+                                      ? user.displayName[0].toUpperCase()
+                                      : '?',
                                   style: const TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
@@ -109,7 +133,6 @@ class ClairAppBar extends ConsumerWidget {
             ],
           ),
 
-          // ── Optional chat title ────────────────────────────────
           if (chatTitle != null) ...[
             const SizedBox(height: 2),
             Padding(
