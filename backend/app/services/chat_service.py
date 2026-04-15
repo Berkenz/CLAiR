@@ -1,5 +1,4 @@
-from google import genai
-from google.genai import types
+from google.genai import Client, types
 
 from app.config import settings
 
@@ -47,10 +46,10 @@ SYSTEM_INSTRUCTION = (
 _client = None
 
 
-def _get_client() -> genai.Client:
+def _get_client() -> Client:
     global _client
     if _client is None:
-        _client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        _client = Client(api_key=settings.GEMINI_API_KEY)
     return _client
 
 
