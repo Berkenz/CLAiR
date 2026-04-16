@@ -102,3 +102,18 @@ class LawyerLoginResponse(BaseModel):
 class OptionsResponse(BaseModel):
     practice_areas: list[str]
     designations: list[str]
+
+
+class LawyerDirectoryItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    display_name: str | None = None
+    designation: str | None = None
+    practice_areas: list[str] | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+
+
+class LawyerDirectoryResponse(BaseModel):
+    lawyers: list[LawyerDirectoryItem]

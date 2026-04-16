@@ -3,13 +3,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db
+from app.api.deps import get_db, get_current_user
 from app.core.lawyer_security import get_current_lawyer
 from app.models.lawyer_profile import LawyerProfile
 from app.models.user import User
 from app.schemas.lawyer import (
     DESIGNATIONS,
     PRACTICE_AREAS,
+    LawyerDirectoryItem,
+    LawyerDirectoryResponse,
     LawyerLoginResponse,
     LawyerProfileUpdate,
     OptionsResponse,
@@ -17,6 +19,18 @@ from app.schemas.lawyer import (
 from app.services.lawyer_service import lawyer_service
 
 router = APIRouter(prefix="/lawyer", tags=["lawyer-profile"])
+
+
+@router.get("/directory", response_model=LawyerDirectoryResponse)
+async def get_lawyer_directory(
+    _current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Return all lawyers with complete profiles for the mobile app directory."""
+    items = await lawyer_service.get_all_complete_lawyers(db)
+    return LawyerDirectoryResponse(
+        lawyers=[LawyerDirectoryItem(**item) for item in items]
+    )
 
 
 @router.get("/options", response_model=OptionsResponse)

@@ -86,5 +86,29 @@ class LawyerService:
         )
         return result.scalar_one_or_none()
 
+    async def get_all_complete_lawyers(
+        self, db: AsyncSession
+    ) -> list[dict]:
+        """Return all lawyers whose profiles are marked complete, for the mobile directory."""
+        result = await db.execute(
+            select(LawyerProfile, User)
+            .join(User, LawyerProfile.user_id == User.id)
+            .where(LawyerProfile.is_profile_complete == True)  # noqa: E712
+            .where(User.is_active == True)  # noqa: E712
+            .order_by(LawyerProfile.created_at.desc())
+        )
+        rows = result.all()
+        return [
+            {
+                "id": profile.id,
+                "display_name": profile.display_name,
+                "designation": profile.designation,
+                "practice_areas": profile.practice_areas,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+            }
+            for profile, user in rows
+        ]
+
 
 lawyer_service = LawyerService()
