@@ -123,27 +123,44 @@ class ProfileScreen extends ConsumerWidget {
               style: GoogleFonts.nunito(fontSize: 13, color: cl.textMid),
             ),
             const SizedBox(height: 8),
-            GestureDetector(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-              ),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            if (user?.isAnonymous == true)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: cl.accent.withValues(alpha: 0.1),
+                  color: cl.border.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  'Edit Profile',
+                  'Guest Account',
                   style: GoogleFonts.nunito(
                     fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: cl.accent,
+                    fontWeight: FontWeight.w600,
+                    color: cl.textLight,
+                  ),
+                ),
+              )
+            else
+              GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: cl.accent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Edit Profile',
+                    style: GoogleFonts.nunito(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: cl.accent,
+                    ),
                   ),
                 ),
               ),
-            ),
             const SizedBox(height: 28),
 
             _section(context, 'Account', [
