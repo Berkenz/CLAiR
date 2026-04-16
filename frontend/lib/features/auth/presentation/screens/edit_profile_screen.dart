@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
@@ -29,10 +30,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   void initState() {
     super.initState();
     final user = ref.read(currentUserProvider);
-    final parts = (user?.displayName ?? '').trim().split(' ');
-    _firstCtrl = TextEditingController(text: parts.isNotEmpty ? parts.first : '');
-    _lastCtrl = TextEditingController(text: parts.length > 1 ? parts.sublist(1).join(' ') : '');
-    _locationCtrl = TextEditingController();
+    _firstCtrl = TextEditingController(text: user?.firstName ?? '');
+    _lastCtrl = TextEditingController(text: user?.lastName ?? '');
+    _locationCtrl = TextEditingController(text: user?.location ?? '');
     _currentPwCtrl = TextEditingController();
     _newPwCtrl = TextEditingController();
     _confirmPwCtrl = TextEditingController();
@@ -54,17 +54,81 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     return '$fi$li'.isNotEmpty ? '$fi$li' : '?';
   }
 
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    await Future.delayed(const Duration(milliseconds: 800));
+  void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    setState(() => _saving = false);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('Profile updated', style: GoogleFonts.nunito(fontWeight: FontWeight.w600)),
-      backgroundColor: context.c.accent,
+      content: Text(message, style: GoogleFonts.nunito(fontWeight: FontWeight.w600)),
+      backgroundColor: isError ? Colors.red.shade600 : context.c.accent,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ));
+  }
+
+  Future<void> _pickAndUploadPhoto() async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (file == null) return;
+
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(authRepositoryProvider);
+      final updatedUser = await repo.updateProfilePhoto(file);
+      ref.read(currentUserProvider.notifier).state = updatedUser;
+      _showSnackBar('Photo updated');
+    } catch (e) {
+      _showSnackBar('Failed to upload photo: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _save() async {
+    final changingPassword = _currentPwCtrl.text.isNotEmpty ||
+        _newPwCtrl.text.isNotEmpty ||
+        _confirmPwCtrl.text.isNotEmpty;
+
+    if (changingPassword) {
+      if (_currentPwCtrl.text.isEmpty) {
+        _showSnackBar('Enter your current password to change it.', isError: true);
+        return;
+      }
+      if (_newPwCtrl.text.length < 8) {
+        _showSnackBar('New password must be at least 8 characters.', isError: true);
+        return;
+      }
+      if (_newPwCtrl.text != _confirmPwCtrl.text) {
+        _showSnackBar('New passwords do not match.', isError: true);
+        return;
+      }
+    }
+
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(authRepositoryProvider);
+
+      final updatedUser = await repo.updateProfile(
+        firstName: _firstCtrl.text.trim(),
+        lastName: _lastCtrl.text.trim(),
+        location: _locationCtrl.text.trim(),
+      );
+
+      if (changingPassword) {
+        await repo.changePassword(
+          currentPassword: _currentPwCtrl.text,
+          newPassword: _newPwCtrl.text,
+        );
+        _currentPwCtrl.clear();
+        _newPwCtrl.clear();
+        _confirmPwCtrl.clear();
+      }
+
+      ref.read(currentUserProvider.notifier).state = updatedUser;
+      _showSnackBar('Profile updated');
+    } catch (e) {
+      _showSnackBar(e.toString(), isError: true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -111,7 +175,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           ),
           const SizedBox(height: 8),
           GestureDetector(
-            onTap: () {},
+            onTap: _saving ? null : _pickAndUploadPhoto,
             child: Text('Change Photo', style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w600, color: cl.accent)),
           ),
           const SizedBox(height: 20),
