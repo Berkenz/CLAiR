@@ -26,11 +26,18 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
+  final Map<int, GlobalKey> _messageKeys = {};
   bool _didInitialEntryJump = false;
+  bool _showScrollToBottom = false;
+
+  GlobalKey _keyForMessage(int index) {
+    return _messageKeys.putIfAbsent(index, () => GlobalKey());
+  }
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_handleScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _ensureBottomOnEntry();
     });
@@ -38,9 +45,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   void dispose() {
+    _scrollController.removeListener(_handleScroll);
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients || !mounted) return;
+    final distanceFromBottom =
+        _scrollController.position.maxScrollExtent - _scrollController.position.pixels;
+    final shouldShow = distanceFromBottom > 140;
+    if (shouldShow != _showScrollToBottom) {
+      setState(() {
+        _showScrollToBottom = shouldShow;
+      });
+    }
   }
 
   void _sendMessage() {
@@ -366,12 +386,63 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
+  void _jumpToBottomNow() {
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      if (mounted && _showScrollToBottom) {
+        setState(() {
+          _showScrollToBottom = false;
+        });
+      }
+    }
+  }
+
   void _jumpToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      }
+      _jumpToBottomNow();
     });
+  }
+
+  void _scrollToMessageTop(int index) {
+    void tryScroll(int attempt) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_scrollController.hasClients) return;
+        final key = _messageKeys[index];
+        final targetContext = key?.currentContext;
+        if (targetContext == null) {
+          if (attempt < 3) {
+            Future.delayed(const Duration(milliseconds: 70), () => tryScroll(attempt + 1));
+          }
+          return;
+        }
+
+        final box = targetContext.findRenderObject() as RenderBox?;
+        if (box == null) return;
+
+        final currentOffset = _scrollController.offset;
+        final currentTopDy = box.localToGlobal(Offset.zero).dy;
+        final desiredTopDy = MediaQuery.of(context).padding.top + 168;
+        final delta = currentTopDy - desiredTopDy;
+        final targetOffset = (currentOffset + delta).clamp(
+          _scrollController.position.minScrollExtent,
+          _scrollController.position.maxScrollExtent,
+        );
+
+        _scrollController.animateTo(
+          targetOffset.toDouble(),
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOut,
+        );
+
+        if (mounted && !_showScrollToBottom) {
+          setState(() {
+            _showScrollToBottom = true;
+          });
+        }
+      });
+    }
+
+    tryScroll(0);
   }
 
   void _ensureBottomOnEntry() {
@@ -400,8 +471,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
 
     ref.listen<ChatState>(chatProvider, (prev, next) {
-      if (next.messages.length != (prev?.messages.length ?? 0)) {
-        _scrollToBottom();
+      final prevLength = prev?.messages.length ?? 0;
+      if (next.messages.length != prevLength) {
+        final addedMessage =
+            next.messages.length > prevLength && next.messages.isNotEmpty;
+        if (addedMessage) {
+          final lastIndex = next.messages.length - 1;
+          final lastMessage = next.messages[lastIndex];
+          if (lastMessage.isUser) {
+            _scrollToBottom();
+          } else {
+            _scrollToMessageTop(lastIndex);
+          }
+        } else {
+          _scrollToBottom();
+        }
       }
       if (prev?.conversationId != next.conversationId && next.messages.isNotEmpty) {
         _scrollToBottom();
@@ -440,21 +524,68 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               onActionsTap: hasConversation ? _showActionsMenu : null,
             ),
             Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                itemCount:
-                    chatState.messages.length + (chatState.isLoading ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index == chatState.messages.length &&
-                      chatState.isLoading) {
-                    return _buildTypingIndicator();
-                  }
-                  final msg = chatState.messages[index];
-                  return msg.isUser
-                      ? _buildUserMessage(msg, index)
-                      : _buildAiMessage(msg, index);
-                },
+              child: Stack(
+                children: [
+                  ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    itemCount:
+                        chatState.messages.length + (chatState.isLoading ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == chatState.messages.length &&
+                          chatState.isLoading) {
+                        return _buildTypingIndicator();
+                      }
+                      final msg = chatState.messages[index];
+                      final item = msg.isUser
+                          ? _buildUserMessage(msg, index)
+                          : _buildAiMessage(msg, index);
+                      return KeyedSubtree(
+                        key: _keyForMessage(index),
+                        child: item,
+                      );
+                    },
+                  ),
+                  Positioned(
+                    right: 16,
+                    bottom: 12,
+                    child: AnimatedScale(
+                      duration: const Duration(milliseconds: 180),
+                      scale: _showScrollToBottom ? 1 : 0,
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 180),
+                        opacity: _showScrollToBottom ? 1 : 0,
+                        child: GestureDetector(
+                          onTap: () {
+                            _jumpToBottomNow();
+                            Future.delayed(const Duration(milliseconds: 40), _jumpToBottomNow);
+                          },
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: cl.surface.withValues(alpha: 0.92),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: cl.border),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: cl.cardShadow,
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 22,
+                              color: cl.textMid,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             if (chatState.isLoadedConversation) _buildDisclaimer(),
