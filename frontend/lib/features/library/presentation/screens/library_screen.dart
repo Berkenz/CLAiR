@@ -36,13 +36,21 @@ final conversationPreviewProvider =
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   int _segment = 0;
+  late final TextEditingController _searchController;
 
   @override
   void initState() {
     super.initState();
+    _searchController = TextEditingController();
     Future.microtask(
       () => ref.read(historyProvider.notifier).loadConversations(),
     );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -68,11 +76,30 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       }
     });
 
+    final searchQuery = _searchController.text.trim().toLowerCase();
+
+    final allHistoryChats = historyState.conversations
+      .toList()
+      ..sort((a, b) => (b.updatedAt ?? b.createdAt)
+        .compareTo(a.updatedAt ?? a.createdAt));
+
     final savedChats = historyState.conversations
         .where((c) => c.isPinned)
         .toList()
         ..sort((a, b) => (b.updatedAt ?? b.createdAt)
             .compareTo(a.updatedAt ?? a.createdAt));
+
+    final filteredHistoryChats = searchQuery.isEmpty
+      ? allHistoryChats
+      : allHistoryChats
+        .where((c) => c.title.toLowerCase().contains(searchQuery))
+        .toList();
+
+    final filteredSavedChats = searchQuery.isEmpty
+      ? savedChats
+      : savedChats
+        .where((c) => c.title.toLowerCase().contains(searchQuery))
+        .toList();
 
     return Column(
       children: [
@@ -101,8 +128,40 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   ),
                 ),
                 _buildSegmentControl(
-                  historyState.conversations.length,
-                  savedChats.length,
+                  filteredHistoryChats.length,
+                  filteredSavedChats.length,
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Container(
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: cl.fieldBg,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (_) => setState(() {}),
+                      style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
+                      decoration: InputDecoration(
+                        hintText: 'Search chats...',
+                        hintStyle: GoogleFonts.nunito(fontSize: 13, color: cl.textLight),
+                        prefixIcon: Icon(Icons.search_rounded, size: 18, color: cl.textLight),
+                        suffixIcon: searchQuery.isNotEmpty
+                            ? GestureDetector(
+                                onTap: () {
+                                  _searchController.clear();
+                                  setState(() {});
+                                },
+                                child: Icon(Icons.close_rounded, size: 18, color: cl.textLight),
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Expanded(
@@ -111,11 +170,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     child: _segment == 0
                         ? KeyedSubtree(
                             key: const ValueKey('history'),
-                            child: _buildHistoryContent(historyState),
+                            child: _buildHistoryContent(historyState, filteredHistoryChats, searchQuery),
                           )
                         : KeyedSubtree(
                             key: const ValueKey('saved'),
-                            child: _buildSavedContent(savedChats),
+                            child: _buildSavedContent(filteredSavedChats, searchQuery),
                           ),
                   ),
                 ),
@@ -218,27 +277,31 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   // ─── History content ───────────────────────────────────────────────
 
-  Widget _buildHistoryContent(HistoryState state) {
+  Widget _buildHistoryContent(
+    HistoryState state,
+    List<ConversationEntity> chats,
+    String searchQuery,
+  ) {
     final cl = context.c;
     if (state.isLoading && state.conversations.isEmpty) {
       return Center(
         child: CircularProgressIndicator(color: cl.accent),
       );
     }
-    if (state.conversations.isEmpty) return _buildHistoryEmpty();
-
-    final sorted = state.conversations.toList()
-      ..sort((a, b) => (b.updatedAt ?? b.createdAt)
-        .compareTo(a.updatedAt ?? a.createdAt));
+    if (chats.isEmpty) {
+      return searchQuery.isNotEmpty
+          ? _buildSearchEmpty('history')
+          : _buildHistoryEmpty();
+    }
 
     return RefreshIndicator(
       color: cl.accent,
       onRefresh: () => ref.read(historyProvider.notifier).loadConversations(),
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-        itemCount: sorted.length,
+        itemCount: chats.length,
         separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (_, i) => _historyCard(sorted[i]),
+        itemBuilder: (_, i) => _historyCard(chats[i]),
       ),
     );
   }
@@ -458,8 +521,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   // ─── Saved content ─────────────────────────────────────────────────
 
-  Widget _buildSavedContent(List<ConversationEntity> saved) {
-    if (saved.isEmpty) return _buildSavedEmpty();
+  Widget _buildSavedContent(List<ConversationEntity> saved, String searchQuery) {
+    if (saved.isEmpty) {
+      return searchQuery.isNotEmpty
+          ? _buildSearchEmpty('saved')
+          : _buildSavedEmpty();
+    }
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
@@ -655,6 +722,41 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           Text(
             'Bookmark chats to find\nthem easily later',
             textAlign: TextAlign.center,
+            style: GoogleFonts.nunito(fontSize: 13, color: cl.textMid),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchEmpty(String segment) {
+    final cl = context.c;
+    final title = segment == 'saved' ? 'No saved chats found' : 'No chats found';
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: cl.fieldBg,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.search_off_rounded, size: 28, color: cl.textLight),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: GoogleFonts.nunito(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: cl.textDark,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Try a different keyword.',
             style: GoogleFonts.nunito(fontSize: 13, color: cl.textMid),
           ),
         ],

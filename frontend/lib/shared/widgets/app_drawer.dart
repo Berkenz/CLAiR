@@ -8,7 +8,6 @@ import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
-import 'package:clair/shared/data/chat_history.dart';
 
 class AppDrawer extends ConsumerStatefulWidget {
   const AppDrawer({super.key});
@@ -18,20 +17,6 @@ class AppDrawer extends ConsumerStatefulWidget {
 }
 
 class _AppDrawerState extends ConsumerState<AppDrawer> {
-  late TextEditingController _searchController;
-
-  @override
-  void initState() {
-    super.initState();
-    _searchController = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
@@ -43,13 +28,9 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
         ref.read(historyProvider.notifier).loadConversations();
       });
     }
-    
-    final searchQuery = _searchController.text.toLowerCase();
+
     final allChats = historyState.conversations;
-    final filteredChats = searchQuery.isEmpty
-        ? allChats.take(4).toList()
-        : allChats.where((conv) => conv.title.toLowerCase().contains(searchQuery)).toList();
-    final isSearching = searchQuery.isNotEmpty;
+    final filteredChats = allChats.take(4).toList();
 
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.76,
@@ -72,41 +53,12 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
             ]),
           ),
 
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Container(
-              height: 40,
-              decoration: BoxDecoration(color: cl.fieldBg, borderRadius: BorderRadius.circular(12)),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (_) => setState(() {}),
-                style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
-                decoration: InputDecoration(
-                  hintText: 'Search chats...',
-                  hintStyle: GoogleFonts.nunito(fontSize: 13, color: cl.textLight),
-                  prefixIcon: Icon(Icons.search_rounded, size: 18, color: cl.textLight),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? GestureDetector(
-                          onTap: () {
-                            _searchController.clear();
-                            setState(() {});
-                          },
-                          child: Icon(Icons.close_rounded, size: 18, color: cl.textLight),
-                        )
-                      : null,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                ),
-              ),
-            ),
-          ),
-
           Divider(color: cl.border, indent: 20, endIndent: 20, height: 1),
 
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
             child: Text(
-              isSearching ? 'SEARCH RESULTS' : 'RECENT',
+              'RECENT',
               style: GoogleFonts.nunito(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: cl.textLight),
             ),
           ),
@@ -115,27 +67,10 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Text(
-                isSearching ? 'No chats found' : 'No recent chats',
+                'No recent chats',
                 style: GoogleFonts.nunito(fontSize: 13, color: cl.textLight),
               ),
             )
-          else if (isSearching)
-            ...filteredChats.take(10).toList().asMap().entries.map((e) {
-              final conv = e.value;
-              final timeLabel = _formatRecentTime(conv.updatedAt ?? conv.createdAt);
-              return GestureDetector(
-                onTap: () {
-                  Navigator.pop(context);
-                  ref.read(chatProvider.notifier).loadConversation(
-                    conv.id,
-                    title: conv.title,
-                    isPinned: conv.isPinned,
-                  );
-                  ref.read(mainShellTabProvider.notifier).state = 1;
-                },
-                child: _recentChat(context, conv.isPinned ? Icons.push_pin_rounded : Icons.chat_bubble_outline_rounded, conv.title, timeLabel),
-              );
-            })
           else
             ...filteredChats.toList().asMap().entries.map((e) {
               final conv = e.value;

@@ -57,8 +57,6 @@ class _NotificationBody extends StatelessWidget {
               if (onBack != null) const SizedBox(width: 12),
               Text('Notifications', style: GoogleFonts.nunito(fontSize: 24, fontWeight: FontWeight.w800, color: cl.textDark)),
               const Spacer(),
-              GestureDetector(onTap: () {},
-                  child: Icon(Icons.settings_outlined, size: 20, color: cl.textMid)),
             ]),
           ),
           const SizedBox(height: 20),
