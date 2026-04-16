@@ -10,6 +10,7 @@ from sqlalchemy.sql import func
 from app.database import Base
 
 if TYPE_CHECKING:
+    from app.models.appointment import Appointment
     from app.models.lawyer_profile import LawyerProfile
 
 
@@ -50,6 +51,9 @@ class User(Base):
 
     lawyer_profile: Mapped["LawyerProfile | None"] = relationship(
         "LawyerProfile", back_populates="user", uselist=False
+    )
+    appointments: Mapped[list["Appointment"]] = relationship(
+        "Appointment", back_populates="client_user", foreign_keys="Appointment.client_user_id"
     )
 
     @property

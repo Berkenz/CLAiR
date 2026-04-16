@@ -26,13 +26,37 @@ class LawyerRemoteDataSource {
     }
   }
 
+  Future<void> bookAppointment({
+    required String lawyerProfileId,
+    required String appointmentDate,
+    required String appointmentTime,
+    required String appointmentType,
+    String? description,
+  }) async {
+    try {
+      await _dio.post<void>(
+        ApiEndpoints.appointments,
+        data: {
+          'lawyer_profile_id': lawyerProfileId,
+          'appointment_date': appointmentDate,
+          'appointment_time': appointmentTime,
+          'appointment_type': appointmentType,
+          if (description != null && description.isNotEmpty)
+            'description': description,
+        },
+      );
+    } on DioException catch (e) {
+      throw LawyerException(_extractError(e));
+    }
+  }
+
   String _extractError(DioException e) {
     final data = e.response?.data;
     if (data is Map<String, dynamic> && data['detail'] != null) {
       final detail = data['detail'];
       if (detail is String) return detail;
     }
-    return 'Could not load lawyers. Please try again.';
+    return 'Could not complete the request. Please try again.';
   }
 }
 

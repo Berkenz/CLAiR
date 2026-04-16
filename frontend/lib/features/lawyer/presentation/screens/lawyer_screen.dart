@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/features/lawyer/data/datasources/lawyer_remote_datasource.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 import 'package:clair/features/lawyer/presentation/providers/lawyer_provider.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
@@ -411,121 +412,285 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => _ConnectModal(lawyer: l),
+      builder: (_) => _BookingModal(lawyer: l, dataSource: ref.read(lawyerDataSourceProvider)),
     );
   }
 }
 
-class _ConnectModal extends StatelessWidget {
+const _appointmentTypes = [
+  'Initial Consultation',
+  'Document Review',
+  'Follow-Up',
+  'Hearing Preparation',
+  'Deposition',
+  'Settlement Discussion',
+  'Case Update',
+  'Other',
+];
+
+class _BookingModal extends StatefulWidget {
   final LawyerEntity lawyer;
-  const _ConnectModal({required this.lawyer});
+  final LawyerRemoteDataSource dataSource;
+  const _BookingModal({required this.lawyer, required this.dataSource});
+
+  @override
+  State<_BookingModal> createState() => _BookingModalState();
+}
+
+class _BookingModalState extends State<_BookingModal> {
+  DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
+  TimeOfDay _selectedTime = const TimeOfDay(hour: 10, minute: 0);
+  String _selectedType = _appointmentTypes.first;
+  final _descCtrl = TextEditingController();
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _descCtrl.dispose();
+    super.dispose();
+  }
+
+  String get _formattedDate =>
+      '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+
+  String get _formattedTime =>
+      '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}';
+
+  String get _displayDate {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${months[_selectedDate.month - 1]} ${_selectedDate.day}, ${_selectedDate.year}';
+  }
+
+  String get _displayTime => _selectedTime.format(context);
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: ColorScheme.light(primary: context.c.accent),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) setState(() => _selectedDate = picked);
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime,
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: ColorScheme.light(primary: context.c.accent),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) setState(() => _selectedTime = picked);
+  }
+
+  Future<void> _submit() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      await widget.dataSource.bookAppointment(
+        lawyerProfileId: widget.lawyer.id,
+        appointmentDate: _formattedDate,
+        appointmentTime: _formattedTime,
+        appointmentType: _selectedType,
+        description: _descCtrl.text.trim(),
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Appointment request sent!',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.w600)),
+            backgroundColor: context.c.accent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } on LawyerException catch (e) {
+      setState(() { _loading = false; _error = e.message; });
+    } catch (_) {
+      setState(() { _loading = false; _error = 'Something went wrong. Please try again.'; });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
           color: cl.surface,
           borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-                color: cl.cardShadow,
-                blurRadius: 24,
-                offset: const Offset(0, -4))
-          ]),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-                color: cl.border, borderRadius: BorderRadius.circular(2))),
-        const SizedBox(height: 24),
-        Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [
-              cl.accent.withValues(alpha: 0.12),
-              cl.accentLight.withValues(alpha: 0.3)
+          boxShadow: [BoxShadow(color: cl.cardShadow, blurRadius: 24, offset: const Offset(0, -4))],
+        ),
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // Handle
+            Center(child: Container(width: 36, height: 4,
+                decoration: BoxDecoration(color: cl.border, borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 20),
+
+            // Lawyer avatar + name
+            Center(child: Column(children: [
+              Container(
+                width: 64, height: 64,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [cl.accent.withValues(alpha: 0.12), cl.accentLight.withValues(alpha: 0.3)]),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Center(child: Text(widget.lawyer.initials,
+                    style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.w800, color: cl.accent))),
+              ),
+              const SizedBox(height: 10),
+              Text(widget.lawyer.name,
+                  style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w800, color: cl.textDark)),
+              if (widget.lawyer.designation != null && widget.lawyer.designation!.isNotEmpty)
+                Text(widget.lawyer.designation!,
+                    style: GoogleFonts.nunito(fontSize: 12, color: cl.textMid)),
+            ])),
+            const SizedBox(height: 24),
+
+            // Section label
+            Text('Book an Appointment',
+                style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w800, color: cl.textDark)),
+            const SizedBox(height: 16),
+
+            // Date + Time row
+            Row(children: [
+              Expanded(child: _fieldLabel(cl, 'Date', Icons.calendar_today_rounded,
+                  child: _picker(cl, _displayDate, _pickDate))),
+              const SizedBox(width: 12),
+              Expanded(child: _fieldLabel(cl, 'Time', Icons.access_time_rounded,
+                  child: _picker(cl, _displayTime, _pickTime))),
             ]),
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Center(
-              child: Text(lawyer.initials,
-                  style: GoogleFonts.nunito(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: cl.accent))),
-        ),
-        const SizedBox(height: 16),
-        Text(lawyer.name,
-            style: GoogleFonts.nunito(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: cl.textDark)),
-        if (lawyer.designation != null && lawyer.designation!.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(lawyer.designation!,
-              style:
-                  GoogleFonts.nunito(fontSize: 13, color: cl.textMid)),
-        ],
-        if (lawyer.practiceAreas.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            alignment: WrapAlignment.center,
-            children: lawyer.practiceAreas
-                .map((area) => Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                          color: cl.accent.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(20)),
-                      child: Text(area,
-                          style: GoogleFonts.nunito(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: cl.accent)),
-                    ))
-                .toList(),
-          ),
-        ],
-        const SizedBox(height: 28),
-        SpringButton(
-          onTap: () => Navigator.pop(context),
-          child: Container(
-            width: double.infinity,
-            height: 52,
-            decoration: BoxDecoration(
-              color: cl.accent,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                    color: cl.accent.withValues(alpha: 0.25),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4))
-              ],
+            const SizedBox(height: 14),
+
+            // Appointment type
+            _fieldLabel(cl, 'Type', Icons.category_rounded,
+              child: Container(
+                decoration: _inputDecoration(cl),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedType,
+                    isExpanded: true,
+                    style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
+                    dropdownColor: cl.surface,
+                    icon: Icon(Icons.expand_more_rounded, color: cl.textLight, size: 18),
+                    onChanged: (v) => setState(() => _selectedType = v!),
+                    items: _appointmentTypes.map((t) => DropdownMenuItem(
+                      value: t,
+                      child: Text(t, style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark)),
+                    )).toList(),
+                  ),
+                ),
+              ),
             ),
-            child: Center(
-                child: Text('Connect',
-                    style: GoogleFonts.nunito(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white))),
-          ),
+            const SizedBox(height: 14),
+
+            // Description
+            _fieldLabel(cl, 'Description', Icons.notes_rounded,
+              child: Container(
+                decoration: _inputDecoration(cl),
+                child: TextField(
+                  controller: _descCtrl,
+                  maxLines: 3,
+                  style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    hintText: 'Briefly describe your concern...',
+                    hintStyle: GoogleFonts.nunito(fontSize: 13, color: cl.textLight),
+                    contentPadding: const EdgeInsets.all(14),
+                  ),
+                ),
+              ),
+            ),
+
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.red.shade200)),
+                child: Text(_error!, style: GoogleFonts.nunito(fontSize: 12, color: Colors.red.shade700)),
+              ),
+            ],
+
+            const SizedBox(height: 24),
+
+            // Submit
+            SpringButton(
+              onTap: _loading ? null : _submit,
+              child: Container(
+                width: double.infinity, height: 52,
+                decoration: BoxDecoration(
+                  color: _loading ? cl.accent.withValues(alpha: 0.6) : cl.accent,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(color: cl.accent.withValues(alpha: 0.25), blurRadius: 12, offset: const Offset(0, 4))],
+                ),
+                child: Center(child: _loading
+                    ? const SizedBox(width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : Text('Request Appointment',
+                        style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white))),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Center(child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel', style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w600, color: cl.textMid)),
+            )),
+          ]),
         ),
-        const SizedBox(height: 12),
-        TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel',
-                style: GoogleFonts.nunito(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: cl.textMid))),
+      ),
+    );
+  }
+
+  Widget _fieldLabel(AppColorTheme cl, String label, IconData icon, {required Widget child}) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Icon(icon, size: 13, color: cl.accent),
+        const SizedBox(width: 5),
+        Text(label, style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700, color: cl.accent)),
       ]),
+      const SizedBox(height: 6),
+      child,
+    ]);
+  }
+
+  BoxDecoration _inputDecoration(AppColorTheme cl) => BoxDecoration(
+    color: cl.bg,
+    borderRadius: BorderRadius.circular(12),
+    border: Border.all(color: cl.border),
+  );
+
+  Widget _picker(AppColorTheme cl, String value, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 44,
+        decoration: _inputDecoration(cl),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Row(children: [
+          Expanded(child: Text(value, style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark))),
+          Icon(Icons.expand_more_rounded, size: 18, color: cl.textLight),
+        ]),
+      ),
     );
   }
 }

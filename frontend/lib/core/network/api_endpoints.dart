@@ -14,6 +14,9 @@ class ApiEndpoints {
 
   static const String lawyerDirectory = '/lawyer/directory';
 
+  static const String appointments = '/appointments';
+  static const String appointmentTypes = '/appointments/types';
+
   static const String conversations = '/conversations';
   static String conversationDetail(String id) => '/conversations/$id';
   static String conversationUpdate(String id) => '/conversations/$id';
