@@ -2,7 +2,7 @@ import { Outlet, Navigate } from "react-router-dom";
 import { useAuth } from "@/features/auth/auth-provider";
 
 export function AuthLayout() {
-  const { user, loading } = useAuth();
+  const { firebaseUser, lawyerState, loading } = useAuth();
 
   if (loading) {
     return (
@@ -12,7 +12,13 @@ export function AuthLayout() {
     );
   }
 
-  if (user) {
+  if (firebaseUser && lawyerState) {
+    if (lawyerState.profile.must_change_password) {
+      return <Navigate to="/change-password" replace />;
+    }
+    if (!lawyerState.profile.is_profile_complete) {
+      return <Navigate to="/profile-setup" replace />;
+    }
     return <Navigate to="/" replace />;
   }
 

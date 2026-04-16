@@ -2,9 +2,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { api } from "@/lib/api";
+import { useAuth, type LawyerState } from "@/features/auth/auth-provider";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { setLawyerState } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -16,10 +19,27 @@ export function LoginPage() {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      navigate("/", { replace: true });
-    } catch {
-      setError("Invalid email or password. Please try again.");
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+      const token = await credential.user.getIdToken();
+
+      const { data } = await api.post<LawyerState>("/lawyer/auth/login", {
+        firebase_token: token,
+      });
+
+      setLawyerState(data);
+
+      if (data.profile.must_change_password) {
+        navigate("/change-password", { replace: true });
+      } else if (!data.profile.is_profile_complete) {
+        navigate("/profile-setup", { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
+    } catch (err: unknown) {
+      const detail =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      const message = detail ?? "Invalid email or password. Please try again.";
+      setError(message);
     } finally {
       setLoading(false);
     }

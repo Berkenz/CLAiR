@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { useAuth } from "@/features/auth/auth-provider";
 import { cn } from "@/lib/cn";
 import {
   LayoutDashboard,
@@ -25,7 +26,15 @@ const navItems = [
 
 export function DashboardLayout() {
   const navigate = useNavigate();
+  const { lawyerState } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const displayName =
+    lawyerState?.profile.display_name ??
+    lawyerState?.user.first_name ??
+    "Lawyer";
+  const designation = lawyerState?.profile.designation ?? "";
+  const initials = displayName.charAt(0).toUpperCase();
 
   async function handleSignOut() {
     await signOut(auth);
@@ -89,14 +98,15 @@ export function DashboardLayout() {
 
         {/* User + Sign out */}
         <div className="border-t border-white/10 p-3 space-y-1">
-          {/* Placeholder user info — swap with real auth user */}
           <div className="flex items-center gap-2.5 px-3 py-2">
-            <div className="h-7 w-7 rounded-full bg-[#957186] flex items-center justify-center text-xs font-bold text-white">
-              A
+            <div className="h-7 w-7 rounded-full bg-[#957186] flex items-center justify-center text-xs font-bold text-white shrink-0">
+              {initials}
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-white truncate">Atty. Mat.</p>
-              <p className="text-[10px] text-white/50 truncate">Counselor</p>
+              <p className="text-xs font-semibold text-white truncate">{displayName}</p>
+              {designation && (
+                <p className="text-[10px] text-white/50 truncate">{designation}</p>
+              )}
             </div>
           </div>
           <button
