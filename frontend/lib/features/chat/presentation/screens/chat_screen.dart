@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
@@ -8,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
 import 'package:clair/shared/widgets/app_drawer.dart';
@@ -24,6 +26,15 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
+  bool _didInitialEntryJump = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ensureBottomOnEntry();
+    });
+  }
 
   @override
   void dispose() {
@@ -38,6 +49,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     _controller.clear();
     ref.read(chatProvider.notifier).sendMessage(text);
+    ref.read(chatProvider.notifier).hideDisclaimer();
     _scrollToBottom();
   }
 
@@ -354,14 +366,47 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
+  void _jumpToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
+  }
+
+  void _ensureBottomOnEntry() {
+    if (_didInitialEntryJump || !mounted) return;
+    final tab = ref.read(mainShellTabProvider);
+    final messages = ref.read(chatProvider).messages;
+    if (tab == 1 && messages.isNotEmpty) {
+      _didInitialEntryJump = true;
+      _jumpToBottom();
+      Future.delayed(const Duration(milliseconds: 140), _jumpToBottom);
+      Future.delayed(const Duration(milliseconds: 320), _jumpToBottom);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatProvider);
     final cl = context.c;
 
+    ref.listen<int>(mainShellTabProvider, (prev, next) {
+      final currentMessages = ref.read(chatProvider).messages;
+      if (next == 1 && currentMessages.isNotEmpty) {
+        _jumpToBottom();
+        Future.delayed(const Duration(milliseconds: 140), _jumpToBottom);
+      }
+    });
+
     ref.listen<ChatState>(chatProvider, (prev, next) {
       if (next.messages.length != (prev?.messages.length ?? 0)) {
         _scrollToBottom();
+      }
+      if (prev?.conversationId != next.conversationId && next.messages.isNotEmpty) {
+        _scrollToBottom();
+        Future.delayed(const Duration(milliseconds: 150), _jumpToBottom);
+        Future.delayed(const Duration(milliseconds: 320), _jumpToBottom);
       }
       if (next.error != null && prev?.error == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -407,11 +452,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   }
                   final msg = chatState.messages[index];
                   return msg.isUser
-                      ? _buildUserMessage(msg.text)
-                      : _buildAiMessage(msg.text);
+                      ? _buildUserMessage(msg, index)
+                      : _buildAiMessage(msg, index);
                 },
               ),
             ),
+            if (chatState.isLoadedConversation) _buildDisclaimer(),
             _buildInputBar(chatState.isLoading),
           ],
         ),
@@ -419,8 +465,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Widget _buildAiMessage(String text) {
+  Widget _buildAiMessage(ChatMessageEntity message, int index) {
     final cl = context.c;
+    final text = message.text;
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: Row(
@@ -538,10 +585,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    _buildActionChip(Icons.copy_rounded),
-                    _buildActionChip(Icons.thumb_up_outlined),
-                    _buildActionChip(Icons.thumb_down_outlined),
-                    _buildActionChip(Icons.refresh_rounded),
+                    _buildActionChip(
+                      Icons.copy_rounded,
+                      'copy',
+                      text,
+                      message,
+                      index,
+                    ),
+                    _buildActionChip(
+                      Icons.thumb_up_outlined,
+                      'like',
+                      text,
+                      message,
+                      index,
+                    ),
+                    _buildActionChip(
+                      Icons.thumb_down_outlined,
+                      'dislike',
+                      text,
+                      message,
+                      index,
+                    ),
+                    _buildActionChip(
+                      Icons.refresh_rounded,
+                      'regenerate',
+                      text,
+                      message,
+                      index,
+                    ),
                   ],
                 ),
               ],
@@ -552,8 +623,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Widget _buildUserMessage(String text) {
+  Widget _buildUserMessage(ChatMessageEntity message, int index) {
     final cl = context.c;
+    final text = message.text;
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(
@@ -566,7 +638,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [cl.textDark, cl.textDark.withOpacity(0.85)],
+                colors: [cl.accent, cl.accentDark],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -578,7 +650,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: cl.textDark.withOpacity(0.15),
+                  color: cl.accentDark.withOpacity(0.25),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -598,8 +670,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              _buildActionChip(Icons.copy_rounded),
-              _buildActionChip(Icons.edit_outlined),
+              _buildActionChip(
+                Icons.copy_rounded,
+                'copy',
+                text,
+                message,
+                index,
+              ),
+              _buildActionChip(
+                Icons.edit_outlined,
+                'edit',
+                text,
+                message,
+                index,
+              ),
             ],
           ),
         ],
@@ -649,20 +733,226 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Widget _buildActionChip(IconData icon) {
+  Widget _buildActionChip(IconData icon, String action, String text, ChatMessageEntity message, int messageIndex) {
     final cl = context.c;
+    
+    Color? backgroundColor;
+    Color? iconColor;
+    
+    if (action == 'like' && message.feedback == 'like') {
+      backgroundColor = Colors.green.shade700;
+      iconColor = Colors.white;
+    } else if (action == 'dislike' && message.feedback == 'dislike') {
+      backgroundColor = Colors.red.shade700;
+      iconColor = Colors.white;
+    } else {
+      backgroundColor = cl.fieldBg;
+      iconColor = cl.textLight;
+    }
+    
     return Padding(
       padding: const EdgeInsets.only(right: 4),
-      child: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: cl.fieldBg,
-          borderRadius: BorderRadius.circular(8),
+      child: GestureDetector(
+        onTap: () => _handleActionChip(action, text, message, messageIndex),
+        child: Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 14, color: iconColor),
         ),
-        child: Icon(icon, size: 14, color: cl.textLight),
       ),
     );
+  }
+
+  Widget _buildDisclaimer() {
+    final cl = context.c;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: cl.accent.withValues(alpha: 0.08),
+        border: Border(
+          top: BorderSide(color: cl.accent.withValues(alpha: 0.2), width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            size: 16,
+            color: cl.accent,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Start a new conversation to explore a different topic.',
+              style: GoogleFonts.nunito(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: cl.accent,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleActionChip(String action, String text, ChatMessageEntity message, int messageIndex) {
+    final cl = context.c;
+
+    switch (action) {
+      case 'copy':
+        Clipboard.setData(ClipboardData(text: text));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Copied to clipboard'),
+            backgroundColor: cl.textDark,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        break;
+      case 'like':
+        final newFeedback = message.feedback == 'like' ? null : 'like';
+        final updatedMessage = message.copyWith(feedback: newFeedback);
+        final messages = [...ref.read(chatProvider).messages];
+        messages[messageIndex] = updatedMessage;
+        ref.read(chatProvider.notifier).updateMessages(messages);
+        break;
+      case 'dislike':
+        final newFeedback = message.feedback == 'dislike' ? null : 'dislike';
+        final updatedMessage = message.copyWith(feedback: newFeedback);
+        final messages = [...ref.read(chatProvider).messages];
+        messages[messageIndex] = updatedMessage;
+        ref.read(chatProvider.notifier).updateMessages(messages);
+        break;
+      case 'edit':
+        _showEditDialog(text);
+        break;
+      case 'regenerate':
+        _regenerateResponse();
+        break;
+    }
+  }
+
+  void _showEditDialog(String currentText) {
+    final cl = context.c;
+    final editController = TextEditingController(text: currentText);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: cl.surface,
+        title: Text(
+          'Edit Message',
+          style: GoogleFonts.nunito(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: cl.textDark,
+          ),
+        ),
+        content: TextField(
+          controller: editController,
+          maxLines: 4,
+          minLines: 2,
+          style: TextStyle(color: cl.textDark),
+          decoration: InputDecoration(
+            hintText: 'Edit your message',
+            hintStyle: TextStyle(color: cl.textLight),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: cl.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: cl.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: cl.accent),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.nunito(
+                color: cl.textLight,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              final editedText = editController.text.trim();
+              if (editedText.isNotEmpty && editedText != currentText) {
+                // Find and replace the user message
+                final messages = ref.read(chatProvider).messages;
+                final messageIndex =
+                    messages.indexWhere((m) => m.text == currentText && m.isUser);
+
+                if (messageIndex != -1) {
+                  final updatedMessages = [...messages];
+                  updatedMessages[messageIndex] =
+                      ChatMessageEntity(text: editedText, isUser: true);
+
+                  // Keep only up to the edited message
+                  ref.read(chatProvider.notifier).reset();
+                  _controller.text = editedText;
+                }
+                Navigator.pop(context);
+              }
+            },
+            child: Text(
+              'Save',
+              style: GoogleFonts.nunito(
+                color: cl.accent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _regenerateResponse() {
+    final chatState = ref.read(chatProvider);
+    final messages = chatState.messages;
+
+    if (messages.isEmpty) return;
+
+    // Remove the last AI message if it exists
+    final lastMessageIsAi =
+        messages.isNotEmpty && !messages.last.isUser;
+
+    if (!lastMessageIsAi) return;
+
+    // Get the last user message
+    final lastUserMessageIndex =
+        messages.lastIndexWhere((m) => m.isUser);
+
+    if (lastUserMessageIndex == -1) return;
+
+    final lastUserMessage = messages[lastUserMessageIndex].text;
+
+    // Remove all messages after the last user message
+    final updatedMessages = messages.sublist(0, lastUserMessageIndex + 1);
+
+    // Update state and resend
+    ref.read(chatProvider.notifier).reset();
+    _controller.text = lastUserMessage;
+
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        _sendMessage();
+      }
+    });
   }
 
   Widget _buildInputBar(bool isLoading) {
@@ -677,7 +967,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         children: [
           Expanded(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: cl.bg,
                 borderRadius: BorderRadius.circular(30),
@@ -698,6 +988,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       minLines: 1,
                       maxLength: 4000,
                       enabled: !isLoading,
+                      textAlignVertical: TextAlignVertical.center,
                       style: TextStyle(
                         fontSize: 14,
                         color: cl.textDark,
@@ -717,8 +1008,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         ),
                         border: InputBorder.none,
                         isDense: true,
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: 6),
+                        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                       ),
                       onSubmitted: (_) => _sendMessage(),
                     ),
@@ -731,8 +1021,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       height: 34,
                       decoration: BoxDecoration(
                         color: isLoading
-                            ? cl.textDark.withOpacity(0.5)
-                            : cl.textDark,
+                            ? cl.accent.withOpacity(0.5)
+                            : cl.accent,
                         shape: BoxShape.circle,
                       ),
                       child: isLoading

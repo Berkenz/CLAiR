@@ -4,8 +4,14 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'CLAiR';
+  static const String _apiBaseUrlOverride =
+      String.fromEnvironment('API_BASE_URL', defaultValue: '');
 
   static String get baseUrl {
+    if (_apiBaseUrlOverride.isNotEmpty) {
+      return _apiBaseUrlOverride;
+    }
+
     const isProduction =
         bool.fromEnvironment('PRODUCTION', defaultValue: false);
     if (isProduction) {

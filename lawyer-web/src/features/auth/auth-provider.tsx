@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -59,7 +60,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [lawyerState, setLawyerState] = useState<LawyerState | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchLawyerProfile = useCallback(async (fbUser: User) => {
+  // True only for the very first onAuthStateChanged call (page load / refresh).
+  // Subsequent calls are triggered by explicit sign-in / sign-out actions, which
+  // manage lawyerState themselves — fetching here would race against them.
+  const isInitialLoad = useRef(true);
+
+  const fetchLawyerProfile = useCallback(async () => {
     try {
       const { data } = await api.get<LawyerState>("/lawyer/profile");
       setLawyerState(data);
@@ -69,18 +75,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshLawyerState = useCallback(async () => {
-    if (!firebaseUser) return;
-    await fetchLawyerProfile(firebaseUser);
-  }, [firebaseUser, fetchLawyerProfile]);
+    await fetchLawyerProfile();
+  }, [fetchLawyerProfile]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
-      if (fbUser) {
-        await fetchLawyerProfile(fbUser);
-      } else {
+
+      if (fbUser && isInitialLoad.current) {
+        // Existing session (page refresh) — restore lawyer state from the backend.
+        await fetchLawyerProfile();
+      } else if (!fbUser) {
+        // Explicit sign-out or token expiry.
         setLawyerState(null);
       }
+      // Fresh sign-in: skip the fetch here. The login page calls
+      // POST /lawyer/auth/login which creates the DB record and then
+      // calls setLawyerState() directly, avoiding any race condition.
+
+      isInitialLoad.current = false;
       setLoading(false);
     });
     return unsubscribe;

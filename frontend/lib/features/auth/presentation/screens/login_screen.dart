@@ -143,6 +143,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final cl = context.c;
     final size = MediaQuery.of(context).size;
+    final compact = size.height < 860;
+    final logoSize = compact ? 150.0 : 180.0;
+    final logoPadding = compact ? 20.0 : 25.0;
+    final headingGap = compact ? 24.0 : 40.0;
+    final bottomGap = compact ? 16.0 : 30.0;
 
     return Scaffold(
       backgroundColor: cl.surface,
@@ -165,15 +170,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: Column(
                     children: [
-                      const SizedBox(height: 20),
+                      SizedBox(height: compact ? 12 : 20),
 
                       Container(
-                        width: 180,
-                        height: 180,
-                        padding: const EdgeInsets.all(25),
+                        width: logoSize,
+                        height: logoSize,
+                        padding: EdgeInsets.all(logoPadding),
                         child: Image.asset(
                           'assets/images/CLAiR-icon.png',
                           fit: BoxFit.contain,
+                          color: cl.accent,
+                          colorBlendMode: BlendMode.srcIn,
                         ),
                       ),
 
@@ -193,7 +200,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
 
-                      const SizedBox(height: 40),
+                      SizedBox(height: headingGap),
 
                       _buildAnimatedInputField(
                         controller: _emailController,
@@ -303,7 +310,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
 
-                      const Spacer(),
+                      SizedBox(height: compact ? 12 : 20),
 
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -337,7 +344,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ],
                       ),
 
-                      const SizedBox(height: 30),
+                      SizedBox(height: bottomGap),
                     ],
                   ),
                 ),
@@ -481,7 +488,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           color: cl.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: cl.tan.withOpacity(0.5),
+            color: cl.border,
             width: 1.5,
           ),
           boxShadow: [
@@ -532,10 +539,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       child: Container(
         height: 50,
         decoration: BoxDecoration(
-          color: cl.tan.withOpacity(0.3),
+          color: cl.fieldBg,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: cl.tan.withOpacity(0.5),
+            color: cl.border,
             width: 1.5,
           ),
           boxShadow: [

@@ -1,14 +1,17 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/history/domain/entities/conversation_entity.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
-import 'package:clair/shared/data/chat_history.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
@@ -17,15 +20,37 @@ class LibraryScreen extends ConsumerStatefulWidget {
   ConsumerState<LibraryScreen> createState() => _LibraryScreenState();
 }
 
+final conversationPreviewProvider =
+    FutureProvider.autoDispose.family<String, String>((ref, conversationId) async {
+  final repository = ref.read(historyRepositoryProvider);
+  final messages = await repository.getConversationMessages(conversationId);
+  if (messages.isEmpty) {
+    return 'Start a new message';
+  }
+
+  final latest = messages.last;
+  final author = latest.isUser ? 'You' : 'CLAiR';
+  final text = latest.text.trim().isNotEmpty ? latest.text.trim() : '...';
+  return '$author: $text';
+});
+
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   int _segment = 0;
+  late final TextEditingController _searchController;
 
   @override
   void initState() {
     super.initState();
+    _searchController = TextEditingController();
     Future.microtask(
       () => ref.read(historyProvider.notifier).loadConversations(),
     );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -51,7 +76,30 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       }
     });
 
-    final savedChats = sharedChatHistory.where((c) => c.saved).toList();
+    final searchQuery = _searchController.text.trim().toLowerCase();
+
+    final allHistoryChats = historyState.conversations
+      .toList()
+      ..sort((a, b) => (b.updatedAt ?? b.createdAt)
+        .compareTo(a.updatedAt ?? a.createdAt));
+
+    final savedChats = historyState.conversations
+        .where((c) => c.isPinned)
+        .toList()
+        ..sort((a, b) => (b.updatedAt ?? b.createdAt)
+            .compareTo(a.updatedAt ?? a.createdAt));
+
+    final filteredHistoryChats = searchQuery.isEmpty
+      ? allHistoryChats
+      : allHistoryChats
+        .where((c) => c.title.toLowerCase().contains(searchQuery))
+        .toList();
+
+    final filteredSavedChats = searchQuery.isEmpty
+      ? savedChats
+      : savedChats
+        .where((c) => c.title.toLowerCase().contains(searchQuery))
+        .toList();
 
     return Column(
       children: [
@@ -80,8 +128,40 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   ),
                 ),
                 _buildSegmentControl(
-                  historyState.conversations.length,
-                  savedChats.length,
+                  filteredHistoryChats.length,
+                  filteredSavedChats.length,
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Container(
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: cl.fieldBg,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (_) => setState(() {}),
+                      style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
+                      decoration: InputDecoration(
+                        hintText: 'Search chats...',
+                        hintStyle: GoogleFonts.nunito(fontSize: 13, color: cl.textLight),
+                        prefixIcon: Icon(Icons.search_rounded, size: 18, color: cl.textLight),
+                        suffixIcon: searchQuery.isNotEmpty
+                            ? GestureDetector(
+                                onTap: () {
+                                  _searchController.clear();
+                                  setState(() {});
+                                },
+                                child: Icon(Icons.close_rounded, size: 18, color: cl.textLight),
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Expanded(
@@ -90,11 +170,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     child: _segment == 0
                         ? KeyedSubtree(
                             key: const ValueKey('history'),
-                            child: _buildHistoryContent(historyState),
+                            child: _buildHistoryContent(historyState, filteredHistoryChats, searchQuery),
                           )
                         : KeyedSubtree(
                             key: const ValueKey('saved'),
-                            child: _buildSavedContent(savedChats),
+                            child: _buildSavedContent(filteredSavedChats, searchQuery),
                           ),
                   ),
                 ),
@@ -197,35 +277,51 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   // ─── History content ───────────────────────────────────────────────
 
-  Widget _buildHistoryContent(HistoryState state) {
+  Widget _buildHistoryContent(
+    HistoryState state,
+    List<ConversationEntity> chats,
+    String searchQuery,
+  ) {
     final cl = context.c;
     if (state.isLoading && state.conversations.isEmpty) {
       return Center(
         child: CircularProgressIndicator(color: cl.accent),
       );
     }
-    if (state.conversations.isEmpty) return _buildHistoryEmpty();
+    if (chats.isEmpty) {
+      return searchQuery.isNotEmpty
+          ? _buildSearchEmpty('history')
+          : _buildHistoryEmpty();
+    }
 
     return RefreshIndicator(
       color: cl.accent,
       onRefresh: () => ref.read(historyProvider.notifier).loadConversations(),
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-        itemCount: state.conversations.length,
+        itemCount: chats.length,
         separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (_, i) => _historyCard(state.conversations[i]),
+        itemBuilder: (_, i) => _historyCard(chats[i]),
       ),
     );
   }
 
   Widget _historyCard(ConversationEntity conversation) {
     final cl = context.c;
-    final dateStr =
-        _formatDate(conversation.updatedAt ?? conversation.createdAt);
+    final chatDate = conversation.updatedAt ?? conversation.createdAt;
+    final dateTimeStr = _formatDateTime(chatDate);
+    final previewAsync = ref.watch(conversationPreviewProvider(conversation.id));
+    final fallbackPreview = conversation.lastMessage?.trim().isNotEmpty == true
+        ? 'Recent: ${conversation.lastMessage!.trim()}'
+        : 'Start a new message';
+    final lastMessagePreview = previewAsync.when(
+      data: (value) => value,
+      loading: () => fallbackPreview,
+      error: (_, __) => fallbackPreview,
+    );
 
     return GestureDetector(
       onTap: () => _openConversation(conversation),
-      onLongPress: () => _showCardOptions(conversation),
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
         decoration: BoxDecoration(
@@ -243,14 +339,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         child: Row(
           children: [
             if (conversation.isPinned)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Icon(
-                  Icons.push_pin_rounded,
-                  size: 16,
-                  color: cl.accent.withValues(alpha: 0.5),
+              Container(
+                width: 4,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE9A020),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
+            if (conversation.isPinned) const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,135 +364,121 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Last message: $dateStr',
+                    lastMessagePreview,
                     style: GoogleFonts.nunito(
                       fontSize: 12,
                       color: cl.textMid,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
-              ),
-            ),
-            GestureDetector(
-              onTap: () =>
-                  ref.read(historyProvider.notifier).togglePin(conversation.id),
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Icon(
-                  conversation.isPinned
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_outline_rounded,
-                  size: 20,
-                  color: conversation.isPinned
-                      ? const Color(0xFFE9A020)
-                      : cl.textLight,
-                ),
-              ),
-            ),
-            GestureDetector(
-              onTap: () => _showCardOptions(conversation),
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Icon(Icons.more_vert_rounded,
-                    size: 20, color: cl.textLight),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showCardOptions(ConversationEntity conversation) {
-    final cl = context.c;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        decoration: BoxDecoration(
-          color: cl.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: cl.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      conversation.title,
-                      style: GoogleFonts.nunito(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: cl.textDark,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  const SizedBox(height: 6),
+                  Text(
+                    dateTimeStr,
+                    style: GoogleFonts.nunito(
+                      fontSize: 11,
+                      color: cl.textLight,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-            Divider(color: cl.border, height: 1),
-            ListTile(
-              leading: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: cl.accent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(Icons.edit_outlined,
-                    size: 18, color: cl.accent),
+            PopupMenuButton<String>(
+              icon: Icon(
+                Icons.more_vert_rounded,
+                size: 20,
+                color: cl.textLight,
               ),
-              title: Text('Rename',
-                  style: GoogleFonts.nunito(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: cl.textDark)),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-              onTap: () {
-                Navigator.pop(context);
-                _showRenameDialog(conversation);
-              },
-            ),
-            ListTile(
-              leading: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(Icons.delete_outline_rounded,
-                    size: 18, color: Colors.red.shade700),
+              splashRadius: 20,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              title: Text('Delete',
-                  style: GoogleFonts.nunito(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.red.shade700)),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-              onTap: () {
-                Navigator.pop(context);
-                _confirmDelete(conversation);
-              },
+              color: cl.surface,
+              elevation: 4,
+              onSelected: (value) => _handleCardMenuAction(value, conversation),
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'save',
+                  child: Row(
+                    children: [
+                      Icon(
+                        conversation.isPinned
+                            ? Icons.bookmark_rounded
+                            : Icons.bookmark_outline_rounded,
+                        size: 18,
+                        color: const Color(0xFFE9A020),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        conversation.isPinned ? 'Unsave' : 'Save',
+                        style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'rename',
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit_outlined, size: 18, color: cl.textDark),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Rename',
+                        style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'share',
+                  child: Row(
+                    children: [
+                      Icon(Icons.share_rounded, size: 18, color: cl.accent),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Share to Lawyer',
+                        style: GoogleFonts.nunito(fontSize: 13, color: cl.accent),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'download',
+                  child: Row(
+                    children: [
+                      Icon(Icons.download_rounded, size: 18, color: cl.textDark),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Download',
+                        style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.delete_outline_rounded,
+                        size: 18,
+                        color: Colors.red.shade700,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Delete',
+                        style: GoogleFonts.nunito(
+                          fontSize: 13,
+                          color: Colors.red.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            SizedBox(
-                height: MediaQuery.of(context).viewPadding.bottom + 16),
           ],
         ),
       ),
@@ -438,8 +521,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   // ─── Saved content ─────────────────────────────────────────────────
 
-  Widget _buildSavedContent(List<ChatEntry> saved) {
-    if (saved.isEmpty) return _buildSavedEmpty();
+  Widget _buildSavedContent(List<ConversationEntity> saved, String searchQuery) {
+    if (saved.isEmpty) {
+      return searchQuery.isNotEmpty
+          ? _buildSearchEmpty('saved')
+          : _buildSavedEmpty();
+    }
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
@@ -449,61 +536,161 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _savedCard(ChatEntry c) {
+  Widget _savedCard(ConversationEntity conversation) {
     final cl = context.c;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cl.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cl.border),
-        boxShadow: [
-          BoxShadow(
-            color: cl.cardShadow,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 52,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE9A020),
-              borderRadius: BorderRadius.circular(2),
+    final chatDate = conversation.updatedAt ?? conversation.createdAt;
+    final dateTimeStr = _formatDateTime(chatDate);
+    final previewAsync = ref.watch(conversationPreviewProvider(conversation.id));
+    final fallbackPreview = conversation.lastMessage?.trim().isNotEmpty == true
+        ? 'Recent: ${conversation.lastMessage!.trim()}'
+        : 'Start a new message';
+    final lastMessagePreview = previewAsync.when(
+      data: (value) => value,
+      loading: () => fallbackPreview,
+      error: (_, __) => fallbackPreview,
+    );
+
+    return GestureDetector(
+      onTap: () => _openConversation(conversation),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: cl.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: cl.border),
+          boxShadow: [
+            BoxShadow(
+              color: cl.cardShadow,
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(c.title,
-                    style: GoogleFonts.nunito(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: cl.textDark)),
-                const SizedBox(height: 4),
-                Text(c.preview,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style:
-                        GoogleFonts.nunito(fontSize: 12, color: cl.textMid)),
-                const SizedBox(height: 6),
-                Text(c.date,
-                    style: GoogleFonts.nunito(
-                        fontSize: 11, color: cl.textLight)),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              height: 52,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE9A020),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(conversation.title,
+                      style: GoogleFonts.nunito(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: cl.textDark),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 4),
+                  Text(lastMessagePreview,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          GoogleFonts.nunito(fontSize: 12, color: cl.textMid)),
+                  const SizedBox(height: 6),
+                  Text(dateTimeStr,
+                      style: GoogleFonts.nunito(
+                          fontSize: 11, color: cl.textLight)),
+                ],
+              ),
+            ),
+            PopupMenuButton<String>(
+              icon: Icon(
+                Icons.more_vert_rounded,
+                size: 20,
+                color: cl.textLight,
+              ),
+              splashRadius: 20,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              color: cl.surface,
+              elevation: 4,
+              onSelected: (value) => _handleCardMenuAction(value, conversation),
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'save',
+                  child: Row(
+                    children: [
+                      Icon(Icons.bookmark_rounded, size: 18, color: cl.textDark),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Unsave',
+                        style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'rename',
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit_outlined, size: 18, color: cl.textDark),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Rename',
+                        style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'share',
+                  child: Row(
+                    children: [
+                      Icon(Icons.share_rounded, size: 18, color: cl.accent),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Share to Lawyer',
+                        style: GoogleFonts.nunito(fontSize: 13, color: cl.accent),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'download',
+                  child: Row(
+                    children: [
+                      Icon(Icons.download_rounded, size: 18, color: cl.textDark),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Download',
+                        style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.delete_outline_rounded,
+                        size: 18,
+                        color: Colors.red.shade700,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Delete',
+                        style: GoogleFonts.nunito(
+                          fontSize: 13,
+                          color: Colors.red.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
-          GestureDetector(
-            onTap: () => setState(() => c.saved = false),
-            child: const Icon(Icons.bookmark_rounded,
-                size: 20, color: Color(0xFFE9A020)),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -542,6 +729,41 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
+  Widget _buildSearchEmpty(String segment) {
+    final cl = context.c;
+    final title = segment == 'saved' ? 'No saved chats found' : 'No chats found';
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: cl.fieldBg,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.search_off_rounded, size: 28, color: cl.textLight),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: GoogleFonts.nunito(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: cl.textDark,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Try a different keyword.',
+            style: GoogleFonts.nunito(fontSize: 13, color: cl.textMid),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ─── Shared actions ────────────────────────────────────────────────
 
   void _openConversation(ConversationEntity conversation) {
@@ -551,6 +773,79 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           isPinned: conversation.isPinned,
         );
     ref.read(mainShellTabProvider.notifier).state = 1;
+  }
+
+  void _handleCardMenuAction(String value, ConversationEntity conversation) {
+    switch (value) {
+      case 'save':
+        ref.read(historyProvider.notifier).togglePin(conversation.id);
+        break;
+      case 'rename':
+        _showRenameDialog(conversation);
+        break;
+      case 'share':
+        _shareToLawyer(conversation);
+        break;
+      case 'download':
+        _downloadConversation(conversation);
+        break;
+      case 'delete':
+        _confirmDelete(conversation);
+        break;
+    }
+  }
+
+  void _shareToLawyer(ConversationEntity conversation) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Share to Lawyer feature coming soon'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _downloadConversation(ConversationEntity conversation) async {
+    final cl = context.c;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Generating PDF...'),
+        backgroundColor: cl.textDark,
+        duration: const Duration(seconds: 10),
+      ),
+    );
+
+    try {
+      await ref.read(chatProvider.notifier).loadConversation(
+            conversation.id,
+            title: conversation.title,
+            isPinned: conversation.isPinned,
+          );
+
+      final bytes = await ref.read(chatProvider.notifier).downloadPdf();
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      if (bytes == null) return;
+
+      final dir = await getTemporaryDirectory();
+      final safeName =
+          conversation.title.replaceAll(RegExp(r'[^\w\s-]'), '_').trim();
+      final file = File('${dir.path}/CLAiR_$safeName.pdf');
+      await file.writeAsBytes(bytes);
+
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)]),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to download: $e'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
   }
 
   void _showRenameDialog(ConversationEntity conversation) {
@@ -639,12 +934,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
-    if (diff.inDays == 0) return 'Today';
-    if (diff.inDays == 1) return 'Yesterday';
-    if (diff.inDays < 7) return '${diff.inDays} days ago';
-    return DateFormat('MMMM d, y').format(date);
+  String _formatDateTime(DateTime date) {
+    return DateFormat('MMM d, y • h:mm a').format(date.toLocal());
   }
 }

@@ -7,6 +7,9 @@ import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/auth/presentation/screens/appearance_screen.dart';
 import 'package:clair/features/auth/presentation/screens/edit_profile_screen.dart';
+import 'package:clair/features/auth/presentation/screens/privacy_policy_screen.dart';
+import 'package:clair/features/auth/presentation/screens/report_screen.dart';
+import 'package:clair/features/auth/presentation/screens/terms_of_use_screen.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -172,10 +175,34 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: 16),
 
             _section(context, 'About', [
-              _row(context, Icons.flag_outlined, 'Report', () {}),
+              _row(
+                context,
+                Icons.flag_outlined,
+                'Report',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ReportScreen()),
+                ),
+              ),
               _row(context, Icons.help_outline_rounded, 'Help Center', () {}),
-              _row(context, Icons.description_outlined, 'Terms of Use', () {}),
-              _row(context, Icons.privacy_tip_outlined, 'Privacy Policy', () {}),
+              _row(
+                context,
+                Icons.description_outlined,
+                'Terms of Use',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TermsOfUseScreen()),
+                ),
+              ),
+              _row(
+                context,
+                Icons.privacy_tip_outlined,
+                'Privacy Policy',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+                ),
+              ),
             ]),
             const SizedBox(height: 24),
 

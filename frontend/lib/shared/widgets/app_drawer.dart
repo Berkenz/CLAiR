@@ -7,17 +7,30 @@ import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
-import 'package:clair/shared/data/chat_history.dart';
+import 'package:clair/features/history/presentation/providers/history_provider.dart';
 
-class AppDrawer extends ConsumerWidget {
+class AppDrawer extends ConsumerStatefulWidget {
   const AppDrawer({super.key});
 
-  static const _relativeTimeLabels = ['2h ago', 'Yesterday', '3 days ago', 'Last week', '2 weeks ago'];
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AppDrawer> createState() => _AppDrawerState();
+}
+
+class _AppDrawerState extends ConsumerState<AppDrawer> {
+  @override
+  Widget build(BuildContext context) {
     final cl = context.c;
-    final recentChats = sharedChatHistory.take(4).toList();
+    final historyState = ref.watch(historyProvider);
+    
+    // Load conversations if not already loaded
+    if (historyState.conversations.isEmpty && !historyState.isLoading) {
+      Future.microtask(() {
+        ref.read(historyProvider.notifier).loadConversations();
+      });
+    }
+
+    final allChats = historyState.conversations;
+    final filteredChats = allChats.take(4).toList();
 
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.76,
@@ -40,36 +53,40 @@ class AppDrawer extends ConsumerWidget {
             ]),
           ),
 
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Container(
-              height: 40,
-              decoration: BoxDecoration(color: cl.fieldBg, borderRadius: BorderRadius.circular(12)),
-              child: Row(children: [
-                const SizedBox(width: 12),
-                Icon(Icons.search_rounded, size: 18, color: cl.textLight),
-                const SizedBox(width: 8),
-                Text('Search chats...', style: GoogleFonts.nunito(fontSize: 13, color: cl.textLight)),
-              ]),
-            ),
-          ),
-
           Divider(color: cl.border, indent: 20, endIndent: 20, height: 1),
 
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
-            child: Text('RECENT', style: GoogleFonts.nunito(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: cl.textLight)),
+            child: Text(
+              'RECENT',
+              style: GoogleFonts.nunito(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: cl.textLight),
+            ),
           ),
 
-          if (recentChats.isEmpty)
+          if (filteredChats.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Text('No recent chats', style: GoogleFonts.nunito(fontSize: 13, color: cl.textLight)),
+              child: Text(
+                'No recent chats',
+                style: GoogleFonts.nunito(fontSize: 13, color: cl.textLight),
+              ),
             )
           else
-            ...recentChats.asMap().entries.map((e) {
-              final timeLabel = e.key < _relativeTimeLabels.length ? _relativeTimeLabels[e.key] : '';
-              return _recentChat(context, Icons.chat_bubble_outline_rounded, e.value.title, timeLabel);
+            ...filteredChats.toList().asMap().entries.map((e) {
+              final conv = e.value;
+              final timeLabel = _formatRecentTime(conv.updatedAt ?? conv.createdAt);
+              return GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                  ref.read(chatProvider.notifier).loadConversation(
+                    conv.id,
+                    title: conv.title,
+                    isPinned: conv.isPinned,
+                  );
+                  ref.read(mainShellTabProvider.notifier).state = 1;
+                },
+                child: _recentChat(context, conv.isPinned ? Icons.push_pin_rounded : Icons.chat_bubble_outline_rounded, conv.title, timeLabel),
+              );
             }),
 
           const SizedBox(height: 8),
@@ -88,7 +105,7 @@ class AppDrawer extends ConsumerWidget {
                 ref.read(chatProvider.notifier).reset();
                 ref.read(mainShellTabProvider.notifier).state = 1;
               }),
-              _item(context, Icons.history_rounded, 'Chat History', false, () {
+              _item(context, Icons.library_books_rounded, 'Chat Library', false, () {
                 Navigator.pop(context);
                 ref.read(mainShellTabProvider.notifier).state = 2;
               }),
@@ -118,20 +135,72 @@ class AppDrawer extends ConsumerWidget {
     );
   }
 
+  String _formatRecentTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inHours < 1) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else if (difference.inDays < 30) {
+      final weeks = (difference.inDays / 7).floor();
+      return '${weeks}w ago';
+    } else {
+      return '${(difference.inDays / 30).floor()}m ago';
+    }
+  }
+
   Widget _recentChat(BuildContext context, IconData icon, String title, String time) {
     final cl = context.c;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(10)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: Colors.transparent,
+        ),
         child: Row(children: [
-          Icon(icon, size: 16, color: cl.textLight),
-          const SizedBox(width: 12),
-          Expanded(child: Text(title, style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w500, color: cl.textDark),
-              maxLines: 1, overflow: TextOverflow.ellipsis)),
-          Text(time, style: GoogleFonts.nunito(fontSize: 10, color: cl.textLight)),
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: cl.accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child: Icon(icon, size: 14, color: cl.accent),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.nunito(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: cl.textDark,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          Text(
+            time,
+            style: GoogleFonts.nunito(
+              fontSize: 10,
+              color: cl.textLight,
+            ),
+          ),
         ]),
       ),
     );

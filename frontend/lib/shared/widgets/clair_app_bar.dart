@@ -62,7 +62,7 @@ class ClairAppBar extends ConsumerWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'clair',
+                        'CLAiR',
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
@@ -153,16 +153,21 @@ class ClairAppBar extends ConsumerWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Flexible(
-                          child: Text(
-                            chatTitle!,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: cl.textDark.withOpacity(0.65),
-                              fontFamily: 'Satoshi',
+                          child: Container(
+                            constraints: BoxConstraints(
+                              maxWidth: MediaQuery.of(context).size.width * 0.45,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            child: Text(
+                              chatTitle!,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: cl.textDark.withOpacity(0.65),
+                                fontFamily: 'Satoshi',
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ),
                         if (onTitleTap != null) ...[
@@ -178,23 +183,23 @@ class ClairAppBar extends ConsumerWidget {
                   ),
                 ),
                 if (onNewChat != null || onActionsTap != null) ...[
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Container(
-                    height: 24,
+                    height: 28,
                     width: 1,
                     color: cl.border,
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 8),
                 ],
                 if (onNewChat != null)
                   GestureDetector(
                     onTap: onNewChat,
                     behavior: HitTestBehavior.opaque,
                     child: Padding(
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.all(8),
                       child: Icon(
                         Icons.edit_square,
-                        size: 18,
+                        size: 22,
                         color: cl.textDark.withOpacity(0.55),
                       ),
                     ),
@@ -204,10 +209,10 @@ class ClairAppBar extends ConsumerWidget {
                     onTap: onActionsTap,
                     behavior: HitTestBehavior.opaque,
                     child: Padding(
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.all(8),
                       child: Icon(
                         Icons.more_horiz_rounded,
-                        size: 20,
+                        size: 24,
                         color: cl.textDark.withOpacity(0.55),
                       ),
                     ),
