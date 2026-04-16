@@ -1022,22 +1022,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onPressed: () {
               final editedText = editController.text.trim();
               if (editedText.isNotEmpty && editedText != currentText) {
-                // Find and replace the user message
+                // Find and continue from the edited message in the same conversation
                 final messages = ref.read(chatProvider).messages;
                 final messageIndex =
                     messages.indexWhere((m) => m.text == currentText && m.isUser);
 
                 if (messageIndex != -1) {
-                  final updatedMessages = [...messages];
-                  updatedMessages[messageIndex] =
-                      ChatMessageEntity(text: editedText, isUser: true);
+                  final baseMessages = messages.sublist(0, messageIndex);
+                  ref.read(chatProvider.notifier).updateMessages(baseMessages);
+                  ref.read(chatProvider.notifier).hideDisclaimer();
 
-                  // Keep only up to the edited message
-                  ref.read(chatProvider.notifier).reset();
-                  _controller.text = editedText;
+                  Navigator.pop(context);
+                  Future.delayed(const Duration(milliseconds: 80), () {
+                    if (!mounted) return;
+                    ref.read(chatProvider.notifier).sendMessage(editedText);
+                    _scrollToBottom();
+                  });
+                  return;
                 }
-                Navigator.pop(context);
               }
+              Navigator.pop(context);
             },
             child: Text(
               'Save',
@@ -1072,16 +1076,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final lastUserMessage = messages[lastUserMessageIndex].text;
 
-    // Remove all messages after the last user message
-    final updatedMessages = messages.sublist(0, lastUserMessageIndex + 1);
+    // Keep the thread before the last user message, then resend same prompt.
+    final baseMessages = messages.sublist(0, lastUserMessageIndex);
+    ref.read(chatProvider.notifier).updateMessages(baseMessages);
+    ref.read(chatProvider.notifier).hideDisclaimer();
 
-    // Update state and resend
-    ref.read(chatProvider.notifier).reset();
-    _controller.text = lastUserMessage;
-
-    Future.delayed(const Duration(milliseconds: 100), () {
+    Future.delayed(const Duration(milliseconds: 80), () {
       if (mounted) {
-        _sendMessage();
+        ref.read(chatProvider.notifier).sendMessage(lastUserMessage);
+        _scrollToBottom();
       }
     });
   }
