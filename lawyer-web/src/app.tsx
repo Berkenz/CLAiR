@@ -4,17 +4,24 @@ import { AuthLayout } from "@/layouts/auth-layout";
 import { DashboardLayout } from "@/layouts/dashboard-layout";
 import { LoginPage } from "@/features/auth/pages/login-page";
 import { DashboardPage } from "@/features/dashboard/pages/dashboard-page";
-import { ReferralsPage } from "@/features/referrals/pages/referrals-page";
-import { ClientsPage } from "@/features/clients/pages/clients-page";
-import { ProfilePage } from "@/features/profile/pages/profile-page";
+import { CasesPage } from "@/features/cases/pages/cases-page";
+import { AppointmentsPage } from "@/features/appointments/pages/appointments-page";
+import { MessagesPage } from "@/features/messages/pages/messages-page";
+import { DocumentsPage } from "@/features/documents/pages/documents-page";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
+
+  if (import.meta.env.VITE_SKIP_AUTH === "true") {
+    return <>{children}</>;
+  }
+
+
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-600 border-t-transparent" />
+      <div className="flex h-screen items-center justify-center bg-[#241715]">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#957186] border-t-transparent" />
       </div>
     );
   }
@@ -42,10 +49,11 @@ export function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="/referrals" element={<ReferralsPage />} />
-        <Route path="/clients" element={<ClientsPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/"             element={<DashboardPage />} />
+        <Route path="/cases"        element={<CasesPage />} />
+        <Route path="/appointments" element={<AppointmentsPage />} />
+        <Route path="/messages"     element={<MessagesPage />} />
+        <Route path="/documents"    element={<DocumentsPage />} />
       </Route>
 
       {/* Catch-all */}
