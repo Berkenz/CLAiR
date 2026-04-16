@@ -79,6 +79,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         conversationTitle: title,
         conversationIsPinned: isPinned,
         isLoading: false,
+        isLoadedConversation: true,
       );
     } catch (e) {
       state = state.copyWith(
@@ -142,6 +143,14 @@ class ChatNotifier extends StateNotifier<ChatState> {
     state = state.copyWith(error: null);
   }
 
+  void hideDisclaimer() {
+    state = state.copyWith(isLoadedConversation: false);
+  }
+
+  void updateMessages(List<ChatMessageEntity> messages) {
+    state = state.copyWith(messages: messages);
+  }
+
   void reset() {
     state = ChatState.initial();
   }
@@ -154,6 +163,7 @@ class ChatState {
   final String? conversationId;
   final String? conversationTitle;
   final bool conversationIsPinned;
+  final bool isLoadedConversation;
 
   const ChatState({
     required this.messages,
@@ -162,6 +172,7 @@ class ChatState {
     this.conversationId,
     this.conversationTitle,
     this.conversationIsPinned = false,
+    this.isLoadedConversation = false,
   });
 
   factory ChatState.initial() => const ChatState(
@@ -181,6 +192,7 @@ class ChatState {
     String? conversationId,
     String? conversationTitle,
     bool? conversationIsPinned,
+    bool? isLoadedConversation,
   }) =>
       ChatState(
         messages: messages ?? this.messages,
@@ -190,6 +202,8 @@ class ChatState {
         conversationTitle: conversationTitle ?? this.conversationTitle,
         conversationIsPinned:
             conversationIsPinned ?? this.conversationIsPinned,
+        isLoadedConversation:
+            isLoadedConversation ?? this.isLoadedConversation,
       );
 }
 

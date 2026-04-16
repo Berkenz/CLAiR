@@ -4,6 +4,7 @@ class ConversationEntity {
   final bool isPinned;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final String? lastMessage;
 
   const ConversationEntity({
     required this.id,
@@ -11,6 +12,7 @@ class ConversationEntity {
     this.isPinned = false,
     required this.createdAt,
     this.updatedAt,
+    this.lastMessage,
   });
 
   factory ConversationEntity.fromJson(Map<String, dynamic> json) {
@@ -22,12 +24,14 @@ class ConversationEntity {
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
           : null,
+      lastMessage: json['last_message'] as String?,
     );
   }
 
   ConversationEntity copyWith({
     String? title,
     bool? isPinned,
+    String? lastMessage,
   }) {
     return ConversationEntity(
       id: id,
@@ -35,6 +39,7 @@ class ConversationEntity {
       isPinned: isPinned ?? this.isPinned,
       createdAt: createdAt,
       updatedAt: updatedAt,
+      lastMessage: lastMessage ?? this.lastMessage,
     );
   }
 }

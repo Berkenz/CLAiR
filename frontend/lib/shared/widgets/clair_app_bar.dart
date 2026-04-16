@@ -62,7 +62,7 @@ class ClairAppBar extends ConsumerWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'clair',
+                        'CLAiR',
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
@@ -153,16 +153,21 @@ class ClairAppBar extends ConsumerWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Flexible(
-                          child: Text(
-                            chatTitle!,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: cl.textDark.withOpacity(0.65),
-                              fontFamily: 'Satoshi',
+                          child: Container(
+                            constraints: BoxConstraints(
+                              maxWidth: MediaQuery.of(context).size.width * 0.45,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            child: Text(
+                              chatTitle!,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: cl.textDark.withOpacity(0.65),
+                                fontFamily: 'Satoshi',
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ),
                         if (onTitleTap != null) ...[

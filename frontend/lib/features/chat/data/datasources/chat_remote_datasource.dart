@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import 'package:clair/core/constants/app_constants.dart';
 import 'package:clair/core/network/api_endpoints.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/chat/domain/entities/chat_response_entity.dart';
@@ -55,7 +56,15 @@ class ChatRemoteDataSource {
           throw ChatException(msg.toString());
         }
       }
-      throw ChatException('Could not reach CLAiR. Please check your connection.');
+      final targetUrl = '${AppConstants.baseUrl}${ApiEndpoints.chatSend}';
+      final cause = e.type == DioExceptionType.connectionTimeout ||
+              e.type == DioExceptionType.receiveTimeout ||
+              e.type == DioExceptionType.sendTimeout
+          ? 'Request timed out.'
+          : 'Network unreachable.';
+      throw ChatException(
+        'Could not reach CLAiR at $targetUrl. $cause Please check your connection or API base URL.',
+      );
     }
   }
 }

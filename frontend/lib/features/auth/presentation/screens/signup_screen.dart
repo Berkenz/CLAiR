@@ -160,6 +160,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       child: Image.asset(
                         'assets/images/CLAiR-icon.png',
                         fit: BoxFit.contain,
+                        color: cl.accent,
+                        colorBlendMode: BlendMode.srcIn,
                       ),
                     ),
                     

@@ -52,17 +52,17 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
     final target = state.conversations.firstWhere((c) => c.id == id);
     final newPinned = !target.isPinned;
     try {
-      final updated =
-          await _repository.updateConversation(id, isPinned: newPinned);
+      final updated = await _repository.updateConversation(id, isPinned: newPinned);
+
+      final preserved = target.copyWith(
+        isPinned: updated.isPinned,
+        title: updated.title,
+      );
+
       final updatedList = state.conversations
-          .map((c) => c.id == id ? updated : c)
+          .map((c) => c.id == id ? preserved : c)
           .toList();
-      updatedList.sort((a, b) {
-        if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
-        final aDate = a.updatedAt ?? a.createdAt;
-        final bDate = b.updatedAt ?? b.createdAt;
-        return bDate.compareTo(aDate);
-      });
+
       state = state.copyWith(conversations: updatedList);
     } catch (e) {
       state = state.copyWith(error: e.toString());

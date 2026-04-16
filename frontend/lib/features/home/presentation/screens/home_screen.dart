@@ -43,8 +43,7 @@ class _QuickAction {
 List<_QuickAction> _quickActions(Color accent) => [
   _QuickAction(Icons.chat_bubble_outline_rounded, 'Chat', accent),
   _QuickAction(Icons.balance_rounded, 'Lawyers', const Color(0xFF6B8A7A)),
-  _QuickAction(Icons.description_outlined, 'Cases', const Color(0xFF7A7A8B)),
-  _QuickAction(Icons.bookmark_outline_rounded, 'Saved', const Color(0xFF8B7A6A)),
+  _QuickAction(Icons.library_books_outlined, 'Library', const Color(0xFF8B7A6A)),
 ];
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -103,16 +102,93 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                 ]),
                 0.0,
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 16),
 
               _fadeSlide(
-                Row(children: quickActions.asMap().entries.map((e) => Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(right: e.key == quickActions.length - 1 ? 0 : 10),
-                    child: _chip(e.value, context),
+                SpringButton(
+                  onTap: () {
+                    ref.read(chatProvider.notifier).reset();
+                    ref.read(mainShellTabProvider.notifier).state = 1;
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: cl.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: cl.border),
+                      boxShadow: [
+                        BoxShadow(color: cl.cardShadow, blurRadius: 10, offset: const Offset(0, 2)),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: cl.accent.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(Icons.add_comment_rounded, size: 19, color: cl.accent),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Start new chat',
+                                style: GoogleFonts.nunito(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: cl.textDark,
+                                ),
+                              ),
+                              Text(
+                                'Ask CLAiR a legal question',
+                                style: GoogleFonts.nunito(fontSize: 12, color: cl.textMid),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.arrow_forward_rounded, size: 18, color: cl.textLight),
+                      ],
+                    ),
                   ),
-                )).toList()),
+                ),
+                0.08,
+              ),
+              const SizedBox(height: 18),
+
+              _fadeSlide(
+                Padding(
+                  padding: const EdgeInsets.only(left: 2),
+                  child: Text(
+                    'Quick Actions',
+                    style: GoogleFonts.nunito(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: cl.textMid,
+                    ),
+                  ),
+                ),
                 0.1,
+              ),
+              const SizedBox(height: 10),
+
+              _fadeSlide(
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: quickActions
+                      .map((a) => SizedBox(
+                            width: (MediaQuery.of(context).size.width - 60) / 3,
+                            child: _chip(a, context),
+                          ))
+                      .toList(),
+                ),
+                0.14,
               ),
               const SizedBox(height: 28),
 
@@ -148,7 +224,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
           ref.read(chatProvider.notifier).reset();
           ref.read(mainShellTabProvider.notifier).state = 1;
         }
-        if (a.label == 'Saved') {
+        if (a.label == 'Library') {
           ref.read(mainShellTabProvider.notifier).state = 2;
         }
       },
