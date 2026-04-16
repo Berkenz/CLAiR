@@ -61,7 +61,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     setState(() => _saving = false);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text('Profile updated', style: GoogleFonts.nunito(fontWeight: FontWeight.w600)),
-      backgroundColor: AppColors.accent,
+      backgroundColor: context.c.accent,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ));
@@ -69,10 +69,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cl = context.c;
     final user = ref.watch(currentUserProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: cl.bg,
       body: SafeArea(
         child: Column(children: [
           // Header
@@ -84,13 +85,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 onTap: () => Navigator.pop(context),
                 child: Container(
                   width: 38, height: 38,
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
-                      boxShadow: [BoxShadow(color: AppColors.cardShadow, blurRadius: 4, offset: const Offset(0, 1))]),
-                  child: const Icon(Icons.arrow_back_rounded, color: AppColors.textDark, size: 20),
+                  decoration: BoxDecoration(color: cl.surface, borderRadius: BorderRadius.circular(12),
+                      boxShadow: [BoxShadow(color: cl.cardShadow, blurRadius: 4, offset: const Offset(0, 1))]),
+                  child: Icon(Icons.arrow_back_rounded, color: cl.textDark, size: 20),
                 ),
               ),
               const Spacer(),
-              Text('Edit Profile', style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+              Text('Edit Profile', style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w700, color: cl.textDark)),
               const Spacer(),
               const SizedBox(width: 38),
             ]),
@@ -101,17 +102,17 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           Container(
             width: 80, height: 80,
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [AppColors.accent.withValues(alpha: 0.12), AppColors.accentLight.withValues(alpha: 0.3)]),
+              gradient: LinearGradient(colors: [cl.accent.withValues(alpha: 0.12), cl.accentLight.withValues(alpha: 0.3)]),
               borderRadius: BorderRadius.circular(24),
             ),
             child: user?.photoUrl != null
                 ? ClipRRect(borderRadius: BorderRadius.circular(24), child: Image.network(user!.photoUrl!, fit: BoxFit.cover))
-                : Center(child: Text(_initials, style: GoogleFonts.nunito(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.accent))),
+                : Center(child: Text(_initials, style: GoogleFonts.nunito(fontSize: 28, fontWeight: FontWeight.w800, color: cl.accent))),
           ),
           const SizedBox(height: 8),
           GestureDetector(
             onTap: () {},
-            child: Text('Change Photo', style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.accent)),
+            child: Text('Change Photo', style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w600, color: cl.accent)),
           ),
           const SizedBox(height: 20),
 
@@ -132,7 +133,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               const SizedBox(height: 28),
               _sectionLabel('Change Password'),
               const SizedBox(height: 4),
-              Text("Leave blank if you don't want to change.", style: GoogleFonts.nunito(fontSize: 12, color: AppColors.textLight)),
+              Text("Leave blank if you don't want to change.", style: GoogleFonts.nunito(fontSize: 12, color: cl.textLight)),
               const SizedBox(height: 10),
               _field('Current Password', _currentPwCtrl, Icons.lock_outline_rounded,
                   isPass: true, obscure: _obscureCurrent, onToggle: () => setState(() => _obscureCurrent = !_obscureCurrent)),
@@ -149,9 +150,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 child: Container(
                   width: double.infinity, height: 52,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [AppColors.accent, AppColors.accentDark]),
+                    gradient: LinearGradient(colors: [cl.accent, cl.accentDark]),
                     borderRadius: BorderRadius.circular(14),
-                    boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
+                    boxShadow: [BoxShadow(color: cl.accent.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
                   ),
                   child: Center(child: _saving
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
@@ -165,32 +166,33 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     );
   }
 
-  Widget _sectionLabel(String s) => Text(s, style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textMid));
+  Widget _sectionLabel(String s) => Text(s, style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700, color: context.c.textMid));
 
   Widget _field(String label, TextEditingController ctrl, IconData icon,
       {String? hint, bool isPass = false, bool obscure = false, VoidCallback? onToggle}) {
+    final cl = context.c;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMid)),
+      Text(label, style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w600, color: cl.textMid)),
       const SizedBox(height: 6),
       Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cl.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-          boxShadow: [BoxShadow(color: AppColors.cardShadow, blurRadius: 4, offset: const Offset(0, 1))],
+          border: Border.all(color: cl.border),
+          boxShadow: [BoxShadow(color: cl.cardShadow, blurRadius: 4, offset: const Offset(0, 1))],
         ),
         child: TextField(
           controller: ctrl,
           obscureText: isPass && obscure,
-          style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textDark),
+          style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w600, color: cl.textDark),
           decoration: InputDecoration(
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             hintText: hint ?? (isPass ? '••••••••' : ''),
-            hintStyle: GoogleFonts.nunito(color: AppColors.textLight, fontSize: 14),
-            prefixIcon: Icon(icon, size: 18, color: AppColors.textLight),
+            hintStyle: GoogleFonts.nunito(color: cl.textLight, fontSize: 14),
+            prefixIcon: Icon(icon, size: 18, color: cl.textLight),
             suffixIcon: isPass
-                ? IconButton(icon: Icon(obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 18, color: AppColors.textLight), onPressed: onToggle)
+                ? IconButton(icon: Icon(obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 18, color: cl.textLight), onPressed: onToggle)
                 : null,
           ),
         ),

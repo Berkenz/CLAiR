@@ -23,6 +23,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   Future<void> _sendResetEmail() async {
+    final cl = context.c;
     final email = _emailController.text.trim();
     if (email.isEmpty) return;
 
@@ -41,7 +42,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString()),
-            backgroundColor: AppColors.crimson,
+            backgroundColor: cl.crimson,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -56,10 +57,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cl = context.c;
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: cl.surface,
       body: SafeArea(
         child: SingleChildScrollView(
           child: SizedBox(
@@ -69,7 +71,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 // Wavy Gradient Background
                 CustomPaint(
                   size: Size(size.width, size.height * 0.35),
-                  painter: WavyBackgroundPainter(),
+                  painter: WavyBackgroundPainter(
+                    tanColor: cl.tan,
+                    crimsonColor: cl.crimson,
+                    darkBrownColor: cl.darkBrown,
+                  ),
                 ),
                 
                 Padding(
@@ -92,14 +98,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       const SizedBox(height: 16),
                       
                       // Forgot Password Text
-                      const Align(
+                      Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
                           'Forgot\nPassword?',
                           style: TextStyle(
                             fontSize: 42,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.darkBrown,
+                            color: cl.darkBrown,
                             fontFamily: 'Satoshi',
                             height: 1.2,
                           ),
@@ -109,14 +115,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       const SizedBox(height: 16),
                       
                       // Description
-                      const Align(
+                      Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
                           'Enter your email to receive a\npassword reset link',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w400,
-                            color: AppColors.darkBrown,
+                            color: cl.darkBrown,
                             fontFamily: 'Satoshi',
                             height: 1.5,
                           ),
@@ -140,15 +146,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                         height: 56,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          gradient: const LinearGradient(
+                          gradient: LinearGradient(
                             colors: [
-                              AppColors.crimson,
-                              AppColors.darkBrown,
+                              cl.crimson,
+                              cl.darkBrown,
                             ],
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.crimson.withOpacity(0.4),
+                              color: cl.crimson.withOpacity(0.4),
                               blurRadius: 15,
                               offset: const Offset(0, 8),
                             ),
@@ -189,12 +195,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
+                          Text(
                             'Remember your password? ',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w400,
-                              color: AppColors.darkBrown,
+                              color: cl.darkBrown,
                               fontFamily: 'Satoshi',
                             ),
                           ),
@@ -207,12 +213,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                               minimumSize: Size.zero,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
-                            child: const Text(
+                            child: Text(
                               'Log in',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.crimson,
+                                color: cl.crimson,
                                 fontFamily: 'Satoshi',
                               ),
                             ),
@@ -237,13 +243,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     required String label,
     required IconData icon,
   }) {
+    final cl = context.c;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cl.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.tan.withOpacity(0.3),
+            color: cl.tan.withOpacity(0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -251,10 +258,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       ),
       child: TextField(
         controller: controller,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 15,
           fontWeight: FontWeight.w500,
-          color: AppColors.darkBrown,
+          color: cl.darkBrown,
           fontFamily: 'Satoshi',
         ),
         decoration: InputDecoration(
@@ -262,12 +269,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           hintStyle: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w400,
-            color: AppColors.darkBrown.withOpacity(0.4),
+            color: cl.darkBrown.withOpacity(0.4),
             fontFamily: 'Satoshi',
           ),
           prefixIcon: Icon(
             icon,
-            color: AppColors.crimson.withOpacity(0.6),
+            color: cl.crimson.withOpacity(0.6),
             size: 20,
           ),
           border: OutlineInputBorder(
@@ -275,7 +282,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             borderSide: BorderSide.none,
           ),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: cl.surface,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 20,
             vertical: 18,
@@ -286,8 +293,17 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 }
 
-// Custom Painter for Wavy Background
 class WavyBackgroundPainter extends CustomPainter {
+  final Color tanColor;
+  final Color crimsonColor;
+  final Color darkBrownColor;
+
+  WavyBackgroundPainter({
+    required this.tanColor,
+    required this.crimsonColor,
+    required this.darkBrownColor,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
@@ -295,66 +311,58 @@ class WavyBackgroundPainter extends CustomPainter {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          AppColors.tan.withOpacity(0.4),
-          AppColors.crimson.withOpacity(0.3),
-          AppColors.darkBrown.withOpacity(0.2),
+          tanColor.withOpacity(0.4),
+          crimsonColor.withOpacity(0.3),
+          darkBrownColor.withOpacity(0.2),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
     final path = Path();
-    
     path.moveTo(0, 0);
     path.lineTo(size.width, 0);
-    
     path.lineTo(size.width, size.height * 0.6);
-    
     path.quadraticBezierTo(
       size.width * 0.75,
       size.height * 0.7,
       size.width * 0.5,
       size.height * 0.65,
     );
-    
     path.quadraticBezierTo(
       size.width * 0.25,
       size.height * 0.6,
       0,
       size.height * 0.7,
     );
-    
     path.lineTo(0, 0);
     path.close();
 
     canvas.drawPath(path, paint);
-    
+
     final paint2 = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topRight,
         end: Alignment.bottomLeft,
         colors: [
-          AppColors.crimson.withOpacity(0.2),
-          AppColors.tan.withOpacity(0.3),
+          crimsonColor.withOpacity(0.2),
+          tanColor.withOpacity(0.3),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-    
+
     final path2 = Path();
     path2.moveTo(size.width, 0);
     path2.lineTo(size.width, size.height * 0.5);
-    
     path2.quadraticBezierTo(
       size.width * 0.6,
       size.height * 0.55,
       size.width * 0.3,
       size.height * 0.45,
     );
-    
     path2.quadraticBezierTo(
       size.width * 0.1,
       size.height * 0.4,
       0,
       size.height * 0.5,
     );
-    
     path2.lineTo(0, 0);
     path2.lineTo(size.width, 0);
     path2.close();

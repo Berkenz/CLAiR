@@ -18,6 +18,7 @@ class AuthHeroPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
+    final cl = context.c;
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -40,24 +41,24 @@ class AuthHeroPanel extends StatelessWidget {
                 child: Container(
                   width: 40, height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.8),
+                    color: cl.surface.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.arrow_back_rounded, color: AppColors.textDark, size: 20),
+                  child: Icon(Icons.arrow_back_rounded, color: cl.textDark, size: 20),
                 ),
               )
             else
               Row(children: [
                 SizedBox(width: 24, height: 24,
                   child: Image.asset('assets/images/CLAiR-icon.png', fit: BoxFit.contain,
-                      color: AppColors.accent, colorBlendMode: BlendMode.srcIn)),
+                      color: cl.accent, colorBlendMode: BlendMode.srcIn)),
                 const SizedBox(width: 6),
-                Text('clair', style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.accentDark)),
+                Text('clair', style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w800, color: cl.accentDark)),
               ]),
             const SizedBox(height: 20),
-            Text(headline, style: GoogleFonts.nunito(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textDark, height: 1.15)),
+            Text(headline, style: GoogleFonts.nunito(fontSize: 28, fontWeight: FontWeight.w800, color: cl.textDark, height: 1.15)),
             const SizedBox(height: 4),
-            Text(subtext, style: GoogleFonts.nunito(fontSize: 13, color: AppColors.textMid, height: 1.4)),
+            Text(subtext, style: GoogleFonts.nunito(fontSize: 13, color: cl.textMid, height: 1.4)),
           ],
         ),
       ),

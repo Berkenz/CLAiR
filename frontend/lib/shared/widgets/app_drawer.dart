@@ -16,6 +16,7 @@ class AppDrawer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cl = context.c;
     final recentChats = sharedChatHistory.take(4).toList();
 
     return Drawer(
@@ -24,18 +25,18 @@ class AppDrawer extends ConsumerWidget {
       elevation: 0,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cl.surface,
           borderRadius: const BorderRadius.only(topRight: Radius.circular(24), bottomRight: Radius.circular(24)),
-          boxShadow: [BoxShadow(color: AppColors.textDark.withValues(alpha: 0.08), blurRadius: 24, offset: const Offset(4, 0))],
+          boxShadow: [BoxShadow(color: cl.textDark.withValues(alpha: 0.08), blurRadius: 24, offset: const Offset(4, 0))],
         ),
         child: SafeArea(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
             child: Row(children: [
               SizedBox(width: 24, height: 24,
-                  child: Image.asset('assets/images/CLAiR-icon.png', fit: BoxFit.contain, color: AppColors.accent, colorBlendMode: BlendMode.srcIn)),
+                  child: Image.asset('assets/images/CLAiR-icon.png', fit: BoxFit.contain, color: cl.accent, colorBlendMode: BlendMode.srcIn)),
               const SizedBox(width: 8),
-              Text('CLAiR', style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textDark)),
+              Text('CLAiR', style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w800, color: cl.textDark)),
             ]),
           ),
 
@@ -43,65 +44,68 @@ class AppDrawer extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: Container(
               height: 40,
-              decoration: BoxDecoration(color: AppColors.fieldBg, borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: cl.fieldBg, borderRadius: BorderRadius.circular(12)),
               child: Row(children: [
                 const SizedBox(width: 12),
-                const Icon(Icons.search_rounded, size: 18, color: AppColors.textLight),
+                Icon(Icons.search_rounded, size: 18, color: cl.textLight),
                 const SizedBox(width: 8),
-                Text('Search chats...', style: GoogleFonts.nunito(fontSize: 13, color: AppColors.textLight)),
+                Text('Search chats...', style: GoogleFonts.nunito(fontSize: 13, color: cl.textLight)),
               ]),
             ),
           ),
 
-          const Divider(color: AppColors.border, indent: 20, endIndent: 20, height: 1),
+          Divider(color: cl.border, indent: 20, endIndent: 20, height: 1),
 
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
-            child: Text('RECENT', style: GoogleFonts.nunito(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: AppColors.textLight)),
+            child: Text('RECENT', style: GoogleFonts.nunito(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: cl.textLight)),
           ),
 
           if (recentChats.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Text('No recent chats', style: GoogleFonts.nunito(fontSize: 13, color: AppColors.textLight)),
+              child: Text('No recent chats', style: GoogleFonts.nunito(fontSize: 13, color: cl.textLight)),
             )
           else
             ...recentChats.asMap().entries.map((e) {
               final timeLabel = e.key < _relativeTimeLabels.length ? _relativeTimeLabels[e.key] : '';
-              return _recentChat(Icons.chat_bubble_outline_rounded, e.value.title, timeLabel);
+              return _recentChat(context, Icons.chat_bubble_outline_rounded, e.value.title, timeLabel);
             }),
 
           const SizedBox(height: 8),
-          const Divider(color: AppColors.border, indent: 20, endIndent: 20, height: 1),
+          Divider(color: cl.border, indent: 20, endIndent: 20, height: 1),
 
           Expanded(child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             children: [
-              _label('Navigate'),
-              _item(Icons.home_outlined, 'Home', true, () {
+              _label(context, 'Navigate'),
+              _item(context, Icons.home_outlined, 'Home', true, () {
                 Navigator.pop(context);
                 ref.read(mainShellTabProvider.notifier).state = 0;
               }),
-              _item(Icons.chat_bubble_outline, 'New Chat', false, () {
+              _item(context, Icons.chat_bubble_outline, 'New Chat', false, () {
                 Navigator.pop(context);
                 ref.read(chatProvider.notifier).reset();
                 ref.read(mainShellTabProvider.notifier).state = 1;
               }),
-              _item(Icons.history_rounded, 'Chat History', false, () {
+              _item(context, Icons.history_rounded, 'Chat History', false, () {
+                Navigator.pop(context);
+                ref.read(mainShellTabProvider.notifier).state = 2;
+              }),
+              _item(context, Icons.balance_rounded, 'Find a Lawyer', false, () {
                 Navigator.pop(context);
                 ref.read(mainShellTabProvider.notifier).state = 3;
               }),
-              _item(Icons.balance_rounded, 'Find a Lawyer', false, () { Navigator.pop(context); context.push('/lawyers'); }),
-              _item(Icons.notifications_none_rounded, 'Notifications', false, () { Navigator.pop(context); context.push('/notifications'); }),
+              _item(context, Icons.notifications_none_rounded, 'Notifications', false, () { Navigator.pop(context); context.push('/notifications'); }),
               const SizedBox(height: 12),
-              _label('Account'),
-              _item(Icons.person_outline_rounded, 'Profile', false, () { Navigator.pop(context); context.push('/profile'); }),
+              _label(context, 'Account'),
+              _item(context, Icons.person_outline_rounded, 'Profile', false, () { Navigator.pop(context); context.push('/profile'); }),
             ],
           )),
-          const Divider(color: AppColors.border, indent: 20, endIndent: 20, height: 1),
+          Divider(color: cl.border, indent: 20, endIndent: 20, height: 1),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
-            child: _item(Icons.logout_rounded, 'Sign Out', false, () async {
+            child: _item(context, Icons.logout_rounded, 'Sign Out', false, () async {
               Navigator.pop(context);
               await ref.read(authRepositoryProvider).signOut();
               ref.read(currentUserProvider.notifier).state = null;
@@ -114,7 +118,8 @@ class AppDrawer extends ConsumerWidget {
     );
   }
 
-  Widget _recentChat(IconData icon, String title, String time) {
+  Widget _recentChat(BuildContext context, IconData icon, String title, String time) {
+    final cl = context.c;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Container(
@@ -122,25 +127,29 @@ class AppDrawer extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(10)),
         child: Row(children: [
-          Icon(icon, size: 16, color: AppColors.textLight),
+          Icon(icon, size: 16, color: cl.textLight),
           const SizedBox(width: 12),
-          Expanded(child: Text(title, style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textDark),
+          Expanded(child: Text(title, style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w500, color: cl.textDark),
               maxLines: 1, overflow: TextOverflow.ellipsis)),
-          Text(time, style: GoogleFonts.nunito(fontSize: 10, color: AppColors.textLight)),
+          Text(time, style: GoogleFonts.nunito(fontSize: 10, color: cl.textLight)),
         ]),
       ),
     );
   }
 
-  Widget _label(String s) => Padding(
-    padding: const EdgeInsets.fromLTRB(14, 0, 0, 6),
-    child: Text(s.toUpperCase(), style: GoogleFonts.nunito(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: AppColors.textLight)),
-  );
+  Widget _label(BuildContext context, String s) {
+    final cl = context.c;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 0, 6),
+      child: Text(s.toUpperCase(), style: GoogleFonts.nunito(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: cl.textLight)),
+    );
+  }
 
-  Widget _item(IconData icon, String label, bool active, VoidCallback onTap, {bool isDestructive = false}) {
-    final color = isDestructive ? const Color(0xFFDC4C4C) : (active ? AppColors.accent : AppColors.textMid);
+  Widget _item(BuildContext context, IconData icon, String label, bool active, VoidCallback onTap, {bool isDestructive = false}) {
+    final cl = context.c;
+    final color = isDestructive ? const Color(0xFFDC4C4C) : (active ? cl.accent : cl.textMid);
     return Material(
-      color: active ? AppColors.accent.withValues(alpha: 0.06) : Colors.transparent,
+      color: active ? cl.accent.withValues(alpha: 0.06) : Colors.transparent,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap, borderRadius: BorderRadius.circular(12),
@@ -149,7 +158,7 @@ class AppDrawer extends ConsumerWidget {
           child: Row(children: [
             Icon(icon, size: 19, color: color),
             const SizedBox(width: 14),
-            Text(label, style: GoogleFonts.nunito(fontSize: 14, fontWeight: active ? FontWeight.w700 : FontWeight.w500, color: active ? AppColors.textDark : color)),
+            Text(label, style: GoogleFonts.nunito(fontSize: 14, fontWeight: active ? FontWeight.w700 : FontWeight.w500, color: active ? cl.textDark : color)),
           ]),
         ),
       ),

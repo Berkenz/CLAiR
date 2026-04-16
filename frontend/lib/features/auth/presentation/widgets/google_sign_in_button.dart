@@ -13,6 +13,7 @@ class GoogleSignInButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cl = context.c;
     return Container(
       width: double.infinity,
       height: 64,
@@ -20,7 +21,7 @@ class GoogleSignInButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.crimson.withOpacity(0.3),
+            color: cl.crimson.withOpacity(0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -29,7 +30,7 @@ class GoogleSignInButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.crimson,
+          backgroundColor: cl.crimson,
           foregroundColor: Colors.white,
           elevation: 0,
           shadowColor: Colors.transparent,

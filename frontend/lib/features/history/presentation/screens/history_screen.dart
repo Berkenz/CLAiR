@@ -73,9 +73,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   Widget _buildBody(HistoryState state) {
+    final cl = context.c;
     if (state.isLoading && state.conversations.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.darkBrown),
+      return Center(
+        child: CircularProgressIndicator(color: cl.darkBrown),
       );
     }
 
@@ -84,7 +85,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     }
 
     return RefreshIndicator(
-      color: AppColors.darkBrown,
+      color: cl.darkBrown,
       onRefresh: () => ref.read(historyProvider.notifier).loadConversations(),
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
@@ -97,6 +98,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   Widget _buildConversationCard(ConversationEntity conversation) {
+    final cl = context.c;
     final dateStr = _formatDate(conversation.updatedAt ?? conversation.createdAt);
 
     return GestureDetector(
@@ -104,11 +106,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 16, 4, 16),
         decoration: BoxDecoration(
-          color: AppColors.offWhite,
+          color: cl.offWhite,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: AppColors.darkBrown.withOpacity(0.05),
+              color: cl.darkBrown.withOpacity(0.05),
               blurRadius: 12,
               offset: const Offset(0, 2),
             ),
@@ -122,7 +124,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 child: Icon(
                   Icons.push_pin_rounded,
                   size: 16,
-                  color: AppColors.darkBrown.withOpacity(0.5),
+                  color: cl.darkBrown.withOpacity(0.5),
                 ),
               ),
             Expanded(
@@ -131,10 +133,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 children: [
                   Text(
                     conversation.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.darkBrown,
+                      color: cl.darkBrown,
                       fontFamily: 'Satoshi',
                     ),
                     maxLines: 2,
@@ -145,7 +147,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     'Last message: $dateStr',
                     style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.darkBrown.withOpacity(0.45),
+                      color: cl.darkBrown.withOpacity(0.45),
                       fontFamily: 'Satoshi',
                     ),
                   ),
@@ -155,14 +157,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             PopupMenuButton<String>(
               icon: Icon(
                 Icons.more_vert_rounded,
-                color: AppColors.darkBrown.withOpacity(0.45),
+                color: cl.darkBrown.withOpacity(0.45),
                 size: 20,
               ),
               splashRadius: 20,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              color: AppColors.offWhite,
+              color: cl.offWhite,
               elevation: 4,
               onSelected: (value) {
                 switch (value) {
@@ -187,14 +189,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                             ? Icons.push_pin_outlined
                             : Icons.push_pin_rounded,
                         size: 18,
-                        color: AppColors.darkBrown,
+                        color: cl.darkBrown,
                       ),
                       const SizedBox(width: 12),
                       Text(
                         conversation.isPinned ? 'Unpin' : 'Pin',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'Satoshi',
-                          color: AppColors.darkBrown,
+                          color: cl.darkBrown,
                         ),
                       ),
                     ],
@@ -207,14 +209,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       Icon(
                         Icons.edit_outlined,
                         size: 18,
-                        color: AppColors.darkBrown,
+                        color: cl.darkBrown,
                       ),
                       const SizedBox(width: 12),
-                      const Text(
+                      Text(
                         'Rename',
                         style: TextStyle(
                           fontFamily: 'Satoshi',
-                          color: AppColors.darkBrown,
+                          color: cl.darkBrown,
                         ),
                       ),
                     ],
@@ -249,6 +251,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   void _showRenameDialog(ConversationEntity conversation) {
+    final cl = context.c;
     final controller = TextEditingController(text: conversation.title);
     showDialog(
       context: context,
@@ -267,22 +270,22 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             hintText: 'Enter new title',
             hintStyle: TextStyle(
               fontFamily: 'Satoshi',
-              color: AppColors.darkBrown.withOpacity(0.4),
+              color: cl.darkBrown.withOpacity(0.4),
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.darkBrown, width: 1.5),
+              borderSide: BorderSide(color: cl.darkBrown, width: 1.5),
             ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel',
-                style: TextStyle(color: AppColors.darkBrown, fontFamily: 'Satoshi')),
+            child: Text('Cancel',
+                style: TextStyle(color: cl.darkBrown, fontFamily: 'Satoshi')),
           ),
           TextButton(
             onPressed: () {
@@ -293,9 +296,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               }
               Navigator.pop(ctx);
             },
-            child: const Text('Rename',
+            child: Text('Rename',
                 style: TextStyle(
-                    color: AppColors.darkBrown,
+                    color: cl.darkBrown,
                     fontWeight: FontWeight.w600,
                     fontFamily: 'Satoshi')),
           ),
@@ -305,6 +308,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   void _confirmDelete(ConversationEntity conversation) {
+    final cl = context.c;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -320,8 +324,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel',
-                style: TextStyle(color: AppColors.darkBrown)),
+            child: Text('Cancel',
+                style: TextStyle(color: cl.darkBrown)),
           ),
           TextButton(
             onPressed: () {
@@ -337,6 +341,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   Widget _buildEmptyState() {
+    final cl = context.c;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -344,14 +349,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           Icon(
             Icons.history_rounded,
             size: 64,
-            color: AppColors.tan.withOpacity(0.5),
+            color: cl.tan.withOpacity(0.5),
           ),
           const SizedBox(height: 16),
           Text(
             'No conversations yet',
             style: TextStyle(
               fontSize: 16,
-              color: AppColors.darkBrown.withOpacity(0.4),
+              color: cl.darkBrown.withOpacity(0.4),
               fontFamily: 'Satoshi',
               fontWeight: FontWeight.w500,
             ),
@@ -361,7 +366,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             'Start a chat and your conversations will appear here',
             style: TextStyle(
               fontSize: 13,
-              color: AppColors.darkBrown.withOpacity(0.3),
+              color: cl.darkBrown.withOpacity(0.3),
               fontFamily: 'Satoshi',
             ),
           ),
