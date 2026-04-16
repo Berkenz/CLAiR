@@ -31,7 +31,7 @@ class LawyerState {
         error: error ?? this.error,
       );
 }
-
+/// Notifier for the lawyer provider.
 class LawyerNotifier extends StateNotifier<LawyerState> {
   LawyerNotifier(this._dataSource) : super(const LawyerState());
 
