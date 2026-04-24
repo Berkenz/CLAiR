@@ -84,6 +84,20 @@ class AuthRepositoryImpl implements AuthRepository {
       _remote.sendPasswordResetEmail(email: email);
 
   @override
+  Future<void> changeEmail({
+    required String newEmail,
+    required String currentPassword,
+  }) =>
+      _remote.changeEmail(newEmail: newEmail, currentPassword: currentPassword);
+
+  @override
+  Future<void> resendEmailVerification() => _remote.resendEmailVerification();
+
+  @override
+  Future<void> deleteAccount({String? password}) =>
+      _remote.deleteAccount(password: password);
+
+  @override
   Future<void> signOut() => _remote.signOut();
 
   @override

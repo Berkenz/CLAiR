@@ -17,13 +17,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   late final TextEditingController _firstCtrl;
   late final TextEditingController _lastCtrl;
   late final TextEditingController _locationCtrl;
-  late final TextEditingController _currentPwCtrl;
-  late final TextEditingController _newPwCtrl;
-  late final TextEditingController _confirmPwCtrl;
 
-  bool _obscureCurrent = true;
-  bool _obscureNew = true;
-  bool _obscureConfirm = true;
   bool _saving = false;
 
   @override
@@ -33,16 +27,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _firstCtrl = TextEditingController(text: user?.firstName ?? '');
     _lastCtrl = TextEditingController(text: user?.lastName ?? '');
     _locationCtrl = TextEditingController(text: user?.location ?? '');
-    _currentPwCtrl = TextEditingController();
-    _newPwCtrl = TextEditingController();
-    _confirmPwCtrl = TextEditingController();
   }
 
   @override
   void dispose() {
-    for (final c in [_firstCtrl, _lastCtrl, _locationCtrl, _currentPwCtrl, _newPwCtrl, _confirmPwCtrl]) {
-      c.dispose();
-    }
+    _firstCtrl.dispose();
+    _lastCtrl.dispose();
+    _locationCtrl.dispose();
     super.dispose();
   }
 
@@ -83,45 +74,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Future<void> _save() async {
-    final changingPassword = _currentPwCtrl.text.isNotEmpty ||
-        _newPwCtrl.text.isNotEmpty ||
-        _confirmPwCtrl.text.isNotEmpty;
-
-    if (changingPassword) {
-      if (_currentPwCtrl.text.isEmpty) {
-        _showSnackBar('Enter your current password to change it.', isError: true);
-        return;
-      }
-      if (_newPwCtrl.text.length < 8) {
-        _showSnackBar('New password must be at least 8 characters.', isError: true);
-        return;
-      }
-      if (_newPwCtrl.text != _confirmPwCtrl.text) {
-        _showSnackBar('New passwords do not match.', isError: true);
-        return;
-      }
-    }
-
     setState(() => _saving = true);
     try {
       final repo = ref.read(authRepositoryProvider);
-
       final updatedUser = await repo.updateProfile(
         firstName: _firstCtrl.text.trim(),
         lastName: _lastCtrl.text.trim(),
         location: _locationCtrl.text.trim(),
       );
-
-      if (changingPassword) {
-        await repo.changePassword(
-          currentPassword: _currentPwCtrl.text,
-          newPassword: _newPwCtrl.text,
-        );
-        _currentPwCtrl.clear();
-        _newPwCtrl.clear();
-        _confirmPwCtrl.clear();
-      }
-
       ref.read(currentUserProvider.notifier).state = updatedUser;
       _showSnackBar('Profile updated');
     } catch (e) {
@@ -193,20 +153,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               ]),
               const SizedBox(height: 12),
               _field('Location', _locationCtrl, Icons.location_on_outlined, hint: 'e.g. Cebu City'),
-
-              const SizedBox(height: 28),
-              _sectionLabel('Change Password'),
-              const SizedBox(height: 4),
-              Text("Leave blank if you don't want to change.", style: GoogleFonts.nunito(fontSize: 12, color: cl.textLight)),
-              const SizedBox(height: 10),
-              _field('Current Password', _currentPwCtrl, Icons.lock_outline_rounded,
-                  isPass: true, obscure: _obscureCurrent, onToggle: () => setState(() => _obscureCurrent = !_obscureCurrent)),
-              const SizedBox(height: 12),
-              _field('New Password', _newPwCtrl, Icons.lock_outline_rounded,
-                  isPass: true, obscure: _obscureNew, onToggle: () => setState(() => _obscureNew = !_obscureNew), hint: 'Min. 8 characters'),
-              const SizedBox(height: 12),
-              _field('Confirm Password', _confirmPwCtrl, Icons.lock_outline_rounded,
-                  isPass: true, obscure: _obscureConfirm, onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm)),
 
               const SizedBox(height: 32),
               SpringButton(

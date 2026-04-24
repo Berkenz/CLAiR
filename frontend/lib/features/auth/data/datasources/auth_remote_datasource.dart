@@ -252,6 +252,52 @@ class AuthRemoteDataSource {
     return UserEntity.fromJson(response.data!);
   }
 
+  /// Sends a verification link to [newEmail]. Once the user clicks it,
+  /// Firebase automatically updates their email address. Requires recent
+  /// auth — reauthenticates with [currentPassword] first.
+  Future<void> changeEmail({
+    required String newEmail,
+    required String currentPassword,
+  }) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null || user.email == null) {
+      throw AuthException('No authenticated user');
+    }
+
+    final credential = EmailAuthProvider.credential(
+      email: user.email!,
+      password: currentPassword,
+    );
+    try {
+      await user.reauthenticateWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        throw AuthException('Incorrect password. Please try again.');
+      }
+      throw AuthException(e.message ?? 'Re-authentication failed');
+    }
+
+    try {
+      await user.verifyBeforeUpdateEmail(newEmail);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        throw AuthException('This email address is already in use.');
+      }
+      if (e.code == 'invalid-email') {
+        throw AuthException('Please enter a valid email address.');
+      }
+      throw AuthException(e.message ?? 'Failed to send verification email');
+    }
+  }
+
+  /// Resends the email verification to the current user's email address.
+  Future<void> resendEmailVerification() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) throw AuthException('No authenticated user');
+    if (user.emailVerified) throw AuthException('Email is already verified');
+    await user.sendEmailVerification();
+  }
+
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
@@ -271,6 +317,63 @@ class AuthRemoteDataSource {
 
   Future<void> sendPasswordResetEmail({required String email}) async {
     await _firebaseAuth.sendPasswordResetEmail(email: email);
+  }
+
+  /// Permanently deletes the account from Firebase and the backend.
+  /// For email users, [password] must be provided for re-authentication.
+  /// For Google users, a Google sign-in sheet will be shown for re-authentication.
+  /// For anonymous/guest users, no re-authentication is required.
+  Future<void> deleteAccount({String? password}) async {
+    final firebaseUser = _firebaseAuth.currentUser;
+    if (firebaseUser == null) throw AuthException('No authenticated user');
+
+    final providers =
+        firebaseUser.providerData.map((p) => p.providerId).toList();
+
+    if (providers.contains('password')) {
+      if (password == null || password.isEmpty) {
+        throw AuthException('Password is required to delete your account');
+      }
+      final credential = EmailAuthProvider.credential(
+        email: firebaseUser.email!,
+        password: password,
+      );
+      try {
+        await firebaseUser.reauthenticateWithCredential(credential);
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+          throw AuthException('Incorrect password. Please try again.');
+        }
+        throw AuthException(e.message ?? 'Re-authentication failed');
+      }
+    } else if (providers.contains('google.com')) {
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        throw AuthException('Google re-authentication was cancelled');
+      }
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      try {
+        await firebaseUser.reauthenticateWithCredential(credential);
+      } on FirebaseAuthException catch (e) {
+        throw AuthException(e.message ?? 'Google re-authentication failed');
+      }
+    }
+
+    try {
+      await _dio.delete<void>(ApiEndpoints.deleteAccount);
+    } catch (_) {
+      // Best-effort backend cleanup — still proceed with Firebase deletion.
+    }
+
+    await firebaseUser.delete();
+
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {}
   }
 
   Future<void> signOut() async {

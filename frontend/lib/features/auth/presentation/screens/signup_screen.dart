@@ -1,10 +1,13 @@
 import 'dart:ui';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
+import 'package:clair/features/auth/presentation/screens/terms_of_use_screen.dart';
+import 'package:clair/features/auth/presentation/screens/privacy_policy_screen.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
@@ -29,6 +32,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+  bool _agreedToTerms = false;
 
   Future<void> _signUp() async {
     final firstName = _firstNameController.text.trim();
@@ -39,6 +43,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
     if (firstName.isEmpty || lastName.isEmpty || email.isEmpty || password.isEmpty) {
       _showError('Please fill in all fields');
+      return;
+    }
+    if (!_agreedToTerms) {
+      _showError('You must agree to the Terms of Use and Privacy Policy to continue');
       return;
     }
     if (!email.contains('@')) {
@@ -251,7 +259,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         },
                       ),
                       
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 20),
+
+                      // T&C Agreement Checkbox
+                      _buildTermsCheckbox(cl),
+
+                      const SizedBox(height: 20),
                       
                       // Sign Up Button
                       Container(
@@ -260,24 +273,25 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
                           gradient: LinearGradient(
-                            colors: [
-                              cl.crimson,
-                              cl.darkBrown,
-                            ],
+                            colors: _agreedToTerms
+                                ? [cl.crimson, cl.darkBrown]
+                                : [cl.crimson.withOpacity(0.4), cl.darkBrown.withOpacity(0.4)],
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: cl.crimson.withOpacity(0.4),
-                              blurRadius: 15,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
+                          boxShadow: _agreedToTerms
+                              ? [
+                                  BoxShadow(
+                                    color: cl.crimson.withOpacity(0.4),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ]
+                              : [],
                         ),
                         child: Material(
                           color: Colors.transparent,
                           child: InkWell(
                             borderRadius: BorderRadius.circular(16),
-                            onTap: _isLoading ? null : _signUp,
+                            onTap: (_isLoading || !_agreedToTerms) ? null : _signUp,
                             child: Center(
                               child: _isLoading
                                   ? const SizedBox(
@@ -299,21 +313,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                                     ),
                             ),
                           ),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Terms of Service
-                      Text(
-                        'Signing up for a CLAiR account means you agree to the\nPrivacy Policy and Terms of Service',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w400,
-                          color: cl.darkBrown,
-                          fontFamily: 'Satoshi',
-                          height: 1.4,
                         ),
                       ),
                       
@@ -361,6 +360,108 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           ),            // closes Stack
         ),              // closes SafeArea
     );                  // closes Scaffold
+  }
+
+  Widget _buildTermsCheckbox(AppColorTheme cl) {
+    return GestureDetector(
+      onTap: () => setState(() => _agreedToTerms = !_agreedToTerms),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: _agreedToTerms
+              ? cl.accent.withOpacity(0.08)
+              : cl.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: _agreedToTerms ? cl.accent : cl.border,
+            width: _agreedToTerms ? 1.5 : 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: cl.cardShadow,
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 22,
+              height: 22,
+              child: Checkbox(
+                value: _agreedToTerms,
+                onChanged: (val) => setState(() => _agreedToTerms = val ?? false),
+                activeColor: cl.accent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: RichText(
+                text: TextSpan(
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontFamily: 'Satoshi',
+                    fontWeight: FontWeight.w400,
+                    color: cl.textMid,
+                    height: 1.5,
+                  ),
+                  children: [
+                    const TextSpan(text: 'I have read and agree to the CLAiR '),
+                    TextSpan(
+                      text: 'Terms of Use',
+                      style: TextStyle(
+                        color: cl.accent,
+                        fontWeight: FontWeight.w700,
+                        decoration: TextDecoration.underline,
+                      ),
+                      recognizer: TapGestureRecognizer()
+                        ..onTap = () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TermsOfUseScreen(),
+                            ),
+                          );
+                        },
+                    ),
+                    const TextSpan(text: ' and '),
+                    TextSpan(
+                      text: 'Privacy Policy',
+                      style: TextStyle(
+                        color: cl.accent,
+                        fontWeight: FontWeight.w700,
+                        decoration: TextDecoration.underline,
+                      ),
+                      recognizer: TapGestureRecognizer()
+                        ..onTap = () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PrivacyPolicyScreen(),
+                            ),
+                          );
+                        },
+                    ),
+                    TextSpan(
+                      text: '. I understand that CLAiR provides legal information only '
+                          'and does not constitute legal advice or create an attorney-client relationship.',
+                      style: TextStyle(color: cl.textMid),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildAnimatedInputField({
