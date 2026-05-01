@@ -28,9 +28,9 @@ class LawyerRemoteDataSource {
 
   Future<void> bookAppointment({
     required String lawyerProfileId,
-    required String appointmentDate,
-    required String appointmentTime,
-    required String appointmentType,
+    String? appointmentDate,
+    String? appointmentTime,
+    String? appointmentType,
     String? description,
   }) async {
     try {
@@ -38,9 +38,9 @@ class LawyerRemoteDataSource {
         ApiEndpoints.appointments,
         data: {
           'lawyer_profile_id': lawyerProfileId,
-          'appointment_date': appointmentDate,
-          'appointment_time': appointmentTime,
-          'appointment_type': appointmentType,
+          if (appointmentDate != null) 'appointment_date': appointmentDate,
+          if (appointmentTime != null) 'appointment_time': appointmentTime,
+          if (appointmentType != null) 'appointment_type': appointmentType,
           if (description != null && description.isNotEmpty)
             'description': description,
         },

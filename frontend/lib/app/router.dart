@@ -8,6 +8,7 @@ import 'package:clair/features/auth/presentation/screens/login_screen.dart';
 import 'package:clair/features/auth/presentation/screens/email_screen.dart';
 import 'package:clair/features/auth/presentation/screens/privacy_policy_screen.dart';
 import 'package:clair/features/auth/presentation/screens/profile_screen.dart';
+import 'package:clair/features/auth/presentation/screens/report_screen.dart';
 import 'package:clair/features/auth/presentation/screens/security_screen.dart';
 import 'package:clair/features/auth/presentation/screens/signup_name_screen.dart';
 import 'package:clair/features/auth/presentation/screens/signup_screen.dart';
@@ -115,6 +116,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/security',
         builder: (context, state) => const SecurityScreen(),
+      ),
+      GoRoute(
+        path: '/report',
+        builder: (context, state) => const ReportScreen(),
       ),
       GoRoute(
         path: '/terms',

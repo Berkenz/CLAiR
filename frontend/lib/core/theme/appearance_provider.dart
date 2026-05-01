@@ -72,6 +72,11 @@ class AppearanceNotifier extends StateNotifier<AppearanceState> {
       prefs.setDouble(_kFontScale, state.fontScale),
     ]);
   }
+
+  Future<void> resetToDefaultsAndPersist() async {
+    state = const AppearanceState();
+    await save();
+  }
 }
 
 final appearanceProvider =

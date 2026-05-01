@@ -7,11 +7,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'package:go_router/go_router.dart';
+
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
+import 'package:clair/features/chat/presentation/widgets/message_report_sheet.dart';
+import 'package:clair/features/lawyer/presentation/providers/lawyer_sharing_provider.dart';
 import 'package:clair/shared/widgets/app_drawer.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -26,11 +30,16 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
+  final _lastMsgKey = GlobalKey();
   bool _didInitialEntryJump = false;
+  bool _showScrollToBottom = false;
+
+  static const _kScrollThreshold = 120.0;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _ensureBottomOnEntry();
     });
@@ -38,9 +47,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    final distFromBottom = pos.maxScrollExtent - pos.pixels;
+    final shouldShow = distFromBottom > _kScrollThreshold;
+    if (shouldShow != _showScrollToBottom) {
+      setState(() => _showScrollToBottom = shouldShow);
+    }
+  }
+
+  void _hardScrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   void _sendMessage() {
@@ -50,7 +80,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _controller.clear();
     ref.read(chatProvider.notifier).sendMessage(text);
     ref.read(chatProvider.notifier).hideDisclaimer();
-    _scrollToBottom();
+    _scrollToLastMessage();
   }
 
   void _newChat() {
@@ -59,7 +89,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _showConversationSwitcher() {
     ref.read(historyProvider.notifier).loadConversations();
-    final cl = context.c;
 
     showModalBottomSheet(
       context: context,
@@ -269,13 +298,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         case 'download':
           _generatePdf();
         case 'report':
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Report submitted. Thank you.'),
-              backgroundColor: cl.textDark,
-            ),
-          );
+          context.push('/report');
         case 'lawyer':
+          final chatState = ref.read(chatProvider);
+          ref.read(lawyerSharingProvider.notifier).state =
+              ConversationSharingData(
+            title: chatState.conversationTitle ?? 'Current conversation',
+            conversationId: chatState.conversationId,
+          );
           ref.read(mainShellTabProvider.notifier).state = 3;
       }
     });
@@ -354,11 +384,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  void _scrollToBottom() {
+  void _scrollToLastMessage() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
+      if (!mounted) return;
+      final ctx = _lastMsgKey.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          alignment: 0.0,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -366,10 +399,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
-  void _jumpToBottom() {
+  void _jumpToLastMessage() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      if (!mounted) return;
+      final ctx = _lastMsgKey.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          alignment: 0.0,
+          duration: Duration.zero,
+        );
       }
     });
   }
@@ -380,9 +419,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final messages = ref.read(chatProvider).messages;
     if (tab == 1 && messages.isNotEmpty) {
       _didInitialEntryJump = true;
-      _jumpToBottom();
-      Future.delayed(const Duration(milliseconds: 140), _jumpToBottom);
-      Future.delayed(const Duration(milliseconds: 320), _jumpToBottom);
+      _jumpToLastMessage();
+      Future.delayed(const Duration(milliseconds: 140), _jumpToLastMessage);
+      Future.delayed(const Duration(milliseconds: 320), _jumpToLastMessage);
     }
   }
 
@@ -394,19 +433,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     ref.listen<int>(mainShellTabProvider, (prev, next) {
       final currentMessages = ref.read(chatProvider).messages;
       if (next == 1 && currentMessages.isNotEmpty) {
-        _jumpToBottom();
-        Future.delayed(const Duration(milliseconds: 140), _jumpToBottom);
+        _jumpToLastMessage();
+        Future.delayed(const Duration(milliseconds: 140), _jumpToLastMessage);
       }
     });
 
     ref.listen<ChatState>(chatProvider, (prev, next) {
       if (next.messages.length != (prev?.messages.length ?? 0)) {
-        _scrollToBottom();
+        _scrollToLastMessage();
       }
       if (prev?.conversationId != next.conversationId && next.messages.isNotEmpty) {
-        _scrollToBottom();
-        Future.delayed(const Duration(milliseconds: 150), _jumpToBottom);
-        Future.delayed(const Duration(milliseconds: 320), _jumpToBottom);
+        _scrollToLastMessage();
+        Future.delayed(const Duration(milliseconds: 150), _jumpToLastMessage);
+        Future.delayed(const Duration(milliseconds: 320), _jumpToLastMessage);
       }
       if (next.error != null && prev?.error == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -424,8 +463,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     });
 
-    final hasConversation = chatState.conversationId != null;
-
     return Scaffold(
       backgroundColor: cl.surface,
       drawer: const AppDrawer(),
@@ -437,24 +474,73 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               chatTitle: chatState.conversationTitle ?? 'New Chat',
               onTitleTap: _showConversationSwitcher,
               onNewChat: _newChat,
-              onActionsTap: hasConversation ? _showActionsMenu : null,
+              onActionsTap: _showActionsMenu,
             ),
             Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                itemCount:
-                    chatState.messages.length + (chatState.isLoading ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index == chatState.messages.length &&
-                      chatState.isLoading) {
-                    return _buildTypingIndicator();
-                  }
-                  final msg = chatState.messages[index];
-                  return msg.isUser
-                      ? _buildUserMessage(msg, index)
-                      : _buildAiMessage(msg, index);
-                },
+              child: Stack(
+                children: [
+                  ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    itemCount:
+                        chatState.messages.length + (chatState.isLoading ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      final totalItems = chatState.messages.length +
+                          (chatState.isLoading ? 1 : 0);
+                      final isLast = index == totalItems - 1;
+
+                      if (index == chatState.messages.length &&
+                          chatState.isLoading) {
+                        return KeyedSubtree(
+                          key: isLast ? _lastMsgKey : null,
+                          child: _buildTypingIndicator(),
+                        );
+                      }
+                      final msg = chatState.messages[index];
+                      final child = msg.isUser
+                          ? _buildUserMessage(msg, index)
+                          : _buildAiMessage(msg, index);
+                      return isLast
+                          ? KeyedSubtree(key: _lastMsgKey, child: child)
+                          : child;
+                    },
+                  ),
+                  // ── Scroll-to-bottom FAB ───────────────────────────────────
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                    bottom: _showScrollToBottom ? 12 : -52,
+                    right: 16,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 200),
+                      opacity: _showScrollToBottom ? 1.0 : 0.0,
+                      child: GestureDetector(
+                        onTap: _hardScrollToBottom,
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: cl.surface,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: cl.border),
+                            boxShadow: [
+                              BoxShadow(
+                                color: cl.cardShadow,
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 22,
+                            color: cl.textMid,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             if (chatState.isLoadedConversation) _buildDisclaimer(),
@@ -802,10 +888,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _handleActionChip(String action, String text, ChatMessageEntity message, int messageIndex) {
-    final cl = context.c;
-
     switch (action) {
       case 'copy':
+        final cl = context.c;
         Clipboard.setData(ClipboardData(text: text));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -816,18 +901,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         );
         break;
       case 'like':
-        final newFeedback = message.feedback == 'like' ? null : 'like';
-        final updatedMessage = message.copyWith(feedback: newFeedback);
+        final toggleOff = message.feedback == 'like';
+        final updatedMessage = toggleOff
+            ? message.copyWith(clearFeedback: true)
+            : message.copyWith(feedback: 'like');
         final messages = [...ref.read(chatProvider).messages];
         messages[messageIndex] = updatedMessage;
         ref.read(chatProvider.notifier).updateMessages(messages);
         break;
       case 'dislike':
-        final newFeedback = message.feedback == 'dislike' ? null : 'dislike';
-        final updatedMessage = message.copyWith(feedback: newFeedback);
-        final messages = [...ref.read(chatProvider).messages];
-        messages[messageIndex] = updatedMessage;
-        ref.read(chatProvider.notifier).updateMessages(messages);
+        showMessageReportSheet(
+          context,
+          message: message,
+          messageIndex: messageIndex,
+        );
         break;
       case 'edit':
         _showEditDialog(text);
@@ -941,8 +1028,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final lastUserMessage = messages[lastUserMessageIndex].text;
 
-    // Remove all messages after the last user message
-    final updatedMessages = messages.sublist(0, lastUserMessageIndex + 1);
+    messages.sublist(0, lastUserMessageIndex + 1);
 
     // Update state and resend
     ref.read(chatProvider.notifier).reset();

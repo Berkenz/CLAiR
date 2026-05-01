@@ -12,6 +12,7 @@ import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/history/domain/entities/conversation_entity.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
+import 'package:clair/features/lawyer/presentation/providers/lawyer_sharing_provider.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
@@ -796,12 +797,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   void _shareToLawyer(ConversationEntity conversation) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Share to Lawyer feature coming soon'),
-        behavior: SnackBarBehavior.floating,
-      ),
+    ref.read(lawyerSharingProvider.notifier).state = ConversationSharingData(
+      title: conversation.title,
+      conversationId: conversation.id,
     );
+    // LibraryScreen is embedded in the main shell — just switch tabs.
+    ref.read(mainShellTabProvider.notifier).state = 3;
   }
 
   Future<void> _downloadConversation(ConversationEntity conversation) async {

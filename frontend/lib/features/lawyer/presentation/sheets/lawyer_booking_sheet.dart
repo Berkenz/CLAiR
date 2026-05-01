@@ -1,0 +1,374 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
+import 'package:clair/features/lawyer/data/datasources/lawyer_remote_datasource.dart';
+import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
+import 'package:clair/features/lawyer/presentation/providers/lawyer_provider.dart';
+import 'package:clair/features/lawyer/presentation/widgets/lawyer_attachments_section.dart';
+import 'package:clair/shared/widgets/spring_button.dart';
+
+Future<void> showLawyerBookingSheet(
+  BuildContext context,
+  LawyerEntity lawyer, {
+  String? preAttachedConversationId,
+  String? preAttachedConversationTitle,
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => LawyerBookingSheet(
+      lawyer: lawyer,
+      preAttachedConversationId: preAttachedConversationId,
+      preAttachedConversationTitle: preAttachedConversationTitle,
+    ),
+  );
+}
+
+class LawyerBookingSheet extends ConsumerStatefulWidget {
+  const LawyerBookingSheet({
+    super.key,
+    required this.lawyer,
+    this.preAttachedConversationId,
+    this.preAttachedConversationTitle,
+  });
+
+  final LawyerEntity lawyer;
+
+  /// When non-null the "Attach CLAiR conversation" checkbox is pre-checked
+  /// and this conversation is shown. null = current chat.
+  final String? preAttachedConversationId;
+  final String? preAttachedConversationTitle;
+
+  @override
+  ConsumerState<LawyerBookingSheet> createState() =>
+      _LawyerBookingSheetState();
+}
+
+class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
+  final _titleCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+
+  bool _attachConversation = false;
+  List<PlatformFile> _pickedFiles = [];
+
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-check the attachment when opened in sharing mode.
+    if (widget.preAttachedConversationTitle != null ||
+        widget.preAttachedConversationId != null) {
+      _attachConversation = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _descCtrl.dispose();
+    super.dispose();
+  }
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
+
+  Future<void> _submit(LawyerRemoteDataSource ds) async {
+    final title = _titleCtrl.text.trim();
+    if (title.isEmpty) {
+      setState(() => _error = 'Please enter a title for your appointment.');
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final chatState = ref.read(chatProvider);
+    final convTitle = _attachConversation
+        ? (widget.preAttachedConversationTitle ??
+            chatState.conversationTitle ??
+            'Current conversation')
+        : null;
+
+    // Prepend title to description for the backend.
+    final descriptionBody = appendAttachmentsToDescription(
+      'Subject: $title\n\n${_descCtrl.text.trim()}',
+      _pickedFiles,
+      conversationTitle: convTitle,
+      conversationMessageCount:
+          _attachConversation ? chatState.messages.length : null,
+    );
+
+    try {
+      await ds.bookAppointment(
+        lawyerProfileId: widget.lawyer.id,
+        description: descriptionBody.isEmpty ? null : descriptionBody,
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Appointment request sent!',
+              style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
+            ),
+            backgroundColor: context.c.accent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } on LawyerException catch (e) {
+      if (mounted) setState(() { _loading = false; _error = e.message; });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Something went wrong. Please try again.';
+        });
+      }
+    }
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    final cl = context.c;
+    final ds = ref.watch(lawyerDataSourceProvider);
+
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.92),
+        decoration: BoxDecoration(
+          color: cl.surface,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+                color: cl.cardShadow,
+                blurRadius: 24,
+                offset: const Offset(0, -4))
+          ],
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: cl.border,
+                      borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              // Lawyer mini-header
+              Row(children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [
+                      cl.accent.withValues(alpha: 0.12),
+                      cl.accentLight.withValues(alpha: 0.3),
+                    ]),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Center(
+                    child: Text(widget.lawyer.initials,
+                        style: GoogleFonts.nunito(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: cl.accent)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.lawyer.name,
+                          style: GoogleFonts.nunito(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: cl.textDark)),
+                      if (widget.lawyer.designation != null &&
+                          widget.lawyer.designation!.isNotEmpty)
+                        Text(widget.lawyer.designation!,
+                            style: GoogleFonts.nunito(
+                                fontSize: 12, color: cl.textMid)),
+                    ],
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 20),
+              Divider(height: 1, color: cl.border),
+              const SizedBox(height: 20),
+
+              Text('Book an Appointment',
+                  style: GoogleFonts.nunito(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: cl.textDark)),
+              const SizedBox(height: 18),
+
+              // Title field
+              _fieldLabel(cl, 'Title', Icons.title_rounded,
+                  child: Container(
+                    decoration: _inputDeco(cl),
+                    child: TextField(
+                      controller: _titleCtrl,
+                      style: GoogleFonts.nunito(
+                          fontSize: 13, color: cl.textDark),
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText: 'e.g. Advice on property dispute',
+                        hintStyle: GoogleFonts.nunito(
+                            fontSize: 13, color: cl.textLight),
+                        contentPadding: const EdgeInsets.all(14),
+                      ),
+                    ),
+                  )),
+              const SizedBox(height: 14),
+
+              // Description
+              _fieldLabel(cl, 'Description', Icons.notes_rounded,
+                  child: Container(
+                    decoration: _inputDeco(cl),
+                    child: TextField(
+                      controller: _descCtrl,
+                      maxLines: 4,
+                      style: GoogleFonts.nunito(
+                          fontSize: 13, color: cl.textDark),
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText:
+                            'Describe your legal concern or question…\n(or use "Summarize with AI" below)',
+                        hintStyle: GoogleFonts.nunito(
+                            fontSize: 13, color: cl.textLight),
+                        contentPadding: const EdgeInsets.all(14),
+                      ),
+                    ),
+                  )),
+              const SizedBox(height: 18),
+
+              // Attachments
+              LawyerAttachmentsSection(
+                attachConversation: _attachConversation,
+                onAttachConversationChanged: (v) =>
+                    setState(() => _attachConversation = v),
+                pickedFiles: _pickedFiles,
+                onPickedFilesChanged: (f) => setState(() => _pickedFiles = f),
+                initialConversationId: widget.preAttachedConversationId,
+                initialConversationTitle: widget.preAttachedConversationTitle,
+                onSummaryGenerated: (text) =>
+                    setState(() => _descCtrl.text = text),
+              ),
+
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.red.shade200)),
+                  child: Text(_error!,
+                      style: GoogleFonts.nunito(
+                          fontSize: 12, color: Colors.red.shade700)),
+                ),
+              ],
+              const SizedBox(height: 24),
+
+              // Submit
+              SpringButton(
+                onTap: _loading ? null : () => _submit(ds),
+                child: Container(
+                  width: double.infinity,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: _loading
+                        ? cl.accent.withValues(alpha: 0.6)
+                        : cl.accent,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                          color: cl.accent.withValues(alpha: 0.25),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4))
+                    ],
+                  ),
+                  child: Center(
+                    child: _loading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : Text('Request appointment',
+                            style: GoogleFonts.nunito(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Center(
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Cancel',
+                      style: GoogleFonts.nunito(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: cl.textMid)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _fieldLabel(AppColorTheme cl, String label, IconData icon,
+      {required Widget child}) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Icon(icon, size: 13, color: cl.accent),
+        const SizedBox(width: 5),
+        Text(label,
+            style: GoogleFonts.nunito(
+                fontSize: 12, fontWeight: FontWeight.w700, color: cl.accent)),
+      ]),
+      const SizedBox(height: 6),
+      child,
+    ]);
+  }
+
+  BoxDecoration _inputDeco(AppColorTheme cl) => BoxDecoration(
+        color: cl.bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cl.border),
+      );
+}

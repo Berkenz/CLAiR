@@ -5,6 +5,12 @@ class LawyerEntity {
   final List<String> practiceAreas;
   final String? firstName;
   final String? lastName;
+  /// Optional narrative from API — shown on lawyer overview when set.
+  final String? bio;
+  /// Office address or locality from API — optional until backend supports it.
+  final String? officeLocation;
+  /// Human-readable schedule line from API — optional until backend supports it.
+  final String? officeHours;
 
   const LawyerEntity({
     required this.id,
@@ -13,8 +19,30 @@ class LawyerEntity {
     this.practiceAreas = const [],
     this.firstName,
     this.lastName,
+    this.bio,
+    this.officeLocation,
+    this.officeHours,
   });
 
+  String get categoryLine =>
+      practiceAreas.isEmpty ? (designation ?? 'Legal practice') : practiceAreas.join(' · ');
+
+  String get shortBioFallback =>
+      designation != null && designation!.trim().isNotEmpty
+          ? '${designation!.trim()}, supporting clients in matters related to $specialty and related topics.'
+          : 'Experienced legal professional focused on $specialty.';
+
+  String get bioOrDefault =>
+      (bio?.trim().isNotEmpty ?? false) ? bio!.trim() : shortBioFallback;
+  String get officeLocationOrDefault =>
+      (officeLocation?.trim().isNotEmpty ?? false)
+          ? officeLocation!.trim()
+          : 'Provided when your appointment is confirmed.';
+
+  String get officeHoursOrDefault =>
+      (officeHours?.trim().isNotEmpty ?? false)
+          ? officeHours!.trim()
+          : 'Typical weekday hours apply; confirm after booking.';
   String get name {
     if (displayName != null && displayName!.isNotEmpty) return displayName!;
     final full = '${firstName ?? ''} ${lastName ?? ''}'.trim();
@@ -45,6 +73,9 @@ class LawyerEntity {
           [],
       firstName: json['first_name'] as String?,
       lastName: json['last_name'] as String?,
+      bio: json['bio'] as String?,
+      officeLocation: json['office_location'] as String?,
+      officeHours: json['office_hours'] as String?,
     );
   }
 }

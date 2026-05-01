@@ -27,21 +27,31 @@ class ChatRemoteDataSource {
       final response = await _dio.post<Map<String, dynamic>>(
         ApiEndpoints.chatSend,
         data: data,
+        // LLM responses can take well over 30 s — give the server 3 minutes.
+        options: Options(
+          receiveTimeout: const Duration(minutes: 3),
+          sendTimeout: const Duration(seconds: 30),
+        ),
       );
 
-      if (response.data == null || response.data!['reply'] == null) {
-        throw ChatException('Invalid response from server');
-      }
+      final body = response.data;
+      if (body == null) throw ChatException('Empty response from server');
 
-      final reply = response.data!['reply'];
-      final replyText =
-          reply is String ? reply : (reply is List ? reply.join('\n') : reply.toString());
+      // Support both 'reply' and 'response' keys from the backend.
+      final rawReply = body['reply'] ?? body['response'];
+      if (rawReply == null) throw ChatException('No reply in server response');
+
+      final replyText = rawReply is String
+          ? rawReply
+          : (rawReply is List ? rawReply.join('\n') : rawReply.toString());
+
+      // conversation_id may be absent on some backends; fall back gracefully.
+      final convId = (body['conversation_id'] as String?)?.trim() ?? '';
 
       return ChatResponseEntity(
         reply: replyText,
-        conversationId: response.data!['conversation_id'] as String,
-        conversationTitle:
-            response.data!['conversation_title'] as String? ?? '',
+        conversationId: convId,
+        conversationTitle: (body['conversation_title'] as String?)?.trim() ?? '',
       );
     } on DioException catch (e) {
       final data = e.response?.data;

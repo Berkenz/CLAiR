@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/core/theme/appearance_provider.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/auth/presentation/screens/appearance_screen.dart';
 import 'package:clair/features/auth/presentation/screens/email_screen.dart';
@@ -11,6 +12,7 @@ import 'package:clair/features/auth/presentation/screens/security_screen.dart';
 import 'package:clair/features/auth/presentation/screens/edit_profile_screen.dart';
 import 'package:clair/features/auth/presentation/screens/privacy_policy_screen.dart';
 import 'package:clair/features/auth/presentation/screens/report_screen.dart';
+import 'package:clair/features/auth/presentation/screens/help_center_screen.dart';
 import 'package:clair/features/auth/presentation/screens/terms_of_use_screen.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 
@@ -34,7 +36,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (mounted) context.go('/login');
     } catch (e) {
       if (mounted) {
-        final cl = context.c;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString()),
@@ -255,7 +256,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   MaterialPageRoute(builder: (_) => const ReportScreen()),
                 ),
               ),
-              _row(context, Icons.help_outline_rounded, 'Help Center', () {}),
+              _row(
+                context,
+                Icons.help_outline_rounded,
+                'Help Center',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const HelpCenterScreen()),
+                ),
+              ),
               _row(
                 context,
                 Icons.description_outlined,
@@ -276,6 +286,95 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ]),
             const SizedBox(height: 24),
+
+            GestureDetector(
+              onTap: () async {
+                final ok = await showDialog<bool>(
+                  context: context,
+                  barrierDismissible: true,
+                  builder: (ctx) {
+                    final d = ctx.c;
+                    return AlertDialog(
+                      backgroundColor: d.surface,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      title: Text(
+                        'Reset all settings?',
+                        style: GoogleFonts.nunito(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: d.textDark,
+                        ),
+                      ),
+                      content: Text(
+                        'Appearance options (theme, accent, and font size) will '
+                        'return to their defaults.',
+                        style: GoogleFonts.nunito(fontSize: 13, height: 1.45, color: d.textMid),
+                      ),
+                      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: Text(
+                            'Cancel',
+                            style: GoogleFonts.nunito(
+                              fontWeight: FontWeight.w700,
+                              color: d.textMid,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: Text(
+                            'Confirm',
+                            style: GoogleFonts.nunito(
+                              fontWeight: FontWeight.w800,
+                              color: d.accent,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+
+                if (ok != true || !context.mounted) return;
+
+                final messenger = ScaffoldMessenger.of(context);
+                await ref.read(appearanceProvider.notifier).resetToDefaultsAndPersist();
+                if (!context.mounted) return;
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Settings reset to default.',
+                      style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
+                    ),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                );
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: cl.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: cl.border),
+                ),
+                child: Center(
+                  child: Text(
+                    'Reset All to Default',
+                    style: GoogleFonts.nunito(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: cl.textMid,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
 
             // Log Out
             GestureDetector(
