@@ -4,11 +4,17 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 
+class ConversationUpdate(BaseModel):
+    title: str | None = None
+    is_pinned: bool | None = None
+
+
 class ConversationSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     title: str
+    is_pinned: bool = False
     created_at: datetime
     updated_at: datetime | None = None
 
@@ -27,6 +33,7 @@ class ConversationDetail(BaseModel):
 
     id: uuid.UUID
     title: str
+    is_pinned: bool = False
     messages: list[MessageResponse]
     created_at: datetime
     updated_at: datetime | None = None

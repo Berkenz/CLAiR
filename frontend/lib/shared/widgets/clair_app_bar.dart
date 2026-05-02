@@ -7,33 +7,44 @@ import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 
 class ClairAppBar extends ConsumerWidget {
   final String? chatTitle;
+  final List<Widget>? actions;
+  final bool showNotificationBell;
+  final VoidCallback? onTitleTap;
+  final VoidCallback? onActionsTap;
+  final VoidCallback? onNewChat;
 
-  const ClairAppBar({super.key, this.chatTitle});
+  const ClairAppBar({
+    super.key,
+    this.chatTitle,
+    this.actions,
+    this.showNotificationBell = true,
+    this.onTitleTap,
+    this.onActionsTap,
+    this.onNewChat,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
+    final cl = context.c;
 
     return Container(
-      color: Colors.white,
+      color: cl.surface,
       padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
-              // ── Hamburger → opens AppDrawer ────────────────────
               IconButton(
-                onPressed: () =>
-                    Scaffold.of(context).openDrawer(), // ← this line
-                icon: const Icon(
+                onPressed: () => Scaffold.of(context).openDrawer(),
+                icon: Icon(
                   Icons.menu_rounded,
-                  color: AppColors.darkBrown,
+                  color: cl.textDark,
                   size: 24,
                 ),
               ),
 
-              // ── Logo ──────────────────────────────────────────
               Expanded(
                 child: Center(
                   child: Row(
@@ -45,17 +56,17 @@ class ClairAppBar extends ConsumerWidget {
                         child: Image.asset(
                           'assets/images/CLAiR-icon.png',
                           fit: BoxFit.contain,
-                          color: AppColors.darkBrown,
+                          color: cl.textDark,
                           colorBlendMode: BlendMode.srcIn,
                         ),
                       ),
                       const SizedBox(width: 6),
-                      const Text(
-                        'clair',
+                      Text(
+                        'CLAiR',
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.darkBrown,
+                          color: cl.textDark,
                           fontFamily: 'Satoshi',
                           letterSpacing: 0.5,
                         ),
@@ -65,16 +76,38 @@ class ClairAppBar extends ConsumerWidget {
                 ),
               ),
 
-              // ── Avatar → Profile Screen ────────────────────────
+              if (actions != null) ...actions!,
+
+              if (showNotificationBell) ...[
+                GestureDetector(
+                  onTap: () => context.push('/notifications'),
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: cl.bg,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: cl.border, width: 1.5),
+                    ),
+                    child: Icon(
+                      Icons.notifications_none_rounded,
+                      color: cl.textDark,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+
               GestureDetector(
                 onTap: () => context.push('/profile'),
                 child: Container(
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: AppColors.offWhite,
+                    color: cl.bg,
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.tan, width: 1.5),
+                    border: Border.all(color: cl.border, width: 1.5),
                   ),
                   child: user?.photoUrl != null
                       ? ClipOval(
@@ -86,17 +119,19 @@ class ClairAppBar extends ConsumerWidget {
                       : Center(
                           child: user != null
                               ? Text(
-                                  user.displayName[0].toUpperCase(),
-                                  style: const TextStyle(
+                                  user.displayName.isNotEmpty
+                                      ? user.displayName[0].toUpperCase()
+                                      : '?',
+                                  style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.darkBrown,
+                                    color: cl.textDark,
                                     fontFamily: 'Satoshi',
                                   ),
                                 )
-                              : const Icon(
+                              : Icon(
                                   Icons.person_outline_rounded,
-                                  color: AppColors.darkBrown,
+                                  color: cl.textDark,
                                   size: 18,
                                 ),
                         ),
@@ -105,21 +140,84 @@ class ClairAppBar extends ConsumerWidget {
             ],
           ),
 
-          // ── Optional chat title ────────────────────────────────
           if (chatTitle != null) ...[
             const SizedBox(height: 2),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                chatTitle!,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.darkBrown,
-                  fontFamily: 'Satoshi',
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: GestureDetector(
+                    onTap: onTitleTap,
+                    behavior: HitTestBehavior.opaque,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Container(
+                            constraints: BoxConstraints(
+                              maxWidth: MediaQuery.of(context).size.width * 0.45,
+                            ),
+                            child: Text(
+                              chatTitle!,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: cl.textDark.withOpacity(0.65),
+                                fontFamily: 'Satoshi',
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        if (onTitleTap != null) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 18,
+                            color: cl.textDark.withOpacity(0.45),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
+                if (onNewChat != null || onActionsTap != null) ...[
+                  const SizedBox(width: 10),
+                  Container(
+                    height: 28,
+                    width: 1,
+                    color: cl.border,
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                if (onNewChat != null)
+                  GestureDetector(
+                    onTap: onNewChat,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Icon(
+                        Icons.edit_square,
+                        size: 22,
+                        color: cl.textDark.withOpacity(0.55),
+                      ),
+                    ),
+                  ),
+                if (onActionsTap != null)
+                  GestureDetector(
+                    onTap: onActionsTap,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Icon(
+                        Icons.more_horiz_rounded,
+                        size: 24,
+                        color: cl.textDark.withOpacity(0.55),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 4),
           ],

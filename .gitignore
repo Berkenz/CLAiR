@@ -28,6 +28,10 @@ frontend/.packages
 frontend/*.iml
 frontend/.metadata
 
+# Lawyer Web
+lawyer-web/node_modules/
+lawyer-web/dist/
+
 # IDE
 .idea/
 .vscode/*

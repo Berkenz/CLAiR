@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 
 import 'package:clair/core/network/api_endpoints.dart';
@@ -46,6 +48,39 @@ class HistoryRemoteDataSource {
           isUser: map['role'] == 'user',
         );
       }).toList();
+    } on DioException catch (e) {
+      throw HistoryException(_extractError(e));
+    }
+  }
+
+  Future<ConversationEntity> updateConversation(
+    String conversationId, {
+    String? title,
+    bool? isPinned,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (title != null) body['title'] = title;
+      if (isPinned != null) body['is_pinned'] = isPinned;
+
+      final response = await _dio.patch<Map<String, dynamic>>(
+        ApiEndpoints.conversationUpdate(conversationId),
+        data: body,
+      );
+
+      return ConversationEntity.fromJson(response.data!);
+    } on DioException catch (e) {
+      throw HistoryException(_extractError(e));
+    }
+  }
+
+  Future<Uint8List> downloadPdf(String conversationId) async {
+    try {
+      final response = await _dio.get<List<int>>(
+        ApiEndpoints.conversationPdf(conversationId),
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return Uint8List.fromList(response.data!);
     } on DioException catch (e) {
       throw HistoryException(_extractError(e));
     }

@@ -35,6 +35,40 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
     }
   }
 
+  Future<void> renameConversation(String id, String newTitle) async {
+    try {
+      final updated = await _repository.updateConversation(id, title: newTitle);
+      state = state.copyWith(
+        conversations: state.conversations
+            .map((c) => c.id == id ? updated : c)
+            .toList(),
+      );
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
+
+  Future<void> togglePin(String id) async {
+    final target = state.conversations.firstWhere((c) => c.id == id);
+    final newPinned = !target.isPinned;
+    try {
+      final updated = await _repository.updateConversation(id, isPinned: newPinned);
+
+      final preserved = target.copyWith(
+        isPinned: updated.isPinned,
+        title: updated.title,
+      );
+
+      final updatedList = state.conversations
+          .map((c) => c.id == id ? preserved : c)
+          .toList();
+
+      state = state.copyWith(conversations: updatedList);
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
+
   Future<void> deleteConversation(String id) async {
     try {
       await _repository.deleteConversation(id);

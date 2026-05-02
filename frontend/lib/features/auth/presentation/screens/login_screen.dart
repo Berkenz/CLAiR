@@ -39,6 +39,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _loginWithEmail() async {
+    final cl = context.c;
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     if (email.isEmpty || password.isEmpty) return;
@@ -58,7 +59,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(detail),
-              backgroundColor: AppColors.crimson,
+              backgroundColor: cl.crimson,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -81,6 +82,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
+    final cl = context.c;
     setState(() => _isLoading = true);
     try {
       final repo = ref.read(authRepositoryProvider);
@@ -98,7 +100,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString()),
-            backgroundColor: AppColors.crimson,
+            backgroundColor: cl.crimson,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -112,6 +114,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _continueAsGuest() async {
+    final cl = context.c;
     setState(() => _isLoading = true);
     try {
       final repo = ref.read(authRepositoryProvider);
@@ -123,7 +126,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString()),
-            backgroundColor: AppColors.crimson,
+            backgroundColor: cl.crimson,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -138,10 +141,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cl = context.c;
     final size = MediaQuery.of(context).size;
+    final compact = size.height < 860;
+    final logoSize = compact ? 150.0 : 180.0;
+    final logoPadding = compact ? 20.0 : 25.0;
+    final headingGap = compact ? 24.0 : 40.0;
+    final bottomGap = compact ? 16.0 : 30.0;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: cl.surface,
       body: SafeArea(
         child: SingleChildScrollView(
           child: SizedBox(
@@ -150,42 +159,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               children: [
                 CustomPaint(
                   size: Size(size.width, size.height * 0.35),
-                  painter: WavyBackgroundPainter(),
+                  painter: WavyBackgroundPainter(
+                    tanColor: cl.tan,
+                    crimsonColor: cl.crimson,
+                    darkBrownColor: cl.darkBrown,
+                  ),
                 ),
 
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: Column(
                     children: [
-                      const SizedBox(height: 20),
+                      SizedBox(height: compact ? 12 : 20),
 
                       Container(
-                        width: 180,
-                        height: 180,
-                        padding: const EdgeInsets.all(25),
+                        width: logoSize,
+                        height: logoSize,
+                        padding: EdgeInsets.all(logoPadding),
                         child: Image.asset(
                           'assets/images/CLAiR-icon.png',
                           fit: BoxFit.contain,
+                          color: cl.accent,
+                          colorBlendMode: BlendMode.srcIn,
                         ),
                       ),
 
                       const SizedBox(height: 12),
 
-                      const Align(
+                      Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
                           'Welcome\nBack',
                           style: TextStyle(
                             fontSize: 42,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.darkBrown,
+                            color: cl.darkBrown,
                             fontFamily: 'Satoshi',
                             height: 1.2,
                           ),
                         ),
                       ),
 
-                      const SizedBox(height: 40),
+                      SizedBox(height: headingGap),
 
                       _buildAnimatedInputField(
                         controller: _emailController,
@@ -217,15 +232,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         height: 56,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          gradient: const LinearGradient(
+                          gradient: LinearGradient(
                             colors: [
-                              AppColors.crimson,
-                              AppColors.darkBrown,
+                              cl.crimson,
+                              cl.darkBrown,
                             ],
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.crimson.withOpacity(0.4),
+                              color: cl.crimson.withOpacity(0.4),
                               blurRadius: 15,
                               offset: const Offset(0, 8),
                             ),
@@ -284,28 +299,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                       TextButton(
                         onPressed: () => context.push('/forgot-password'),
-                        child: const Text(
+                        child: Text(
                           'Forgot Password ?',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.crimson,
+                            color: cl.crimson,
                             fontFamily: 'Satoshi',
                           ),
                         ),
                       ),
 
-                      const Spacer(),
+                      SizedBox(height: compact ? 12 : 20),
 
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
+                          Text(
                             'Don\'t have an account? ',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w400,
-                              color: AppColors.darkBrown,
+                              color: cl.darkBrown,
                               fontFamily: 'Satoshi',
                             ),
                           ),
@@ -316,12 +331,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               minimumSize: Size.zero,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
-                            child: const Text(
+                            child: Text(
                               'Sign up',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.crimson,
+                                color: cl.crimson,
                                 fontFamily: 'Satoshi',
                               ),
                             ),
@@ -329,7 +344,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ],
                       ),
 
-                      const SizedBox(height: 30),
+                      SizedBox(height: bottomGap),
                     ],
                   ),
                 ),
@@ -350,6 +365,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     bool obscureText = false,
     VoidCallback? onTogglePassword,
   }) {
+    final cl = context.c;
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: controller,
       builder: (context, value, child) {
@@ -361,15 +377,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeInOut,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cl.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: hasFocus ? AppColors.crimson : Colors.transparent,
+              color: hasFocus ? cl.crimson : Colors.transparent,
               width: 2,
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.tan.withOpacity(0.3),
+                color: cl.tan.withOpacity(0.3),
                 blurRadius: hasFocus ? 15 : 10,
                 offset: const Offset(0, 4),
               ),
@@ -381,10 +397,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 controller: controller,
                 focusNode: focusNode,
                 obscureText: isPassword && obscureText,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.darkBrown,
+                  color: cl.darkBrown,
                   fontFamily: 'Satoshi',
                 ),
                 decoration: InputDecoration(
@@ -392,7 +408,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   hintStyle: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.darkBrown.withOpacity(0.4),
+                    color: cl.darkBrown.withOpacity(0.4),
                     fontFamily: 'Satoshi',
                   ),
                   prefixIcon: AnimatedContainer(
@@ -401,8 +417,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: Icon(
                       icon,
                       color: hasFocus
-                          ? AppColors.crimson
-                          : AppColors.crimson.withOpacity(0.6),
+                          ? cl.crimson
+                          : cl.crimson.withOpacity(0.6),
                       size: 20,
                     ),
                   ),
@@ -412,7 +428,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             obscureText
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: AppColors.crimson.withOpacity(0.6),
+                            color: cl.crimson.withOpacity(0.6),
                             size: 20,
                           ),
                           onPressed: onTogglePassword,
@@ -423,7 +439,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: cl.surface,
                   contentPadding: EdgeInsets.only(
                     left: 20,
                     right: 20,
@@ -447,7 +463,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     style: TextStyle(
                       fontSize: shouldFloat ? 11 : 15,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.crimson.withOpacity(0.8),
+                      color: cl.crimson.withOpacity(0.8),
                       fontFamily: 'Satoshi',
                     ),
                     child: Text(label),
@@ -462,21 +478,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildGoogleButton({required VoidCallback onTap}) {
+    final cl = context.c;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         height: 50,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cl.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: AppColors.tan.withOpacity(0.5),
+            color: cl.border,
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.tan.withOpacity(0.2),
+              color: cl.tan.withOpacity(0.2),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -489,22 +506,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               width: 24,
               height: 24,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cl.surface,
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.g_mobiledata_rounded,
-                color: AppColors.crimson,
+                color: cl.crimson,
                 size: 24,
               ),
             ),
             const SizedBox(width: 8),
-            const Text(
+            Text(
               'Google',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: AppColors.darkBrown,
+                color: cl.darkBrown,
                 fontFamily: 'Satoshi',
               ),
             ),
@@ -515,32 +532,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildGuestButton({required VoidCallback onTap}) {
+    final cl = context.c;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         height: 50,
         decoration: BoxDecoration(
-          color: AppColors.tan.withOpacity(0.3),
+          color: cl.fieldBg,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: AppColors.tan.withOpacity(0.5),
+            color: cl.border,
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.tan.withOpacity(0.2),
+              color: cl.tan.withOpacity(0.2),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
           ],
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               Icons.person_outline,
-              color: AppColors.darkBrown,
+              color: cl.darkBrown,
               size: 20,
             ),
             SizedBox(width: 8),
@@ -549,7 +567,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: AppColors.darkBrown,
+                color: cl.darkBrown,
                 fontFamily: 'Satoshi',
               ),
             ),
@@ -561,6 +579,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 }
 
 class WavyBackgroundPainter extends CustomPainter {
+  final Color tanColor;
+  final Color crimsonColor;
+  final Color darkBrownColor;
+
+  WavyBackgroundPainter({
+    required this.tanColor,
+    required this.crimsonColor,
+    required this.darkBrownColor,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
@@ -568,9 +596,9 @@ class WavyBackgroundPainter extends CustomPainter {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          AppColors.tan.withOpacity(0.4),
-          AppColors.crimson.withOpacity(0.3),
-          AppColors.darkBrown.withOpacity(0.2),
+          tanColor.withOpacity(0.4),
+          crimsonColor.withOpacity(0.3),
+          darkBrownColor.withOpacity(0.2),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
@@ -600,8 +628,8 @@ class WavyBackgroundPainter extends CustomPainter {
         begin: Alignment.topRight,
         end: Alignment.bottomLeft,
         colors: [
-          AppColors.crimson.withOpacity(0.2),
-          AppColors.tan.withOpacity(0.3),
+          crimsonColor.withOpacity(0.2),
+          tanColor.withOpacity(0.3),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 

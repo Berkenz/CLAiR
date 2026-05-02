@@ -1,0 +1,76 @@
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import get_db
+from app.core.firebase import verify_firebase_token
+from app.core.lawyer_security import get_current_lawyer
+from app.models.lawyer_profile import LawyerProfile
+from app.models.user import User
+from app.schemas.lawyer import LawyerLoginRequest, LawyerLoginResponse
+from app.services.lawyer_service import lawyer_service
+from app.services.user_service import user_service
+
+router = APIRouter(prefix="/lawyer/auth", tags=["lawyer-auth"])
+
+
+@router.post("/login", response_model=LawyerLoginResponse)
+async def lawyer_login(
+    body: LawyerLoginRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """
+    Lawyer portal login.
+
+    The client authenticates with Firebase first (email + password), then sends
+    the ID token here. Anyone logging in through this endpoint is treated as a
+    lawyer — the portal URL itself is the access gate.
+
+    On first call the backend auto-creates the DB user row and lawyer profile
+    with must_change_password=True. Subsequent calls return the current state.
+    """
+    decoded = verify_firebase_token(body.firebase_token)
+
+    firebase_uid: str = decoded["uid"]
+    email: str | None = decoded.get("email")
+
+    user = await user_service.get_user_by_firebase_uid(db, firebase_uid)
+
+    if not user:
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Firebase token must contain an email.",
+            )
+        user = await user_service.create_user(
+            db,
+            firebase_uid=firebase_uid,
+            email=email,
+            auth_provider="email",
+            is_email_verified=decoded.get("email_verified", False),
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account has been deactivated. Contact your administrator.",
+        )
+
+    profile = await lawyer_service.get_or_create_profile(db, user)
+
+    return LawyerLoginResponse.model_validate({"user": user, "profile": profile})
+
+
+@router.post("/confirm-password-change", response_model=LawyerLoginResponse)
+async def confirm_password_change(
+    current: Annotated[tuple[User, LawyerProfile], Depends(get_current_lawyer)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """
+    Called by the lawyer portal after the lawyer has successfully changed their
+    password in Firebase. Clears the must_change_password flag on the profile.
+    """
+    user, profile = current
+    profile = await lawyer_service.confirm_password_change(db, profile)
+    return LawyerLoginResponse.model_validate({"user": user, "profile": profile})

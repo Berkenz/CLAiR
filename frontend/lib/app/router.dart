@@ -5,12 +5,14 @@ import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:clair/features/auth/presentation/screens/google_complete_screen.dart';
 import 'package:clair/features/auth/presentation/screens/login_screen.dart';
+import 'package:clair/features/auth/presentation/screens/profile_screen.dart';
 import 'package:clair/features/auth/presentation/screens/signup_name_screen.dart';
 import 'package:clair/features/auth/presentation/screens/signup_screen.dart';
 import 'package:clair/features/auth/presentation/screens/verify_email_screen.dart';
-import 'package:clair/features/auth/presentation/screens/profile_screen.dart';
 import 'package:clair/features/chat/presentation/screens/chat_screen.dart';
 import 'package:clair/features/history/presentation/screens/history_screen.dart';
+import 'package:clair/features/lawyer/presentation/screens/lawyer_screen.dart';
+import 'package:clair/features/notifications/presentation/screens/notification_screen.dart';
 import 'package:clair/app/main_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -88,6 +90,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/lawyers',
+        builder: (context, state) => const LawyerFullScreen(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationFullScreen(),
       ),
     ],
   );

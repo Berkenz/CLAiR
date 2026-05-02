@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/history/data/datasources/history_remote_datasource.dart';
 import 'package:clair/features/history/domain/entities/conversation_entity.dart';
@@ -18,6 +20,18 @@ class HistoryRepositoryImpl implements HistoryRepository {
     String conversationId,
   ) =>
       _remote.getConversationMessages(conversationId);
+
+  @override
+  Future<ConversationEntity> updateConversation(
+    String conversationId, {
+    String? title,
+    bool? isPinned,
+  }) =>
+      _remote.updateConversation(conversationId, title: title, isPinned: isPinned);
+
+  @override
+  Future<Uint8List> downloadPdf(String conversationId) =>
+      _remote.downloadPdf(conversationId);
 
   @override
   Future<void> deleteConversation(String conversationId) =>

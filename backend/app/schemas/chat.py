@@ -17,3 +17,4 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     conversation_id: uuid.UUID
+    conversation_title: str

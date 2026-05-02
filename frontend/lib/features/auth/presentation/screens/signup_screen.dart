@@ -82,10 +82,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }
 
   void _showError(String message) {
+    final cl = context.c;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: AppColors.crimson,
+        backgroundColor: cl.crimson,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -119,10 +120,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cl = context.c;
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: cl.surface,
       body: SafeArea(
         child: Stack(
           children: [
@@ -133,7 +135,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               right: 0,
               child: CustomPaint(
                 size: Size(size.width, size.height * 0.35),
-                painter: WavyBackgroundPainter(),
+                painter: WavyBackgroundPainter(
+                  tanColor: cl.tan,
+                  crimsonColor: cl.crimson,
+                  darkBrownColor: cl.darkBrown,
+                ),
               ),
             ),
             
@@ -154,20 +160,22 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       child: Image.asset(
                         'assets/images/CLAiR-icon.png',
                         fit: BoxFit.contain,
+                        color: cl.accent,
+                        colorBlendMode: BlendMode.srcIn,
                       ),
                     ),
                     
                     const SizedBox(height: 16),
                       
                       // Sign Up Text
-                      const Align(
+                      Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
                           'Sign Up',
                           style: TextStyle(
                             fontSize: 42,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.darkBrown,
+                            color: cl.darkBrown,
                             fontFamily: 'Satoshi',
                             height: 1.2,
                           ),
@@ -251,15 +259,15 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         height: 56,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          gradient: const LinearGradient(
+                          gradient: LinearGradient(
                             colors: [
-                              AppColors.crimson,
-                              AppColors.darkBrown,
+                              cl.crimson,
+                              cl.darkBrown,
                             ],
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.crimson.withOpacity(0.4),
+                              color: cl.crimson.withOpacity(0.4),
                               blurRadius: 15,
                               offset: const Offset(0, 8),
                             ),
@@ -297,13 +305,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       const SizedBox(height: 16),
                       
                       // Terms of Service
-                      const Text(
+                      Text(
                         'Signing up for a CLAiR account means you agree to the\nPrivacy Policy and Terms of Service',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w400,
-                          color: AppColors.darkBrown,
+                          color: cl.darkBrown,
                           fontFamily: 'Satoshi',
                           height: 1.4,
                         ),
@@ -315,12 +323,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
+                          Text(
                             'Already have an account? ',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w400,
-                              color: AppColors.darkBrown,
+                              color: cl.darkBrown,
                               fontFamily: 'Satoshi',
                             ),
                           ),
@@ -331,12 +339,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                               minimumSize: Size.zero,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
-                            child: const Text(
+                            child: Text(
                               'Log in',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.crimson,
+                                color: cl.crimson,
                                 fontFamily: 'Satoshi',
                               ),
                             ),
@@ -364,6 +372,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     bool obscureText = false,
     VoidCallback? onTogglePassword,
   }) {
+    final cl = context.c;
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: controller,
       builder: (context, value, child) {
@@ -375,17 +384,17 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeInOut,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cl.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: hasFocus
-                  ? AppColors.crimson
+                  ? cl.crimson
                   : Colors.transparent,
               width: 2,
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.tan.withOpacity(0.3),
+                color: cl.tan.withOpacity(0.3),
                 blurRadius: hasFocus ? 15 : 10,
                 offset: const Offset(0, 4),
               ),
@@ -397,10 +406,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 controller: controller,
                 focusNode: focusNode,
                 obscureText: isPassword && obscureText,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.darkBrown,
+                  color: cl.darkBrown,
                   fontFamily: 'Satoshi',
                 ),
                 decoration: InputDecoration(
@@ -408,7 +417,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   hintStyle: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.darkBrown.withOpacity(0.4),
+                    color: cl.darkBrown.withOpacity(0.4),
                     fontFamily: 'Satoshi',
                   ),
                   prefixIcon: AnimatedContainer(
@@ -417,8 +426,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     child: Icon(
                       icon,
                       color: hasFocus
-                          ? AppColors.crimson
-                          : AppColors.crimson.withOpacity(0.6),
+                          ? cl.crimson
+                          : cl.crimson.withOpacity(0.6),
                       size: 20,
                     ),
                   ),
@@ -428,7 +437,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                             obscureText
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: AppColors.crimson.withOpacity(0.6),
+                            color: cl.crimson.withOpacity(0.6),
                             size: 20,
                           ),
                           onPressed: onTogglePassword,
@@ -439,7 +448,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: cl.surface,
                   contentPadding: EdgeInsets.only(
                     left: 20,
                     right: 20,
@@ -463,7 +472,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     style: TextStyle(
                       fontSize: shouldFloat ? 11 : 15,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.crimson.withOpacity(0.8),
+                      color: cl.crimson.withOpacity(0.8),
                       fontFamily: 'Satoshi',
                     ),
                     child: Text(label),
@@ -478,8 +487,17 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }
 }
 
-// Custom Painter for Wavy Background (same as login screen)
 class WavyBackgroundPainter extends CustomPainter {
+  final Color tanColor;
+  final Color crimsonColor;
+  final Color darkBrownColor;
+
+  WavyBackgroundPainter({
+    required this.tanColor,
+    required this.crimsonColor,
+    required this.darkBrownColor,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
@@ -487,66 +505,58 @@ class WavyBackgroundPainter extends CustomPainter {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          AppColors.tan.withOpacity(0.4),
-          AppColors.crimson.withOpacity(0.3),
-          AppColors.darkBrown.withOpacity(0.2),
+          tanColor.withOpacity(0.4),
+          crimsonColor.withOpacity(0.3),
+          darkBrownColor.withOpacity(0.2),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
     final path = Path();
-    
     path.moveTo(0, 0);
     path.lineTo(size.width, 0);
-    
     path.lineTo(size.width, size.height * 0.6);
-    
     path.quadraticBezierTo(
       size.width * 0.75,
       size.height * 0.7,
       size.width * 0.5,
       size.height * 0.65,
     );
-    
     path.quadraticBezierTo(
       size.width * 0.25,
       size.height * 0.6,
       0,
       size.height * 0.7,
     );
-    
     path.lineTo(0, 0);
     path.close();
 
     canvas.drawPath(path, paint);
-    
+
     final paint2 = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topRight,
         end: Alignment.bottomLeft,
         colors: [
-          AppColors.crimson.withOpacity(0.2),
-          AppColors.tan.withOpacity(0.3),
+          crimsonColor.withOpacity(0.2),
+          tanColor.withOpacity(0.3),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-    
+
     final path2 = Path();
     path2.moveTo(size.width, 0);
     path2.lineTo(size.width, size.height * 0.5);
-    
     path2.quadraticBezierTo(
       size.width * 0.6,
       size.height * 0.55,
       size.width * 0.3,
       size.height * 0.45,
     );
-    
     path2.quadraticBezierTo(
       size.width * 0.1,
       size.height * 0.4,
       0,
       size.height * 0.5,
     );
-    
     path2.lineTo(0, 0);
     path2.lineTo(size.width, 0);
     path2.close();

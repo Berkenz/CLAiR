@@ -1,875 +1,327 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
+import 'package:clair/features/auth/presentation/screens/appearance_screen.dart';
+import 'package:clair/features/auth/presentation/screens/edit_profile_screen.dart';
+import 'package:clair/features/auth/presentation/screens/privacy_policy_screen.dart';
+import 'package:clair/features/auth/presentation/screens/report_screen.dart';
+import 'package:clair/features/auth/presentation/screens/terms_of_use_screen.dart';
+import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 
-class ProfileScreen extends ConsumerStatefulWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
-  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
-
-  late final TextEditingController _firstNameCtrl;
-  late final TextEditingController _lastNameCtrl;
-  late final TextEditingController _locationCtrl;
-  late final TextEditingController _currentPasswordCtrl;
-  late final TextEditingController _newPasswordCtrl;
-  late final TextEditingController _confirmPasswordCtrl;
-
-  bool _obscureCurrent = true;
-  bool _obscureNew = true;
-  bool _obscureConfirm = true;
-  bool _isSaving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final user = ref.read(currentUserProvider);
-    _firstNameCtrl = TextEditingController(text: user?.firstName ?? '');
-    _lastNameCtrl = TextEditingController(text: user?.lastName ?? '');
-    _locationCtrl = TextEditingController(text: user?.location ?? '');
-    _currentPasswordCtrl = TextEditingController();
-    _newPasswordCtrl = TextEditingController();
-    _confirmPasswordCtrl = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    _firstNameCtrl.dispose();
-    _lastNameCtrl.dispose();
-    _locationCtrl.dispose();
-    _currentPasswordCtrl.dispose();
-    _newPasswordCtrl.dispose();
-    _confirmPasswordCtrl.dispose();
-    super.dispose();
-  }
-
-  String get _initials {
-    final f = _firstNameCtrl.text.trim();
-    final l = _lastNameCtrl.text.trim();
-    final fi = f.isNotEmpty ? f[0].toUpperCase() : '';
-    final li = l.isNotEmpty ? l[0].toUpperCase() : '';
-    final combined = '$fi$li';
-    return combined.isNotEmpty ? combined : '?';
-  }
-
-  Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _isSaving = true);
-    try {
-      final repo = ref.read(authRepositoryProvider);
-
-      final updatedUser = await repo.updateProfile(
-        firstName: _firstNameCtrl.text.trim(),
-        lastName: _lastNameCtrl.text.trim(),
-        location: _locationCtrl.text.trim(),
-      );
-      ref.read(currentUserProvider.notifier).state = updatedUser;
-
-      if (_newPasswordCtrl.text.isNotEmpty) {
-        final newPw = _newPasswordCtrl.text;
-        if (newPw.length < 6) throw Exception('Password must be at least 6 characters');
-        if (!newPw.contains(RegExp(r'[A-Z]'))) throw Exception('Password must contain at least one uppercase letter');
-        if (!newPw.contains(RegExp(r'[0-9]'))) throw Exception('Password must contain at least one number');
-        if (newPw != _confirmPasswordCtrl.text) throw Exception('Passwords do not match');
-
-        await repo.changePassword(
-          currentPassword: _currentPasswordCtrl.text,
-          newPassword: newPw,
-        );
-        _currentPasswordCtrl.clear();
-        _newPasswordCtrl.clear();
-        _confirmPasswordCtrl.clear();
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Profile updated successfully.',
-              style:
-                  TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w500),
-            ),
-            backgroundColor: AppColors.darkBrown,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        String message = 'Failed to update profile';
-        final err = e.toString();
-        if (err.contains('wrong-password') || err.contains('invalid-credential')) {
-          message = 'Current password is incorrect';
-        } else if (err.contains('weak-password')) {
-          message = 'New password is too weak';
-        } else {
-          message = err;
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: AppColors.crimson,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cl = context.c;
     final user = ref.watch(currentUserProvider);
+    final name = user?.displayName ?? 'User';
+    final parts = name.split(' ');
+    final initials = parts
+        .map((p) => p.isNotEmpty ? p[0].toUpperCase() : '')
+        .take(2)
+        .join();
 
     return Scaffold(
-      backgroundColor: AppColors.offWhite,
-      body: Column(
-        children: [
-          // ── Header ──────────────────────────────────────────────
-          _Header(
-            initials: _initials,
-            photoUrl: user?.photoUrl,
-            onBack: () => Navigator.of(context).pop(),
-            onPhotoTap: _pickPhoto,
-          ),
-
-          // ── Form ────────────────────────────────────────────────
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── Personal Info ────────────────────────────
-                    const _SectionLabel(label: 'Personal Information'),
-                    const SizedBox(height: 12),
-                    _FormGroup(
-                      children: [
-                        _FieldTile(
-                          label: 'First Name',
-                          controller: _firstNameCtrl,
-                          icon: Icons.person_outline_rounded,
-                          hint: 'Enter first name',
-                          validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'Required'
-                              : null,
-                        ),
-                        _FieldTile(
-                          label: 'Last Name',
-                          controller: _lastNameCtrl,
-                          icon: Icons.person_outline_rounded,
-                          hint: 'Enter last name',
-                          validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'Required'
-                              : null,
-                        ),
-                        _FieldTile(
-                          label: 'Location',
-                          controller: _locationCtrl,
-                          icon: Icons.location_on_outlined,
-                          hint: 'e.g. Cebu City, Philippines',
-                          isLast: true,
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    // ── Change Password ──────────────────────────
-                    const _SectionLabel(label: 'Change Password'),
-                    const SizedBox(height: 4),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        'Leave blank if you don\'t want to change your password.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.darkBrown.withOpacity(0.4),
-                          fontFamily: 'Satoshi',
-                        ),
+      backgroundColor: cl.bg,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+          child: Column(children: [
+            Row(children: [
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: cl.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: cl.cardShadow,
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
                       ),
-                    ),
-                    _FormGroup(
-                      children: [
-                        _FieldTile(
-                          label: 'Current Password',
-                          controller: _currentPasswordCtrl,
-                          icon: Icons.lock_outline_rounded,
-                          hint: '••••••••',
-                          obscure: _obscureCurrent,
-                          onToggleObscure: () => setState(
-                              () => _obscureCurrent = !_obscureCurrent),
-                        ),
-                        _FieldTile(
-                          label: 'New Password',
-                          controller: _newPasswordCtrl,
-                          icon: Icons.lock_outline_rounded,
-                          hint: 'Min. 6 chars, 1 uppercase, 1 number',
-                          obscure: _obscureNew,
-                          onToggleObscure: () =>
-                              setState(() => _obscureNew = !_obscureNew),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) return null;
-                            if (v.length < 6) return 'At least 6 characters';
-                            if (!v.contains(RegExp(r'[A-Z]'))) {
-                              return 'Must contain one uppercase letter';
-                            }
-                            if (!v.contains(RegExp(r'[0-9]'))) {
-                              return 'Must contain one number';
-                            }
-                            return null;
-                          },
-                        ),
-                        _FieldTile(
-                          label: 'Confirm New Password',
-                          controller: _confirmPasswordCtrl,
-                          icon: Icons.lock_outline_rounded,
-                          hint: 'Re-enter new password',
-                          obscure: _obscureConfirm,
-                          onToggleObscure: () => setState(
-                              () => _obscureConfirm = !_obscureConfirm),
-                          isLast: true,
-                          validator: (v) {
-                            if (_newPasswordCtrl.text.isEmpty) return null;
-                            if (v != _newPasswordCtrl.text) {
-                              return 'Passwords do not match';
-                            }
-                            return null;
-                          },
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 36),
-
-                    // ── Save ─────────────────────────────────────
-                    _SaveButton(isSaving: _isSaving, onTap: _save),
-                  ],
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.arrow_back_rounded,
+                    color: cl.textDark,
+                    size: 20,
+                  ),
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+              const Spacer(),
+              Text(
+                'Settings',
+                style: GoogleFonts.nunito(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: cl.textDark,
+                ),
+              ),
+              const Spacer(),
+              const SizedBox(width: 38),
+            ]),
+            const SizedBox(height: 28),
 
-  void _pickPhoto() {
-    final user = ref.read(currentUserProvider);
-    final hasPhoto = (user?.photoUrl ?? '').trim().isNotEmpty;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _PhotoPickerSheet(
-        onTakePhoto: () => _handlePhotoFromSource(ImageSource.camera),
-        onChooseFromGallery: () =>
-            _handlePhotoFromSource(ImageSource.gallery),
-        onRemovePhoto: hasPhoto ? _handleRemovePhoto : null,
-      ),
-    );
-  }
-
-  Future<void> _handlePhotoFromSource(ImageSource source) async {
-    Navigator.pop(context);
-    final picker = ImagePicker();
-    final file = await picker.pickImage(
-      source: source,
-      maxWidth: 1024,
-      imageQuality: 85,
-    );
-    if (file == null || !mounted) return;
-    setState(() => _isSaving = true);
-    try {
-      final repo = ref.read(authRepositoryProvider);
-      final updatedUser = await repo.updateProfilePhoto(file);
-      if (mounted) {
-        ref.read(currentUserProvider.notifier).state = updatedUser;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Profile photo updated.',
-              style:
-                  TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w500),
-            ),
-            backgroundColor: AppColors.darkBrown,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to upload photo: ${e.toString()}'),
-            backgroundColor: AppColors.crimson,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
-
-  Future<void> _handleRemovePhoto() async {
-    Navigator.pop(context);
-    setState(() => _isSaving = true);
-    try {
-      final repo = ref.read(authRepositoryProvider);
-      final updatedUser = await repo.removeProfilePhoto();
-      if (mounted) {
-        ref.read(currentUserProvider.notifier).state = updatedUser;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Profile photo removed.',
-              style:
-                  TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w500),
-            ),
-            backgroundColor: AppColors.darkBrown,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to remove photo: ${e.toString()}'),
-            backgroundColor: AppColors.crimson,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Header
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _Header extends StatelessWidget {
-  final String initials;
-  final String? photoUrl;
-  final VoidCallback onBack;
-  final VoidCallback onPhotoTap;
-
-  const _Header({
-    required this.initials,
-    required this.photoUrl,
-    required this.onBack,
-    required this.onPhotoTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: AppColors.darkBrown,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(32),
-          bottomRight: Radius.circular(32),
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-          child: Column(
-            children: [
-              // Top bar
-              Row(
-                children: [
-                  _IconBtn(
-                    icon: Icons.arrow_back_ios_new_rounded,
-                    onTap: onBack,
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    cl.accent.withValues(alpha: 0.12),
+                    cl.accentLight.withValues(alpha: 0.3),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: [
+                  BoxShadow(
+                    color: cl.cardShadow,
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
-                  const Spacer(),
-                  const Text(
-                    'My Profile',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      fontFamily: 'Satoshi',
-                    ),
-                  ),
-                  const Spacer(),
-                  const SizedBox(width: 38), // visual balance
                 ],
               ),
-
-              const SizedBox(height: 24),
-
-              // Avatar with camera badge
-              GestureDetector(
-                onTap: onPhotoTap,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: 88,
-                      height: 88,
-                      decoration: BoxDecoration(
-                        color: AppColors.crimson,
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.crimson.withOpacity(0.4),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: photoUrl != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(28),
-                              child:
-                                  Image.network(photoUrl!, fit: BoxFit.cover),
-                            )
-                          : Center(
-                              child: Text(
-                                initials,
-                                style: const TextStyle(
-                                  fontSize: 30,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  fontFamily: 'Satoshi',
-                                ),
-                              ),
-                            ),
-                    ),
-                    // Camera badge
-                    Positioned(
-                      bottom: -4,
-                      right: -4,
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.12),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt_rounded,
-                          size: 15,
-                          color: AppColors.darkBrown,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              Text(
-                'Tap to change photo',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withOpacity(0.45),
-                  fontFamily: 'Satoshi',
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _IconBtn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _IconBtn({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon, color: Colors.white, size: 17),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Form helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _SectionLabel extends StatelessWidget {
-  final String label;
-  const _SectionLabel({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label.toUpperCase(),
-      style: TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 1.2,
-        color: AppColors.darkBrown.withOpacity(0.35),
-        fontFamily: 'Satoshi',
-      ),
-    );
-  }
-}
-
-class _FormGroup extends StatelessWidget {
-  final List<Widget> children;
-  const _FormGroup({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.darkBrown.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        children: children.asMap().entries.map((entry) {
-          final isLast = entry.key == children.length - 1;
-          return Column(
-            children: [
-              entry.value,
-              if (!isLast)
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  indent: 54,
-                  color: AppColors.darkBrown.withOpacity(0.06),
-                ),
-            ],
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-class _FieldTile extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final IconData icon;
-  final String hint;
-  final bool obscure;
-  final VoidCallback? onToggleObscure;
-  final String? Function(String?)? validator;
-  final bool isLast;
-
-  const _FieldTile({
-    required this.label,
-    required this.controller,
-    required this.icon,
-    required this.hint,
-    this.obscure = false,
-    this.onToggleObscure,
-    this.validator,
-    this.isLast = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Icon chip
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: AppColors.darkBrown.withOpacity(0.07),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 17, color: AppColors.darkBrown),
-          ),
-          const SizedBox(width: 14),
-          // Label + text field
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 10),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.darkBrown.withOpacity(0.4),
-                    fontFamily: 'Satoshi',
-                    letterSpacing: 0.3,
-                  ),
-                ),
-                TextFormField(
-                  controller: controller,
-                  obscureText: obscure,
-                  validator: validator,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.darkBrown,
-                    fontFamily: 'Satoshi',
-                  ),
-                  decoration: InputDecoration(
-                    hintText: hint,
-                    hintStyle: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.darkBrown.withOpacity(0.25),
-                      fontFamily: 'Satoshi',
-                    ),
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 6),
-                    suffixIcon: onToggleObscure != null
-                        ? GestureDetector(
-                            onTap: onToggleObscure,
-                            child: Icon(
-                              obscure
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                              size: 18,
-                              color: AppColors.darkBrown.withOpacity(0.3),
-                            ),
-                          )
-                        : null,
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Save Button
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _SaveButton extends StatelessWidget {
-  final bool isSaving;
-  final VoidCallback onTap;
-
-  const _SaveButton({required this.isSaving, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: Material(
-        color: AppColors.darkBrown,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: isSaving ? null : onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Center(
-              child: isSaving
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
+              child: user?.photoUrl != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(22),
+                      child: Image.network(
+                        user!.photoUrl!,
+                        fit: BoxFit.cover,
                       ),
                     )
-                  : const Text(
-                      'Save Changes',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        fontFamily: 'Satoshi',
+                  : Center(
+                      child: Text(
+                        initials,
+                        style: GoogleFonts.nunito(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: cl.accent,
+                        ),
                       ),
                     ),
             ),
-          ),
+            const SizedBox(height: 12),
+            Text(
+              name,
+              style: GoogleFonts.nunito(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: cl.textDark,
+              ),
+            ),
+            Text(
+              user?.email ?? '',
+              style: GoogleFonts.nunito(fontSize: 13, color: cl.textMid),
+            ),
+            const SizedBox(height: 8),
+            if (user?.isAnonymous == true)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: cl.border.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'Guest Account',
+                  style: GoogleFonts.nunito(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: cl.textLight,
+                  ),
+                ),
+              )
+            else
+              GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: cl.accent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Edit Profile',
+                    style: GoogleFonts.nunito(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: cl.accent,
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 28),
+
+            _section(context, 'Account', [
+              _row(context, Icons.mail_outline_rounded, 'Email', () {}),
+              _row(
+                context,
+                Icons.notifications_outlined,
+                'Notifications',
+                () => context.push('/notifications'),
+              ),
+              _row(context, Icons.lock_outline_rounded, 'Security', () {}),
+            ]),
+            const SizedBox(height: 16),
+
+            _section(context, 'App', [
+              _row(
+                context,
+                Icons.palette_outlined,
+                'Appearance',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AppearanceScreen(),
+                  ),
+                ),
+              ),
+              _row(context, Icons.language_rounded, 'App Language', () {}),
+            ]),
+            const SizedBox(height: 16),
+
+            _section(context, 'About', [
+              _row(
+                context,
+                Icons.flag_outlined,
+                'Report',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ReportScreen()),
+                ),
+              ),
+              _row(context, Icons.help_outline_rounded, 'Help Center', () {}),
+              _row(
+                context,
+                Icons.description_outlined,
+                'Terms of Use',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TermsOfUseScreen()),
+                ),
+              ),
+              _row(
+                context,
+                Icons.privacy_tip_outlined,
+                'Privacy Policy',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 24),
+
+            GestureDetector(
+              onTap: () async {
+                await ref.read(authRepositoryProvider).signOut();
+                ref.read(currentUserProvider.notifier).state = null;
+                ref.read(chatProvider.notifier).reset();
+                if (context.mounted) context.go('/login');
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFFECACA)),
+                ),
+                child: Center(
+                  child: Text(
+                    'Log Out',
+                    style: GoogleFonts.nunito(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFFDC4C4C),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ]),
         ),
       ),
     );
   }
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Photo Picker Bottom Sheet
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _PhotoPickerSheet extends StatelessWidget {
-  final VoidCallback onTakePhoto;
-  final VoidCallback onChooseFromGallery;
-  final VoidCallback? onRemovePhoto;
-
-  const _PhotoPickerSheet({
-    required this.onTakePhoto,
-    required this.onChooseFromGallery,
-    this.onRemovePhoto,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
+  Widget _section(BuildContext context, String title, List<Widget> rows) {
+    final cl = context.c;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 8),
+        child: Text(
+          title,
+          style: GoogleFonts.nunito(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: cl.textMid,
+          ),
+        ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          // Drag handle
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.darkBrown.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Change Photo',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.darkBrown,
-              fontFamily: 'Satoshi',
-            ),
-          ),
-          const SizedBox(height: 16),
-          _PhotoOption(
-            icon: Icons.camera_alt_rounded,
-            label: 'Take a Photo',
-            onTap: onTakePhoto,
-          ),
-          Divider(
-              height: 1,
-              indent: 60,
-              color: AppColors.darkBrown.withOpacity(0.07)),
-          _PhotoOption(
-            icon: Icons.photo_library_outlined,
-            label: 'Choose from Gallery',
-            onTap: onChooseFromGallery,
-          ),
-          if (onRemovePhoto != null) ...[
-            Divider(
-                height: 1,
-                indent: 60,
-                color: AppColors.darkBrown.withOpacity(0.07)),
-            _PhotoOption(
-              icon: Icons.delete_outline_rounded,
-              label: 'Remove Photo',
-              isDestructive: true,
-              onTap: onRemovePhoto!,
+      Container(
+        decoration: BoxDecoration(
+          color: cl.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: cl.border),
+          boxShadow: [
+            BoxShadow(
+              color: cl.cardShadow,
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
           ],
-          const SizedBox(height: 16),
-        ],
+        ),
+        child: Column(children: [
+          for (int i = 0; i < rows.length; i++) ...[
+            rows[i],
+            if (i < rows.length - 1)
+              Divider(height: 1, indent: 48, color: cl.border),
+          ],
+        ]),
       ),
-    );
+    ]);
   }
-}
 
-class _PhotoOption extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isDestructive;
-  final VoidCallback onTap;
-
-  const _PhotoOption({
-    required this.icon,
-    required this.label,
-    this.isDestructive = false,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isDestructive ? AppColors.crimson : AppColors.darkBrown;
+  Widget _row(BuildContext context, IconData icon, String label, VoidCallback onTap) {
+    final cl = context.c;
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, size: 18, color: color),
-              ),
-              const SizedBox(width: 16),
-              Text(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          child: Row(children: [
+            Icon(icon, size: 20, color: cl.textMid),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
                 label,
-                style: TextStyle(
+                style: GoogleFonts.nunito(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: color,
-                  fontFamily: 'Satoshi',
+                  color: cl.textDark,
                 ),
               ),
-            ],
-          ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: cl.textLight,
+            ),
+          ]),
         ),
       ),
     );

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:clair/features/chat/data/datasources/chat_remote_datasource.dart';
@@ -50,6 +52,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
         messages: [...state.messages, aiMessage],
         isLoading: false,
         conversationId: response.conversationId,
+        conversationTitle: response.conversationTitle.isNotEmpty
+            ? response.conversationTitle
+            : state.conversationTitle,
       );
     } catch (e) {
       state = state.copyWith(
@@ -59,7 +64,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
   }
 
-  Future<void> loadConversation(String conversationId) async {
+  Future<void> loadConversation(
+    String conversationId, {
+    String? title,
+    bool isPinned = false,
+  }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final messages =
@@ -67,7 +76,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
       state = state.copyWith(
         messages: messages,
         conversationId: conversationId,
+        conversationTitle: title,
+        conversationIsPinned: isPinned,
         isLoading: false,
+        isLoadedConversation: true,
       );
     } catch (e) {
       state = state.copyWith(
@@ -77,8 +89,66 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
   }
 
+  Future<void> renameCurrentConversation(String newTitle) async {
+    final id = state.conversationId;
+    if (id == null) return;
+    try {
+      final updated =
+          await _historyRepository.updateConversation(id, title: newTitle);
+      state = state.copyWith(
+        conversationTitle: updated.title,
+      );
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
+
+  Future<void> toggleCurrentPin() async {
+    final id = state.conversationId;
+    if (id == null) return;
+    try {
+      final updated = await _historyRepository.updateConversation(
+        id,
+        isPinned: !state.conversationIsPinned,
+      );
+      state = state.copyWith(conversationIsPinned: updated.isPinned);
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
+
+  Future<void> deleteCurrentConversation() async {
+    final id = state.conversationId;
+    if (id == null) return;
+    try {
+      await _historyRepository.deleteConversation(id);
+      state = ChatState.initial();
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
+
+  Future<Uint8List?> downloadPdf() async {
+    final id = state.conversationId;
+    if (id == null) return null;
+    try {
+      return await _historyRepository.downloadPdf(id);
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return null;
+    }
+  }
+
   void clearError() {
     state = state.copyWith(error: null);
+  }
+
+  void hideDisclaimer() {
+    state = state.copyWith(isLoadedConversation: false);
+  }
+
+  void updateMessages(List<ChatMessageEntity> messages) {
+    state = state.copyWith(messages: messages);
   }
 
   void reset() {
@@ -91,12 +161,18 @@ class ChatState {
   final bool isLoading;
   final String? error;
   final String? conversationId;
+  final String? conversationTitle;
+  final bool conversationIsPinned;
+  final bool isLoadedConversation;
 
   const ChatState({
     required this.messages,
     required this.isLoading,
     this.error,
     this.conversationId,
+    this.conversationTitle,
+    this.conversationIsPinned = false,
+    this.isLoadedConversation = false,
   });
 
   factory ChatState.initial() => const ChatState(
@@ -114,12 +190,20 @@ class ChatState {
     bool? isLoading,
     String? error,
     String? conversationId,
+    String? conversationTitle,
+    bool? conversationIsPinned,
+    bool? isLoadedConversation,
   }) =>
       ChatState(
         messages: messages ?? this.messages,
         isLoading: isLoading ?? this.isLoading,
         error: error ?? this.error,
         conversationId: conversationId ?? this.conversationId,
+        conversationTitle: conversationTitle ?? this.conversationTitle,
+        conversationIsPinned:
+            conversationIsPinned ?? this.conversationIsPinned,
+        isLoadedConversation:
+            isLoadedConversation ?? this.isLoadedConversation,
       );
 }
 
