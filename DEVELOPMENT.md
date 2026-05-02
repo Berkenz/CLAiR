@@ -103,6 +103,12 @@ flutter run
 
 Pick your emulator/device when prompted. You should see the landing screen with Login, Sign Up, and Continue as Guest.
 
+**Android dev API URL:** Debug/profile builds allow cleartext HTTP. The default base URL uses `10.0.2.2:8000` (emulator → your PC). On a **physical Android phone**, use your PC’s LAN address instead, for example:
+
+```bash
+flutter run --dart-define=API_BASE_URL=http://192.168.1.50:8000/api/v1
+```
+
 **That's it! You're ready to develop.**
 
 ---
@@ -183,6 +189,12 @@ git push -u origin feature/my-feature
 ```
 
 ## Troubleshooting
+
+### Lawyer web (`lawyer-web`) shows “Backend not reachable” or empty lists
+
+1. **Run the API** — e.g. Docker (`docker-compose up`) or `uvicorn` on **port 8000** (matches `lawyer-web/vite.config.ts` proxy).
+2. **CORS** — The browser origin must be allowed. Defaults in `backend/app/config.py` include `http://localhost:5173` and `http://127.0.0.1:5173`. If your `backend/.env` sets `CORS_ORIGINS`, ensure those URLs are in the JSON list or the browser will block requests from the lawyer portal.
+3. **Dev proxy** — With `VITE_API_BASE_URL=/api/v1` (see `lawyer-web/.env.example`), requests go through Vite to `localhost:8000`. If you set `VITE_API_BASE_URL` to a full URL instead, CORS on the backend must allow `5173`.
 
 ### App shows old/stale screens after code changes
 

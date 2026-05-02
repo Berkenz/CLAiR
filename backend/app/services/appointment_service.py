@@ -1,10 +1,12 @@
 import uuid
 from datetime import date
 
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.appointment import Appointment
+from app.models.conversation import Conversation
 from app.models.lawyer_profile import LawyerProfile
 from app.models.user import User
 from app.schemas.appointment import (
@@ -24,6 +26,20 @@ class AppointmentService:
         """Mobile user books an appointment with a lawyer."""
         client_name = client_user.full_name or client_user.email or "Unknown Client"
 
+        attached_id = data.attached_conversation_id
+        if attached_id is not None:
+            conv_row = await db.execute(
+                select(Conversation).where(
+                    Conversation.id == attached_id,
+                    Conversation.user_id == client_user.id,
+                )
+            )
+            if conv_row.scalar_one_or_none() is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid conversation or you do not own this conversation.",
+                )
+
         appt = Appointment(
             lawyer_profile_id=data.lawyer_profile_id,
             client_user_id=client_user.id,
@@ -32,6 +48,7 @@ class AppointmentService:
             appointment_time=data.appointment_time,
             appointment_type=data.appointment_type,
             description=data.description,
+            attached_conversation_id=attached_id,
             status="pending",
         )
         db.add(appt)

@@ -25,6 +25,7 @@ class AppointmentBookRequest(BaseModel):
     appointment_time: str   # "HH:MM"
     appointment_type: str
     description: str | None = None
+    attached_conversation_id: uuid.UUID | None = None
 
     @field_validator("appointment_time")
     @classmethod
@@ -127,6 +128,7 @@ class AppointmentResponse(BaseModel):
 
     id: uuid.UUID
     lawyer_profile_id: uuid.UUID
+    attached_conversation_id: uuid.UUID | None = None
     client_user_id: uuid.UUID | None
     client_name: str
     appointment_date: date

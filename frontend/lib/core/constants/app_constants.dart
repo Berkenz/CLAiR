@@ -17,6 +17,8 @@ class AppConstants {
     if (isProduction) {
       return 'https://clair-7icn.onrender.com/api/v1';
     }
+    // Android emulator → host loopback. Physical device cannot use 10.0.2.2;
+    // run with: flutter run --dart-define=API_BASE_URL=http://YOUR_PC_LAN_IP:8000/api/v1
     if (Platform.isAndroid) {
       return 'http://10.0.2.2:8000/api/v1';
     }

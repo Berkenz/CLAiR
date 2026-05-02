@@ -4,6 +4,7 @@ import {
   FileText, ChevronDown, ChevronUp, WifiOff,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { getApiErrorMessage, isApiNetworkError } from "@/lib/api-error";
 
 interface Appointment {
   id: string;
@@ -45,6 +46,7 @@ export function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [backendDown, setBackendDown] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [accepting, setAccepting] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<Appointment | null>(null);
@@ -57,20 +59,18 @@ export function AppointmentsPage() {
   const fetchAppointments = useCallback(async () => {
     setLoading(true);
     setBackendDown(false);
+    setLoadError(null);
     try {
       const { data } = await api.get<{ appointments: Appointment[] }>("/lawyer/appointments");
       setAppointments(data.appointments);
-    } catch (err: any) {
-      // If there's no response object, the backend is simply unreachable.
-      // We do NOT let this bubble up to api.ts interceptor — we handle it
-      // right here so the user stays on this page and is NOT signed out.
-      if (!err?.response) {
+    } catch (err: unknown) {
+      if (isApiNetworkError(err)) {
         setBackendDown(true);
-      }
-      // If err.response exists (e.g. 404, 500), still show offline state
-      // rather than crashing the session — backend team will fix those.
-      else {
-        setBackendDown(true);
+        setLoadError(null);
+      } else {
+        setBackendDown(false);
+        setAppointments([]);
+        setLoadError(getApiErrorMessage(err, "Could not load appointments."));
       }
     } finally {
       setLoading(false);
@@ -134,6 +134,8 @@ export function AppointmentsPage() {
               ? "Loading…"
               : backendDown
               ? "Backend unavailable — your session is still active"
+              : loadError
+              ? "Could not load list — details below"
               : `${appointments.length} total · ${pending.length} pending · ${confirmed.length} confirmed`}
           </p>
         </div>
@@ -161,7 +163,11 @@ export function AppointmentsPage() {
           <div>
             <p className="text-sm font-semibold text-[#241715]">Backend not reachable</p>
             <p className="text-xs text-[#957186] max-w-xs mt-1 leading-relaxed">
-              The server isn't responding right now. You're still logged in — appointments will load once the backend is available.
+              No response from the API (is the FastAPI server running on port 8000?). If you use a full URL in{" "}
+              <code className="text-[10px] bg-[#f7f0f4] px-1 rounded">VITE_API_BASE_URL</code>, ensure{" "}
+              <code className="text-[10px] bg-[#f7f0f4] px-1 rounded">CORS_ORIGINS</code> in{" "}
+              <code className="text-[10px] bg-[#f7f0f4] px-1 rounded">backend/.env</code> includes your lawyer-web origin (e.g.{" "}
+              <code className="text-[10px] bg-[#f7f0f4] px-1 rounded">http://localhost:5173</code>).
             </p>
           </div>
           <button
@@ -174,6 +180,12 @@ export function AppointmentsPage() {
         </div>
       ) : (
         <>
+          {loadError ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <p className="font-semibold text-[#241715]">Could not load appointments</p>
+              <p className="text-xs text-[#957186] mt-1">{loadError}</p>
+            </div>
+          ) : null}
           {/* ── Pending Requests ── */}
           <section>
             <div className="flex items-center gap-2 mb-3">

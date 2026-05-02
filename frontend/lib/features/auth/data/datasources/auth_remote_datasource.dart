@@ -1,11 +1,24 @@
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:http_parser/http_parser.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:clair/core/config/oauth_ids.dart';
 import 'package:clair/core/network/api_endpoints.dart';
 import 'package:clair/features/auth/domain/entities/user_entity.dart';
+
+GoogleSignIn _createPlatformGoogleSignIn() {
+  const scopes = ['email', 'profile'];
+  if (defaultTargetPlatform == TargetPlatform.android) {
+    return GoogleSignIn(
+      scopes: scopes,
+      serverClientId: kFirebaseAndroidGoogleSignInServerClientId,
+    );
+  }
+  return GoogleSignIn(scopes: scopes);
+}
 
 class AuthRemoteDataSource {
   AuthRemoteDataSource({
@@ -14,7 +27,7 @@ class AuthRemoteDataSource {
     GoogleSignIn? googleSignIn,
   })  : _dio = dio,
         _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
-        _googleSignIn = googleSignIn ?? GoogleSignIn();
+        _googleSignIn = googleSignIn ?? _createPlatformGoogleSignIn();
 
   final Dio _dio;
   final FirebaseAuth _firebaseAuth;

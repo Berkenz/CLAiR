@@ -1,3 +1,11 @@
+import axios from "axios";
+
+/** True when the request never reached the server (offline, DNS, CORS failure, wrong URL). */
+export function isApiNetworkError(err: unknown): boolean {
+  if (!axios.isAxiosError(err)) return false;
+  return err.response === undefined;
+}
+
 /** Best-effort message from FastAPI / Axios error responses. */
 export function getApiErrorMessage(err: unknown, fallback: string): string {
   const ax = err as {
@@ -14,4 +22,11 @@ export function getApiErrorMessage(err: unknown, fallback: string): string {
     return parts.join(" ") || fallback;
   }
   return fallback;
+}
+
+/** Same as getApiErrorMessage, but adds setup hints when the browser never got an HTTP response. */
+export function getApiErrorMessageWithNetworkHint(err: unknown, fallback: string): string {
+  const msg = getApiErrorMessage(err, fallback);
+  if (!isApiNetworkError(err)) return msg;
+  return `${msg} Start the API (e.g. uvicorn on port 8000). If \`VITE_API_BASE_URL\` points straight at the API, set backend \`CORS_ORIGINS\` to include http://localhost:5173 (and http://127.0.0.1:5173 if you use that URL).`;
 }

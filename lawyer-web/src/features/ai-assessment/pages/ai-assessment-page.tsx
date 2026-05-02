@@ -1,9 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Sparkles, MessageSquare, ThumbsUp, Flag, Send, Plus,
-  X, ChevronDown, AlertTriangle, Check, Bot, User,
+  X, AlertTriangle, Check, Bot, User, Pin, RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { api } from "@/lib/api";
+import { getApiErrorMessage, getApiErrorMessageWithNetworkHint } from "@/lib/api-error";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -16,14 +18,6 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-interface ConversationThread {
-  id: string;
-  clientName: string;
-  date: string;
-  preview: string;
-  messages: ChatMessage[];
-}
-
 interface MessageFeedback {
   messageId: string;
   type: "commend" | "report";
@@ -31,44 +25,92 @@ interface MessageFeedback {
   comment?: string;
 }
 
-// ─── Sample conversations for the assessment tab ──────────────────────────────
+interface ChatSendResponse {
+  reply: string;
+  conversation_id: string;
+  conversation_title: string;
+}
 
-const SAMPLE_CONVERSATIONS: ConversationThread[] = [
-  {
-    id: "conv-1",
-    clientName: "Maria Santos",
-    date: "May 1, 2026",
-    preview: "Asked about annulment process in the Philippines",
-    messages: [
-      { id: "m1", role: "user", content: "Good afternoon. I want to know how to get an annulment here in the Philippines. My husband and I have been separated for 5 years now.", timestamp: new Date() },
-      { id: "m2", role: "assistant", content: "Good afternoon! I understand this is a difficult situation. In the Philippines, annulment is a legal process that nullifies a marriage. Unlike divorce, which is not available in the Philippines (except for Muslim Filipinos), annulment declares a marriage void or voidable.\n\nThe common legal grounds for annulment under the Family Code include:\n\n1. Lack of parental consent (if either party was 18–21 at the time of marriage)\n2. Psychological incapacity (Article 36) — the most commonly used ground\n3. Fraud\n4. Force, intimidation, or undue influence\n5. Physical incapacity to consummate the marriage\n6. Sexually transmissible disease found to be serious and incurable\n\nThe process typically takes 2–5 years and can be costly. I strongly recommend consulting with a licensed family law attorney who can assess your specific situation and guide you through the proper legal steps.", timestamp: new Date() },
-      { id: "m3", role: "user", content: "How much does it usually cost?", timestamp: new Date() },
-      { id: "m4", role: "assistant", content: "The cost of annulment in the Philippines can vary significantly depending on several factors:\n\n• **Attorney's fees**: ₱150,000 – ₱500,000+ depending on the lawyer's experience and the complexity of the case\n• **Court filing fees**: ₱5,000 – ₱15,000 approximately\n• **Psychological evaluation**: ₱15,000 – ₱40,000 (required for Article 36 cases)\n• **Publication fees**: ₱10,000 – ₱20,000 (required by law)\n• **Miscellaneous expenses**: ₱10,000 – ₱30,000\n\nTotal estimated range: ₱200,000 – ₱600,000 or more.\n\nPlease note these are rough estimates. Costs can be lower with public attorneys (PAO) if you qualify based on income. I recommend getting a formal consultation with a lawyer for a more accurate assessment of your case.", timestamp: new Date() },
-    ],
-  },
-  {
-    id: "conv-2",
-    clientName: "Juan dela Cruz",
-    date: "Apr 29, 2026",
-    preview: "Asked about small claims court procedure",
-    messages: [
-      { id: "m5", role: "user", content: "How do I file a small claims case? My neighbor owes me ₱80,000 and refuses to pay.", timestamp: new Date() },
-      { id: "m6", role: "assistant", content: "You can file a small claims case at the Metropolitan Trial Court (MeTC) or Municipal Trial Court (MTC) that has jurisdiction over where you or the defendant resides.\n\nHere's a quick overview of the process:\n\n1. **Fill out the Statement of Claim form** (available at the court or downloadable online)\n2. **Attach supporting documents**: receipts, contracts, written agreements, acknowledgment receipts, text messages, etc.\n3. **Pay the filing fee**: usually ₱1,000 – ₱2,000 for claims up to ₱100,000\n4. **Serve summons**: the court will notify your defendant\n5. **Appear on the hearing date**: small claims hearings are decided on the same day — no lawyers are allowed\n\nImportantly, small claims court in the Philippines now covers money claims up to ₱400,000 under the 2022 Revised Rules on Small Claims Cases.\n\nSince your claim is ₱80,000, you are well within the threshold. The process is designed to be quick — typically resolved in one hearing.", timestamp: new Date() },
-      { id: "m7", role: "user", content: "Do I need a lawyer?", timestamp: new Date() },
-      { id: "m8", role: "assistant", content: "No — in fact, lawyers are not allowed to appear in small claims proceedings in the Philippines. This is by design to make the process faster and more accessible.\n\nYou will represent yourself (pro se). The court will guide you through the hearing. Just bring all your evidence and be prepared to explain your claim clearly.\n\nHowever, you may consult a lawyer beforehand to help you prepare your Statement of Claim and organize your evidence, even if they cannot appear with you in court.", timestamp: new Date() },
-    ],
-  },
-  {
-    id: "conv-3",
-    clientName: "Rosa Reyes",
-    date: "Apr 27, 2026",
-    preview: "Asked about labor rights after termination",
-    messages: [
-      { id: "m9", role: "user", content: "I was terminated from my job without any notice. Is this legal?", timestamp: new Date() },
-      { id: "m10", role: "assistant", content: "Under Philippine labor law, termination without notice may be illegal depending on the circumstances. The Labor Code of the Philippines requires employers to follow due process before terminating an employee.\n\nFor just causes (serious misconduct, willful disobedience, gross neglect, etc.), the employer must:\n1. Issue a written Notice to Explain (NTE)\n2. Give the employee at least 5 calendar days to respond\n3. Conduct a hearing if requested\n4. Issue a Notice of Termination\n\nFor authorized causes (redundancy, retrenchment, closure), the employer must:\n1. Give a 30-day advance written notice to both the employee AND the DOLE\n2. Pay separation pay\n\nIf none of these were followed, your termination may be considered **illegal dismissal**. You may file a complaint with the National Labor Relations Commission (NLRC) within 4 years from the date of dismissal.\n\nI recommend documenting everything and consulting with a labor lawyer as soon as possible.", timestamp: new Date() },
-    ],
-  },
-];
+interface LawyerConversationSummary {
+  id: string;
+  title: string;
+  is_pinned: boolean;
+  created_at: string;
+  updated_at: string | null;
+}
+
+interface LawyerConversationDetailMessage {
+  id: string;
+  role: string;
+  text: string;
+  created_at: string;
+}
+
+interface SharedBookingSummary {
+  appointment_id: string;
+  shared_at: string;
+  appointment_date: string;
+  appointment_time: string;
+  appointment_type: string;
+  status: string;
+}
+
+interface SharedBookingDetail extends SharedBookingSummary {
+  description_preview: string | null;
+}
+
+interface ClientConversationSummary {
+  id: string;
+  title: string;
+  updated_at: string | null;
+  client_display_name: string;
+  latest_shared_booking: SharedBookingSummary;
+}
+
+interface AssessmentApiMessage {
+  id: string;
+  role: string;
+  text: string;
+  created_at: string;
+}
+
+interface AssessmentFeedbackRow {
+  message_id: string;
+  feedback_type: string;
+  issue_codes: string[] | null;
+  comment: string | null;
+}
+
+interface ClientConversationDetail {
+  id: string;
+  title: string;
+  updated_at: string | null;
+  client_display_name: string;
+  messages: AssessmentApiMessage[];
+  my_feedback: AssessmentFeedbackRow[];
+  shared_bookings: SharedBookingDetail[];
+}
+
+function formatBookingDateShort(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  if (!y || !m || !d) return isoDate;
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${months[m - 1]} ${d}, ${y}`;
+}
+
+function formatBookingTimeShort(t: string): string {
+  const parts = t.split(":");
+  const h = Number(parts[0]);
+  const min = Number(parts[1]);
+  if (Number.isNaN(h) || Number.isNaN(min)) return t;
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(min).padStart(2, "0")} ${ampm}`;
+}
+
+function sharedBookingOneLiner(b: SharedBookingSummary): string {
+  return `${formatBookingDateShort(b.appointment_date)} ${formatBookingTimeShort(b.appointment_time)} · ${b.status} · ${b.appointment_type}`;
+}
 
 // ─── Report issue options ─────────────────────────────────────────────────────
 
@@ -97,7 +139,7 @@ export function AiAssessmentPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-[#241715]">AI Assessment</h1>
-          <p className="text-sm text-[#957186]">Chat with AI or review and assess client–AI conversations</p>
+          <p className="text-sm text-[#957186]">Chat with AI or review CLAiR chats clients choose to share when booking with you</p>
         </div>
       </div>
 
@@ -137,11 +179,52 @@ export function AiAssessmentPage() {
 // ─── Tab 1: AI Chat ───────────────────────────────────────────────────────────
 
 function ChatTab() {
+  const [histories, setHistories] = useState<LawyerConversationSummary[]>([]);
+  const [historiesLoading, setHistoriesLoading] = useState(true);
+  const [historiesError, setHistoriesError] = useState("");
+  const [loadingConversation, setLoadingConversation] = useState(false);
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [started, setStarted] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationTitle, setConversationTitle] = useState<string | null>(null);
+  const [chatError, setChatError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const refreshHistories = useCallback(async () => {
+    try {
+      const { data } = await api.get<{ conversations: LawyerConversationSummary[] }>("/conversations");
+      setHistories(data.conversations);
+      setHistoriesError("");
+    } catch (err) {
+      setHistoriesError(getApiErrorMessageWithNetworkHint(err, "Could not refresh conversations."));
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setHistoriesLoading(true);
+      try {
+        const { data } = await api.get<{ conversations: LawyerConversationSummary[] }>("/conversations");
+        if (!cancelled) {
+          setHistories(data.conversations);
+          setHistoriesError("");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setHistoriesError(getApiErrorMessageWithNetworkHint(err, "Could not load conversation history."));
+        }
+      } finally {
+        if (!cancelled) setHistoriesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -154,38 +237,99 @@ function ChatTab() {
     "How does estate settlement work without a will?",
   ];
 
+  async function loadConversation(id: string) {
+    if (loadingConversation || loading) return;
+    setChatError("");
+    setLoadingConversation(true);
+    try {
+      const { data } = await api.get<{
+        id: string;
+        title: string;
+        messages: LawyerConversationDetailMessage[];
+      }>(`/conversations/${id}`);
+      const sorted = [...data.messages].sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      );
+      const mapped: ChatMessage[] = sorted.map((m) => ({
+        id: m.id,
+        role: m.role === "model" ? "assistant" : "user",
+        content: m.text,
+        timestamp: new Date(m.created_at),
+      }));
+      setConversationId(data.id);
+      setConversationTitle(data.title);
+      setMessages(mapped);
+      setStarted(true);
+    } catch (err) {
+      setChatError(getApiErrorMessage(err, "Could not open that conversation."));
+    } finally {
+      setLoadingConversation(false);
+    }
+  }
+
   async function sendMessage(text?: string) {
     const content = text ?? input.trim();
     if (!content || loading) return;
+    setChatError("");
     setInput("");
-    setStarted(true);
+    const prior = messages;
+    const historyForApi = prior.map((m) => ({
+      role: m.role === "assistant" ? ("model" as const) : ("user" as const),
+      text: m.content,
+    }));
 
     const userMsg: ChatMessage = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       role: "user",
       content,
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, userMsg]);
+    setStarted(true);
     setLoading(true);
 
-    // Simulated AI response — replace with real API call when backend is ready
-    setTimeout(() => {
+    try {
+      const payload: {
+        message: string;
+        history: { role: "user" | "model"; text: string }[];
+        conversation_id?: string;
+      } = {
+        message: content,
+        history: historyForApi,
+      };
+      if (conversationId) payload.conversation_id = conversationId;
+
+      const { data } = await api.post<ChatSendResponse>("/chat/send", payload);
+      setConversationId(data.conversation_id);
+      if (data.conversation_title?.trim()) {
+        setConversationTitle(data.conversation_title);
+      }
+
       const reply: ChatMessage = {
-        id: (Date.now() + 1).toString(),
+        id: crypto.randomUUID(),
         role: "assistant",
-        content: `Thank you for your question regarding "${content.slice(0, 60)}${content.length > 60 ? "…" : ""}". This is a simulated AI response. Once the backend is connected, this will return a real legal AI answer tailored to Philippine law and your specific query.`,
+        content: data.reply,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, reply]);
+      void refreshHistories();
+    } catch (err) {
+      setMessages((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev));
+      setInput(content);
+      if (prior.length === 0) {
+        setStarted(false);
+        setConversationTitle(null);
+      }
+      setChatError(getApiErrorMessage(err, "Could not get a response. Please try again."));
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   }
 
   function handleKey(e: React.KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      void sendMessage();
     }
   }
 
@@ -193,115 +337,213 @@ function ChatTab() {
     setMessages([]);
     setStarted(false);
     setInput("");
+    setConversationId(null);
+    setConversationTitle(null);
+    setChatError("");
   }
 
   return (
-    <div className="flex flex-col" style={{ height: "calc(100vh - 260px)", minHeight: 480 }}>
-      {/* Top bar */}
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs text-[#957186]">
-          {started ? `${messages.length} message${messages.length !== 1 ? "s" : ""}` : "New conversation"}
-        </span>
-        {started && (
+    <div
+      className="grid gap-4 lg:grid-cols-[260px_1fr] lg:items-stretch"
+      style={{ minHeight: "calc(100vh - 260px)" }}
+    >
+      {/* Sidebar: saved lawyer AI threads */}
+      <div className="flex flex-col rounded-2xl border border-[#d9b8c4]/40 bg-[#fdf9fb] p-3 max-h-[42vh] lg:max-h-none lg:min-h-[480px]">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <p className="text-xs font-semibold text-[#5a3046] uppercase tracking-wide">Your chats</p>
           <button
-            onClick={newChat}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#d9b8c4] text-xs font-medium text-[#957186] hover:bg-[#f7f0f4] transition"
+            type="button"
+            title="Refresh list"
+            onClick={() => void refreshHistories()}
+            className="p-1.5 rounded-lg text-[#957186] hover:bg-[#f7f0f4] transition"
           >
-            <Plus className="h-3.5 w-3.5" />
-            New chat
+            <RefreshCw className="h-3.5 w-3.5" />
           </button>
-        )}
+        </div>
+        <button
+          type="button"
+          onClick={newChat}
+          className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl bg-[#703d57] text-xs font-semibold text-white hover:bg-[#5a3046] transition mb-2"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          New conversation
+        </button>
+        <p className="text-[10px] text-[#957186] mb-2 leading-relaxed px-0.5">
+          Chats are saved to your lawyer account (same as the mobile CLAiR engine).
+        </p>
+        {historiesError ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[10px] text-red-700 mb-2">
+            {historiesError}
+          </div>
+        ) : null}
+        <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5 min-h-0">
+          {historiesLoading ? (
+            <p className="text-xs text-[#957186] px-1 py-2">Loading…</p>
+          ) : histories.length === 0 ? (
+            <p className="text-xs text-[#957186] px-1 py-2">No saved chats yet. Send a message to create one.</p>
+          ) : (
+            histories.map((h) => {
+              const active = conversationId !== null && h.id === conversationId;
+              return (
+                <button
+                  key={h.id}
+                  type="button"
+                  onClick={() => void loadConversation(h.id)}
+                  disabled={loadingConversation}
+                  className={cn(
+                    "w-full text-left p-3 rounded-xl border text-xs transition-all disabled:opacity-50",
+                    active
+                      ? "border-[#703d57] bg-[#f7f0f4]"
+                      : "border-[#d9b8c4]/40 bg-white hover:border-[#703d57]/40 hover:bg-[#f7f0f4]",
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-1 mb-1">
+                    <span className="font-semibold text-[#241715] line-clamp-2 flex-1">{h.title}</span>
+                    {h.is_pinned ? (
+                      <Pin className="h-3 w-3 text-[#703d57] shrink-0 mt-0.5" aria-hidden />
+                    ) : null}
+                  </div>
+                  <span className="text-[10px] text-[#957186]">
+                    {formatAssessmentConvDate(h.updated_at)}
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
       </div>
 
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto rounded-2xl border border-[#d9b8c4]/40 bg-white">
-        {!started ? (
-          /* Empty state / conversation starters */
-          <div className="h-full flex flex-col items-center justify-center px-6 py-12 text-center">
-            <div className="h-14 w-14 rounded-2xl bg-[#703d57] flex items-center justify-center mb-4">
-              <Sparkles className="h-7 w-7 text-white" />
-            </div>
-            <h2 className="text-lg font-bold text-[#241715] mb-1">CLAiR Legal Assistant</h2>
-            <p className="text-sm text-[#957186] max-w-sm mb-8">
-              Ask any legal question and get an AI-powered response based on Philippine law.
+      {/* Main chat column */}
+      <div className="flex flex-col min-h-[480px]">
+        <div className="flex items-center justify-between mb-3 gap-2">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-[#241715] truncate">
+              {conversationTitle ?? (started ? "Conversation" : "New conversation")}
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-lg">
-              {STARTERS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => sendMessage(s)}
-                  className="text-left px-4 py-3 rounded-xl border border-[#d9b8c4]/60 bg-[#f7f0f4] text-sm text-[#241715] hover:border-[#703d57] hover:bg-[#eedde8] transition-all"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            <span className="text-[10px] text-[#957186]">
+              {started
+                ? `${messages.length} message${messages.length !== 1 ? "s" : ""}`
+                : "Ask anything about Philippine law"}
+            </span>
           </div>
-        ) : (
-          <div className="p-5 space-y-5">
-            {messages.map((msg) => (
-              <div key={msg.id} className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start")}>
-                {msg.role === "assistant" && (
-                  <div className="h-8 w-8 rounded-full bg-[#703d57] flex items-center justify-center shrink-0 mt-0.5">
+          {started ? (
+            <button
+              type="button"
+              onClick={newChat}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#d9b8c4] text-xs font-medium text-[#957186] hover:bg-[#f7f0f4] transition shrink-0"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              New chat
+            </button>
+          ) : null}
+        </div>
+
+        {chatError ? (
+          <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+            {chatError}
+          </div>
+        ) : null}
+
+        <div className="flex-1 overflow-y-auto rounded-2xl border border-[#d9b8c4]/40 bg-white min-h-0">
+          {loadingConversation ? (
+            <div className="h-full flex items-center justify-center py-16 text-sm text-[#957186]">
+              Loading conversation…
+            </div>
+          ) : !started ? (
+            <div className="h-full flex flex-col items-center justify-center px-6 py-12 text-center min-h-[320px]">
+              <div className="h-14 w-14 rounded-2xl bg-[#703d57] flex items-center justify-center mb-4">
+                <Sparkles className="h-7 w-7 text-white" />
+              </div>
+              <h2 className="text-lg font-bold text-[#241715] mb-1">CLAiR Legal Assistant</h2>
+              <p className="text-sm text-[#957186] max-w-sm mb-8">
+                Ask any legal question and get an AI-powered response based on Philippine law (same engine as the mobile app).
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-lg">
+                {STARTERS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => void sendMessage(s)}
+                    className="text-left px-4 py-3 rounded-xl border border-[#d9b8c4]/60 bg-[#f7f0f4] text-sm text-[#241715] hover:border-[#703d57] hover:bg-[#eedde8] transition-all"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="p-5 space-y-5">
+              {messages.map((msg) => (
+                <div key={msg.id} className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start")}>
+                  {msg.role === "assistant" && (
+                    <div className="h-8 w-8 rounded-full bg-[#703d57] flex items-center justify-center shrink-0 mt-0.5">
+                      <Bot className="h-4 w-4 text-white" />
+                    </div>
+                  )}
+                  <div
+                    className={cn(
+                      "max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
+                      msg.role === "user"
+                        ? "bg-[#703d57] text-white rounded-tr-sm"
+                        : "bg-[#f7f0f4] text-[#241715] rounded-tl-sm",
+                    )}
+                  >
+                    {msg.content}
+                  </div>
+                  {msg.role === "user" && (
+                    <div className="h-8 w-8 rounded-full bg-[#957186] flex items-center justify-center shrink-0 mt-0.5">
+                      <User className="h-4 w-4 text-white" />
+                    </div>
+                  )}
+                </div>
+              ))}
+              {loading && (
+                <div className="flex gap-3">
+                  <div className="h-8 w-8 rounded-full bg-[#703d57] flex items-center justify-center shrink-0">
                     <Bot className="h-4 w-4 text-white" />
                   </div>
-                )}
-                <div className={cn(
-                  "max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
-                  msg.role === "user"
-                    ? "bg-[#703d57] text-white rounded-tr-sm"
-                    : "bg-[#f7f0f4] text-[#241715] rounded-tl-sm"
-                )}>
-                  {msg.content}
-                </div>
-                {msg.role === "user" && (
-                  <div className="h-8 w-8 rounded-full bg-[#957186] flex items-center justify-center shrink-0 mt-0.5">
-                    <User className="h-4 w-4 text-white" />
-                  </div>
-                )}
-              </div>
-            ))}
-            {loading && (
-              <div className="flex gap-3">
-                <div className="h-8 w-8 rounded-full bg-[#703d57] flex items-center justify-center shrink-0">
-                  <Bot className="h-4 w-4 text-white" />
-                </div>
-                <div className="bg-[#f7f0f4] rounded-2xl rounded-tl-sm px-4 py-3">
-                  <div className="flex gap-1 items-center h-5">
-                    {[0, 1, 2].map((i) => (
-                      <div key={i} className="h-2 w-2 rounded-full bg-[#957186] animate-bounce"
-                        style={{ animationDelay: `${i * 0.15}s` }} />
-                    ))}
+                  <div className="bg-[#f7f0f4] rounded-2xl rounded-tl-sm px-4 py-3">
+                    <div className="flex gap-1 items-center h-5">
+                      {[0, 1, 2].map((i) => (
+                        <div
+                          key={i}
+                          className="h-2 w-2 rounded-full bg-[#957186] animate-bounce"
+                          style={{ animationDelay: `${i * 0.15}s` }}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
-        )}
-      </div>
+              )}
+              <div ref={bottomRef} />
+            </div>
+          )}
+        </div>
 
-      {/* Input box */}
-      <div className="mt-3 flex gap-2 items-end">
-        <div className="flex-1 rounded-2xl border border-[#d9b8c4] bg-white focus-within:border-[#703d57] focus-within:ring-2 focus-within:ring-[#703d57]/10 transition">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKey}
-            placeholder="Ask a legal question… (Enter to send, Shift+Enter for new line)"
-            rows={2}
-            className="w-full px-4 pt-3 pb-1 text-sm text-[#241715] placeholder-[#c490aa] bg-transparent outline-none resize-none"
-          />
-          <div className="flex items-center justify-between px-3 pb-2">
-            <span className="text-[10px] text-[#c490aa]">Philippine law context</span>
-            <button
-              onClick={() => sendMessage()}
-              disabled={!input.trim() || loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#703d57] text-xs font-semibold text-white hover:bg-[#5a3046] disabled:opacity-40 disabled:cursor-not-allowed transition"
-            >
-              <Send className="h-3.5 w-3.5" />
-              Send
-            </button>
+        <div className="mt-3 flex gap-2 items-end">
+          <div className="flex-1 rounded-2xl border border-[#d9b8c4] bg-white focus-within:border-[#703d57] focus-within:ring-2 focus-within:ring-[#703d57]/10 transition">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKey}
+              placeholder="Ask a legal question… (Enter to send, Shift+Enter for new line)"
+              rows={2}
+              className="w-full px-4 pt-3 pb-1 text-sm text-[#241715] placeholder-[#c490aa] bg-transparent outline-none resize-none"
+            />
+            <div className="flex items-center justify-between px-3 pb-2">
+              <span className="text-[10px] text-[#c490aa]">
+                Philippine law context · synced with conversation history
+              </span>
+              <button
+                type="button"
+                onClick={() => void sendMessage()}
+                disabled={!input.trim() || loading || loadingConversation}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#703d57] text-xs font-semibold text-white hover:bg-[#5a3046] disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                <Send className="h-3.5 w-3.5" />
+                Send
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -309,17 +551,124 @@ function ChatTab() {
   );
 }
 
+// ─── Tab 2 helpers ───────────────────────────────────────────────────────────
+
+function formatAssessmentConvDate(iso: string | null): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+function feedbackRecordFromRows(rows: AssessmentFeedbackRow[]): Record<string, MessageFeedback> {
+  const m: Record<string, MessageFeedback> = {};
+  for (const r of rows) {
+    m[r.message_id] = {
+      messageId: r.message_id,
+      type: r.feedback_type === "commend" ? "commend" : "report",
+      issues: r.issue_codes ?? undefined,
+      comment: r.comment ?? undefined,
+    };
+  }
+  return m;
+}
+
+function assessmentApiMessagesToView(rows: AssessmentApiMessage[]): ChatMessage[] {
+  return rows.map((m) => ({
+    id: m.id,
+    role: m.role === "model" ? "assistant" : "user",
+    content: m.text,
+    timestamp: new Date(m.created_at),
+  }));
+}
+
 // ─── Tab 2: Assessment Feedback ───────────────────────────────────────────────
 
 function AssessmentTab() {
-  const [selected, setSelected] = useState<ConversationThread | null>(null);
+  const [summaries, setSummaries] = useState<ClientConversationSummary[]>([]);
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState("");
+  const [selectedSummary, setSelectedSummary] = useState<ClientConversationSummary | null>(null);
+  const [detail, setDetail] = useState<ClientConversationDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
   const [feedbacks, setFeedbacks] = useState<Record<string, MessageFeedback>>({});
   const [reportTarget, setReportTarget] = useState<string | null>(null);
   const [selectedIssues, setSelectedIssues] = useState<string[]>([]);
   const [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState<string | null>(null);
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
+  const [feedbackBanner, setFeedbackBanner] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setListLoading(true);
+      setListError("");
+      try {
+        const { data } = await api.get<{ conversations: ClientConversationSummary[] }>(
+          "/lawyer/ai-assessment/client-conversations",
+        );
+        if (!cancelled) setSummaries(data.conversations);
+      } catch (err) {
+        if (!cancelled) {
+          setListError(
+            getApiErrorMessageWithNetworkHint(err, "Could not load client conversations."),
+          );
+        }
+      } finally {
+        if (!cancelled) setListLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedSummary) {
+      setDetail(null);
+      setFeedbacks({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setDetailLoading(true);
+      setDetailError("");
+      try {
+        const { data } = await api.get<ClientConversationDetail>(
+          `/lawyer/ai-assessment/client-conversations/${selectedSummary.id}`,
+        );
+        if (!cancelled) {
+          setDetail(data);
+          setFeedbacks(feedbackRecordFromRows(data.my_feedback));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setDetail(null);
+          setDetailError(
+            getApiErrorMessage(err, "Could not load this conversation."),
+          );
+        }
+      } finally {
+        if (!cancelled) setDetailLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedSummary?.id]);
+
+  const viewMessages = detail ? assessmentApiMessagesToView(detail.messages) : [];
 
   function openReport(messageId: string) {
+    setFeedbackBanner("");
     setReportTarget(messageId);
     setSelectedIssues([]);
     setComment("");
@@ -327,26 +676,61 @@ function AssessmentTab() {
 
   function toggleIssue(id: string) {
     setSelectedIssues((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
     );
   }
 
-  function submitReport() {
-    if (!reportTarget || selectedIssues.length === 0) return;
-    setFeedbacks((prev) => ({
-      ...prev,
-      [reportTarget]: { messageId: reportTarget, type: "report", issues: selectedIssues, comment },
-    }));
-    setSubmitted(reportTarget);
-    setReportTarget(null);
-    setTimeout(() => setSubmitted(null), 3000);
+  async function submitReport() {
+    if (!reportTarget || selectedIssues.length === 0 || feedbackBusy) return;
+    setFeedbackBusy(true);
+    setFeedbackBanner("");
+    try {
+      await api.post("/lawyer/ai-assessment/message-feedback", {
+        message_id: reportTarget,
+        feedback_type: "report",
+        issue_codes: selectedIssues,
+        comment: comment.trim() || undefined,
+      });
+      setFeedbacks((prev) => ({
+        ...prev,
+        [reportTarget]: {
+          messageId: reportTarget,
+          type: "report",
+          issues: selectedIssues,
+          comment: comment.trim() || undefined,
+        },
+      }));
+      setSubmitted(reportTarget);
+      setReportTarget(null);
+      setTimeout(() => setSubmitted(null), 3000);
+    } catch (err) {
+      setFeedbackBanner(getApiErrorMessage(err, "Could not submit report."));
+    } finally {
+      setFeedbackBusy(false);
+    }
   }
 
-  function submitCommend(messageId: string) {
-    setFeedbacks((prev) => ({
-      ...prev,
-      [messageId]: { messageId, type: "commend" },
-    }));
+  async function submitCommend(messageId: string) {
+    if (feedbackBusy) return;
+    setFeedbackBusy(true);
+    setFeedbackBanner("");
+    try {
+      await api.post("/lawyer/ai-assessment/message-feedback", {
+        message_id: messageId,
+        feedback_type: "commend",
+        issue_codes: [],
+      });
+      setFeedbacks((prev) => ({
+        ...prev,
+        [messageId]: { messageId, type: "commend" },
+      }));
+      setSubmitted(messageId);
+      setTimeout(() => setSubmitted(null), 3000);
+    } catch (err) {
+      setFeedbackBanner(getApiErrorMessage(err, "Could not submit commend."));
+    } finally {
+      setFeedbackBusy(false);
+    }
   }
 
   return (
@@ -356,60 +740,101 @@ function AssessmentTab() {
         <p className="text-xs font-semibold text-[#5a3046] uppercase tracking-wide px-1 mb-3">
           Client Conversations
         </p>
-        {SAMPLE_CONVERSATIONS.map((conv) => (
-          <button
-            key={conv.id}
-            onClick={() => { setSelected(conv); setFeedbacks({}); }}
-            className={cn(
-              "w-full text-left p-4 rounded-2xl border transition-all",
-              selected?.id === conv.id
-                ? "border-[#703d57] bg-[#f7f0f4]"
-                : "border-[#d9b8c4]/40 bg-white hover:border-[#703d57]/40 hover:bg-[#f7f0f4]"
-            )}
-          >
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-sm font-semibold text-[#241715]">{conv.clientName}</p>
-              <span className="text-[10px] text-[#957186]">{conv.date}</span>
-            </div>
-            <p className="text-xs text-[#957186] leading-relaxed line-clamp-2">{conv.preview}</p>
-            <div className="mt-2 flex items-center gap-1">
-              <MessageSquare className="h-3 w-3 text-[#c490aa]" />
-              <span className="text-[10px] text-[#c490aa]">{conv.messages.length} messages</span>
-            </div>
-          </button>
-        ))}
+        <p className="text-[11px] text-[#957186] px-1 mb-2 leading-relaxed">
+          Only conversations a client attaches while requesting an appointment with you. Newest share first.
+        </p>
+        {listLoading ? (
+          <p className="text-xs text-[#957186] px-1 py-4">Loading…</p>
+        ) : listError ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {listError}
+          </div>
+        ) : summaries.length === 0 ? (
+          <p className="text-xs text-[#957186] px-1 py-4">
+            Nothing shared yet. When a client checks “Attach CLAiR conversation” on their booking request, that chat appears here.
+          </p>
+        ) : (
+          summaries.map((conv) => (
+            <button
+              key={conv.id}
+              type="button"
+              onClick={() => setSelectedSummary(conv)}
+              className={cn(
+                "w-full text-left p-4 rounded-2xl border transition-all",
+                selectedSummary?.id === conv.id
+                  ? "border-[#703d57] bg-[#f7f0f4]"
+                  : "border-[#d9b8c4]/40 bg-white hover:border-[#703d57]/40 hover:bg-[#f7f0f4]",
+              )}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm font-semibold text-[#241715]">{conv.client_display_name}</p>
+                <span className="text-[10px] text-[#957186]">{formatAssessmentConvDate(conv.updated_at)}</span>
+              </div>
+              <p className="text-xs text-[#957186] leading-relaxed line-clamp-2">{conv.title}</p>
+              <p className="text-[10px] text-[#957186]/90 mt-1.5 leading-snug">
+                Booking · {sharedBookingOneLiner(conv.latest_shared_booking)}
+              </p>
+            </button>
+          ))
+        )}
       </div>
 
       {/* Conversation viewer */}
       <div className="rounded-2xl border border-[#d9b8c4]/40 bg-white overflow-hidden flex flex-col">
-        {!selected ? (
+        {feedbackBanner ? (
+          <div className="px-4 py-2 text-xs text-red-700 bg-red-50 border-b border-red-100">{feedbackBanner}</div>
+        ) : null}
+        {!selectedSummary ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center px-8 py-16">
             <div className="h-14 w-14 rounded-2xl bg-[#f7f0f4] border border-[#d9b8c4]/40 flex items-center justify-center mb-4">
               <MessageSquare className="h-6 w-6 text-[#957186]" />
             </div>
             <p className="text-sm font-semibold text-[#241715]">Select a conversation</p>
             <p className="text-xs text-[#957186] mt-1 max-w-xs">
-              Choose a client–AI conversation from the left to begin your assessment.
+              Pick a conversation the client attached when booking with you.
             </p>
           </div>
-        ) : (
+        ) : detailLoading ? (
+          <div className="flex-1 flex items-center justify-center py-16 text-sm text-[#957186]">Loading conversation…</div>
+        ) : detailError ? (
+          <div className="flex-1 flex flex-col items-center justify-center px-8 py-16">
+            <p className="text-sm text-red-600">{detailError}</p>
+          </div>
+        ) : detail ? (
           <>
-            {/* Conversation header */}
             <div className="px-5 py-4 border-b border-[#d9b8c4]/30 bg-[#f7f0f4]">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-bold text-[#241715]">{selected.clientName}</p>
-                  <p className="text-xs text-[#957186]">{selected.date} · {selected.messages.length} messages</p>
+                  <p className="text-sm font-bold text-[#241715]">{detail.client_display_name}</p>
+                  <p className="text-xs text-[#957186]">
+                    {formatAssessmentConvDate(detail.updated_at)} · {viewMessages.length} messages
+                  </p>
                 </div>
                 <span className="text-xs bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full font-semibold">
                   Review mode
                 </span>
               </div>
+              {detail.shared_bookings.length > 0 ? (
+                <div className="mt-3 rounded-xl border border-[#d9b8c4]/50 bg-white/80 px-3 py-2.5">
+                  <p className="text-[10px] font-semibold text-[#5a3046] uppercase tracking-wide mb-1.5">
+                    Shared via appointment request
+                  </p>
+                  <ul className="space-y-1.5">
+                    {detail.shared_bookings.map((b) => (
+                      <li key={b.appointment_id} className="text-[11px] text-[#241715] leading-relaxed">
+                        <span className="font-medium text-[#703d57]">{sharedBookingOneLiner(b)}</span>
+                        {b.description_preview ? (
+                          <span className="block text-[#957186] mt-0.5 line-clamp-2">{b.description_preview}</span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
 
-            {/* Messages — view only */}
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {selected.messages.map((msg) => {
+              {viewMessages.map((msg) => {
                 const fb = feedbacks[msg.id];
                 const isAI = msg.role === "assistant";
 
@@ -421,12 +846,14 @@ function AssessmentTab() {
                           <Bot className="h-3.5 w-3.5 text-white" />
                         </div>
                       )}
-                      <div className={cn(
-                        "max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
-                        isAI
-                          ? "bg-[#f7f0f4] text-[#241715] rounded-tl-sm"
-                          : "bg-[#703d57] text-white rounded-tr-sm"
-                      )}>
+                      <div
+                        className={cn(
+                          "max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
+                          isAI
+                            ? "bg-[#f7f0f4] text-[#241715] rounded-tl-sm"
+                            : "bg-[#703d57] text-white rounded-tr-sm",
+                        )}
+                      >
                         {msg.content}
                       </div>
                       {!isAI && (
@@ -436,9 +863,8 @@ function AssessmentTab() {
                       )}
                     </div>
 
-                    {/* Assessment buttons — only on AI messages */}
                     {isAI && (
-                      <div className="ml-10 mt-2 flex items-center gap-2">
+                      <div className="ml-10 mt-2 flex items-center gap-2 flex-wrap">
                         {fb?.type === "commend" ? (
                           <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
                             <Check className="h-3.5 w-3.5" /> Commended
@@ -450,15 +876,19 @@ function AssessmentTab() {
                         ) : (
                           <>
                             <button
-                              onClick={() => submitCommend(msg.id)}
-                              className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-emerald-200 bg-emerald-50 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition"
+                              type="button"
+                              disabled={feedbackBusy}
+                              onClick={() => void submitCommend(msg.id)}
+                              className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-emerald-200 bg-emerald-50 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition disabled:opacity-50"
                             >
                               <ThumbsUp className="h-3 w-3" />
                               Commend
                             </button>
                             <button
+                              type="button"
+                              disabled={feedbackBusy}
                               onClick={() => openReport(msg.id)}
-                              className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-red-200 bg-red-50 text-xs font-medium text-red-600 hover:bg-red-100 transition"
+                              className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-red-200 bg-red-50 text-xs font-medium text-red-600 hover:bg-red-100 transition disabled:opacity-50"
                             >
                               <Flag className="h-3 w-3" />
                               Report
@@ -466,7 +896,7 @@ function AssessmentTab() {
                           </>
                         )}
                         {submitted === msg.id && (
-                          <span className="text-xs text-[#957186] animate-pulse">Feedback sent to developers ✓</span>
+                          <span className="text-xs text-[#957186] animate-pulse">Saved ✓</span>
                         )}
                       </div>
                     )}
@@ -475,9 +905,8 @@ function AssessmentTab() {
               })}
             </div>
 
-            {/* Assessment summary bar */}
             {Object.keys(feedbacks).length > 0 && (
-              <div className="px-5 py-3 border-t border-[#d9b8c4]/30 bg-[#f7f0f4] flex items-center gap-4">
+              <div className="px-5 py-3 border-t border-[#d9b8c4]/30 bg-[#f7f0f4] flex items-center gap-4 flex-wrap">
                 <span className="text-xs text-[#957186]">Your assessment:</span>
                 <span className="flex items-center gap-1 text-xs text-emerald-700 font-medium">
                   <ThumbsUp className="h-3.5 w-3.5" />
@@ -490,14 +919,12 @@ function AssessmentTab() {
               </div>
             )}
           </>
-        )}
+        ) : null}
       </div>
 
-      {/* ── Report Modal ── */}
       {reportTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
-            {/* Modal header */}
             <div className="flex items-start justify-between p-6 border-b border-[#d9b8c4]/30">
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-xl bg-red-100 flex items-center justify-center">
@@ -505,19 +932,22 @@ function AssessmentTab() {
                 </div>
                 <div>
                   <h2 className="font-bold text-[#241715]">Report AI Response</h2>
-                  <p className="text-xs text-[#957186] mt-0.5">This feedback will be sent to the development team</p>
+                  <p className="text-xs text-[#957186] mt-0.5">Logged for your QA records</p>
                 </div>
               </div>
-              <button onClick={() => setReportTarget(null)} className="p-1 rounded-lg text-gray-400 hover:text-gray-600 transition">
+              <button
+                type="button"
+                onClick={() => setReportTarget(null)}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 transition"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Issue selection */}
             <div className="p-6 space-y-4">
               <div>
                 <p className="text-xs font-semibold text-[#5a3046] uppercase tracking-wide mb-3">
-                  What's wrong with this response? <span className="text-red-500">*</span>
+                  What&apos;s wrong with this response? <span className="text-red-500">*</span>
                 </p>
                 <div className="space-y-2">
                   {REPORT_ISSUES.map((issue) => {
@@ -525,18 +955,21 @@ function AssessmentTab() {
                     return (
                       <button
                         key={issue.id}
+                        type="button"
                         onClick={() => toggleIssue(issue.id)}
                         className={cn(
                           "w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-all",
                           checked
                             ? "border-red-300 bg-red-50"
-                            : "border-[#d9b8c4]/40 hover:border-[#703d57]/30 hover:bg-[#f7f0f4]"
+                            : "border-[#d9b8c4]/40 hover:border-[#703d57]/30 hover:bg-[#f7f0f4]",
                         )}
                       >
-                        <div className={cn(
-                          "h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors",
-                          checked ? "bg-red-500 border-red-500" : "border-[#d9b8c4]"
-                        )}>
+                        <div
+                          className={cn(
+                            "h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors",
+                            checked ? "bg-red-500 border-red-500" : "border-[#d9b8c4]",
+                          )}
+                        >
                           {checked && <Check className="h-2.5 w-2.5 text-white" />}
                         </div>
                         <div>
@@ -549,7 +982,6 @@ function AssessmentTab() {
                 </div>
               </div>
 
-              {/* Comment */}
               <div>
                 <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide mb-1.5">
                   Additional comments <span className="normal-case font-normal text-[#c490aa]">(optional)</span>
@@ -564,17 +996,18 @@ function AssessmentTab() {
               </div>
             </div>
 
-            {/* Modal footer */}
             <div className="flex gap-3 px-6 pb-6">
               <button
+                type="button"
                 onClick={() => setReportTarget(null)}
                 className="flex-1 py-2.5 rounded-xl border border-[#d9b8c4] text-sm font-semibold text-[#957186] hover:bg-[#f7f0f4] transition"
               >
                 Cancel
               </button>
               <button
-                onClick={submitReport}
-                disabled={selectedIssues.length === 0}
+                type="button"
+                onClick={() => void submitReport()}
+                disabled={selectedIssues.length === 0 || feedbackBusy}
                 className="flex-1 py-2.5 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
               >
                 <Flag className="h-4 w-4" />

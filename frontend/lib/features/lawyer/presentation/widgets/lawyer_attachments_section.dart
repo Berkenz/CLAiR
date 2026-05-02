@@ -30,6 +30,7 @@ class LawyerAttachmentsSection extends ConsumerStatefulWidget {
     this.onSummaryGenerated,
     this.initialConversationId,
     this.initialConversationTitle,
+    this.onAttachedConversationSelectionChanged,
   });
 
   final bool attachConversation;
@@ -43,6 +44,10 @@ class LawyerAttachmentsSection extends ConsumerStatefulWidget {
   /// Pre-select a history conversation on first render (null = current chat).
   final String? initialConversationId;
   final String? initialConversationTitle;
+
+  /// Fired when the explicit attach target changes; [id] null means use live chat.
+  final void Function(String? id, String? title)?
+      onAttachedConversationSelectionChanged;
 
   @override
   ConsumerState<LawyerAttachmentsSection> createState() =>
@@ -64,6 +69,43 @@ class _LawyerAttachmentsSectionState
       _selectedConvId = widget.initialConversationId;
       _selectedConvTitle = widget.initialConversationTitle;
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notifyAttachedSelection();
+    });
+  }
+
+  @override
+  void didUpdateWidget(LawyerAttachmentsSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final initialChanged =
+        widget.initialConversationId != oldWidget.initialConversationId ||
+            widget.initialConversationTitle != oldWidget.initialConversationTitle;
+    if (initialChanged &&
+        (widget.initialConversationId != null ||
+            widget.initialConversationTitle != null)) {
+      _selectedConvId = widget.initialConversationId;
+      _selectedConvTitle = widget.initialConversationTitle;
+      _scheduleNotifyAttachedSelection();
+    }
+    if (widget.attachConversation != oldWidget.attachConversation) {
+      _scheduleNotifyAttachedSelection();
+    }
+  }
+
+  /// Must not call [onAttachedConversationSelectionChanged] synchronously from
+  /// [didUpdateWidget] — the parent often updates attach state in the same build.
+  void _scheduleNotifyAttachedSelection() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _notifyAttachedSelection();
+    });
+  }
+
+  void _notifyAttachedSelection() {
+    widget.onAttachedConversationSelectionChanged?.call(
+      _selectedConvId,
+      _selectedConvTitle,
+    );
   }
 
   // ── File helpers ───────────────────────────────────────────────────────────
@@ -102,6 +144,7 @@ class _LawyerAttachmentsSectionState
             _selectedConvId = id;
             _selectedConvTitle = title;
           });
+          _notifyAttachedSelection();
           if (!widget.attachConversation) {
             widget.onAttachConversationChanged(true);
           }

@@ -4,4 +4,6 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- HTTP to host machine (10.0.2.2 / LAN IP) for local FastAPI — blocked by default on API 28+ -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>

@@ -56,12 +56,18 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
   bool _attachConversation = false;
   List<PlatformFile> _pickedFiles = [];
 
+  /// From history picker / Share-to-lawyer; null means submit uses live chat id.
+  String? _explicitAttachConversationId;
+  String? _explicitAttachConversationTitle;
+
   bool _loading = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _explicitAttachConversationId = widget.preAttachedConversationId;
+    _explicitAttachConversationTitle = widget.preAttachedConversationTitle;
     // Pre-check the attachment when opened in sharing mode.
     if (widget.preAttachedConversationTitle != null ||
         widget.preAttachedConversationId != null) {
@@ -92,9 +98,13 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
 
     final chatState = ref.read(chatProvider);
     final convTitle = _attachConversation
-        ? (widget.preAttachedConversationTitle ??
+        ? (_explicitAttachConversationTitle ??
             chatState.conversationTitle ??
             'Current conversation')
+        : null;
+
+    final attachedConversationId = _attachConversation
+        ? (_explicitAttachConversationId ?? chatState.conversationId)
         : null;
 
     // Prepend title to description for the backend.
@@ -106,10 +116,18 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
           _attachConversation ? chatState.messages.length : null,
     );
 
+    final now = DateTime.now();
+    final bookingDate =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
     try {
       await ds.bookAppointment(
-        lawyerProfileId: widget.lawyer.id,
+        lawyerProfileId: widget.lawyer.id.trim(),
+        appointmentDate: bookingDate,
+        appointmentTime: '09:00',
+        appointmentType: 'Other',
         description: descriptionBody.isEmpty ? null : descriptionBody,
+        attachedConversationId: attachedConversationId,
       );
 
       if (mounted) {
@@ -280,6 +298,11 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
                 onPickedFilesChanged: (f) => setState(() => _pickedFiles = f),
                 initialConversationId: widget.preAttachedConversationId,
                 initialConversationTitle: widget.preAttachedConversationTitle,
+                onAttachedConversationSelectionChanged: (id, title) =>
+                    setState(() {
+                  _explicitAttachConversationId = id;
+                  _explicitAttachConversationTitle = title;
+                }),
                 onSummaryGenerated: (text) =>
                     setState(() => _descCtrl.text = text),
               ),

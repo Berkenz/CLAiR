@@ -15,7 +15,12 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str | None = None
     SUPABASE_URL: str | None = None
     SUPABASE_SERVICE_ROLE_KEY: str | None = None
-    CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    # Lawyer portal (Vite) runs on 5173; include 127.0.0.1 — browsers treat it separately from localhost.
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
     APP_NAME: str = "CLAiR API"
