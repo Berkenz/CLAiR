@@ -13,27 +13,11 @@ import { DocumentsPage } from "@/features/documents/pages/documents-page";
 import { ProfilePage } from "@/features/profile/pages/profile-page";
 import { AiAssessmentPage } from "@/features/ai-assessment/pages/ai-assessment-page";
 import { AvailabilityCalendarPage } from "@/features/availability/pages/availability-calendar-page";
-
-function flowKey(uid: string, step: "passwordChanged" | "profileComplete") {
-  return `clair_${uid}_${step}`;
-}
-export function markPasswordChanged(uid: string) {
-  localStorage.setItem(flowKey(uid, "passwordChanged"), "true");
-}
-export function markProfileComplete(uid: string) {
-  localStorage.setItem(flowKey(uid, "profileComplete"), "true");
-}
-function hasChangedPassword(uid: string) {
-  return localStorage.getItem(flowKey(uid, "passwordChanged")) === "true";
-}
-function hasCompletedProfile(uid: string) {
-  return localStorage.getItem(flowKey(uid, "profileComplete")) === "true";
-}
-function getNextStep(uid: string): "/change-password" | "/profile-setup" | "/" {
-  if (!hasChangedPassword(uid)) return "/change-password";
-  if (!hasCompletedProfile(uid)) return "/profile-setup";
-  return "/";
-}
+import {
+  getNextStep,
+  hasChangedPassword,
+  hasCompletedProfile,
+} from "@/features/auth/onboarding-storage";
 
 function Spinner() {
   return (

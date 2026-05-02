@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -33,6 +33,17 @@ class LawyerProfile(Base):
     practice_areas: Mapped[list[str] | None] = mapped_column(
         ARRAY(String), nullable=True
     )
+    ibp_roll_number: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    year_admitted: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    ibp_chapter: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    ptr_number: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    mcle_compliance_number: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    law_school: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    firm_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    office_phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    mobile_phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    office_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    office_address: Mapped[str | None] = mapped_column(Text, nullable=True)
     must_change_password: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False, server_default="true"
     )

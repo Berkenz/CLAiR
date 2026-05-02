@@ -2,10 +2,19 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { api } from "@/lib/api";
+import {
+  clearPasswordChanged,
+  clearProfileComplete,
+  markPasswordChanged,
+  markProfileComplete,
+} from "@/features/auth/onboarding-storage";
+import { useAuth, type LawyerState } from "@/features/auth/auth-provider";
 import { Scale } from "lucide-react";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { setLawyerState } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -16,13 +25,46 @@ export function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      navigate("/change-password", { replace: true });
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+      const uid = credential.user.uid;
+      const token = await credential.user.getIdToken();
+      const { data } = await api.post<LawyerState>("/lawyer/auth/login", {
+        firebase_token: token,
+      });
+      setLawyerState(data);
+
+      // Keep local onboarding flags aligned with the backend (stale keys redirect incorrectly).
+      if (data.profile.must_change_password) {
+        clearPasswordChanged(uid);
+        clearProfileComplete(uid);
+      } else {
+        markPasswordChanged(uid);
+      }
+      if (data.profile.is_profile_complete) {
+        markProfileComplete(uid);
+      } else {
+        clearProfileComplete(uid);
+      }
+
+      if (data.profile.must_change_password) {
+        navigate("/change-password", { replace: true });
+      } else if (!data.profile.is_profile_complete) {
+        navigate("/profile-setup", { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
     } catch (err: any) {
       if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found") {
         setError("Invalid email or password. Please try again.");
       } else if (err.code === "auth/too-many-requests") {
         setError("Too many attempts. Please try again later.");
+      } else if (err.response?.status >= 400 && err.response?.status < 500) {
+        const detail = err.response?.data?.detail;
+        setError(
+          typeof detail === "string"
+            ? detail
+            : "Could not complete sign-in. Please try again.",
+        );
       } else {
         setError("Invalid email or password. Please try again.");
       }

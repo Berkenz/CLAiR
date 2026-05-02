@@ -19,8 +19,16 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      auth.signOut();
-      window.location.href = "/login";
+      const url = String(error.config?.url ?? "");
+      // Lawyer onboarding calls: backend may return 401 while Firebase is still valid.
+      // Global sign-out here sends users back to login after password change incorrectly.
+      const skipLogout =
+        url.includes("/lawyer/auth/login") ||
+        url.includes("/lawyer/auth/confirm-password-change");
+      if (!skipLogout) {
+        auth.signOut();
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   },

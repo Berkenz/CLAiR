@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 
 # --- Static option lists ---
@@ -36,8 +36,27 @@ DESIGNATIONS: list[str] = [
     "Other",
 ]
 
+_OPTIONAL_STRING_FIELDS = frozenset(
+    {
+        "middle_name",
+        "name_suffix",
+        "ibp_roll_number",
+        "year_admitted",
+        "ibp_chapter",
+        "ptr_number",
+        "mcle_compliance_number",
+        "law_school",
+        "firm_name",
+        "office_phone",
+        "mobile_phone",
+        "office_email",
+        "office_address",
+    }
+)
+
 
 # --- Request schemas ---
+
 
 class LawyerLoginRequest(BaseModel):
     firebase_token: str
@@ -49,6 +68,36 @@ class LawyerProfileUpdate(BaseModel):
     display_name: str
     designation: str
     practice_areas: list[str]
+    middle_name: str | None = None
+    name_suffix: str | None = None
+    ibp_roll_number: str | None = None
+    year_admitted: str | None = None
+    ibp_chapter: str | None = None
+    ptr_number: str | None = None
+    mcle_compliance_number: str | None = None
+    law_school: str | None = None
+    firm_name: str | None = None
+    office_phone: str | None = None
+    mobile_phone: str | None = None
+    office_email: str | None = None
+    office_address: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_optional_strings(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        for key in _OPTIONAL_STRING_FIELDS:
+            if key not in out:
+                continue
+            val = out[key]
+            if val is None:
+                continue
+            if isinstance(val, str):
+                stripped = val.strip()
+                out[key] = stripped if stripped else None
+        return out
 
     @field_validator("practice_areas")
     @classmethod
@@ -67,6 +116,7 @@ class LawyerProfileUpdate(BaseModel):
 
 # --- Response schemas ---
 
+
 class LawyerProfileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -75,6 +125,17 @@ class LawyerProfileResponse(BaseModel):
     display_name: str | None = None
     designation: str | None = None
     practice_areas: list[str] | None = None
+    ibp_roll_number: str | None = None
+    year_admitted: str | None = None
+    ibp_chapter: str | None = None
+    ptr_number: str | None = None
+    mcle_compliance_number: str | None = None
+    law_school: str | None = None
+    firm_name: str | None = None
+    office_phone: str | None = None
+    mobile_phone: str | None = None
+    office_email: str | None = None
+    office_address: str | None = None
     must_change_password: bool
     is_profile_complete: bool
     created_at: datetime
@@ -88,7 +149,9 @@ class LawyerUserResponse(BaseModel):
     firebase_uid: str
     email: str | None = None
     first_name: str | None = None
+    middle_name: str | None = None
     last_name: str | None = None
+    name_suffix: str | None = None
     photo_url: str | None = None
     is_active: bool
     created_at: datetime

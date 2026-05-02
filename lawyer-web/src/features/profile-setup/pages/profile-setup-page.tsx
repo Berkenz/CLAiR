@@ -1,72 +1,81 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { auth } from "@/lib/firebase";
-import { markProfileComplete } from "@/app";
+import { api } from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/api-error";
+import { markProfileComplete } from "@/features/auth/onboarding-storage";
+import { useAuth, type LawyerState } from "@/features/auth/auth-provider";
+import { buildLawyerProfileUpdateBody } from "@/features/lawyer/profile-update-body";
 import { useNavigate } from "react-router-dom";
 import { Scale, ChevronRight, ChevronLeft, Check } from "lucide-react";
 import { cn } from "@/lib/cn";
 
-const PRACTICE_AREAS = [
+const FALLBACK_PRACTICE_AREAS = [
   "Family Law",
-  "Civil Litigation",
-  "Criminal Law",
-  "Labor & Employment",
-  "Estate Planning",
   "Corporate Law",
-  "Intellectual Property",
-  "Real Property",
-  "Administrative Law",
-  "Immigration",
-  "Tax Law",
-  "Banking & Finance",
-  "Environmental Law",
-  "Human Rights",
+  "Criminal Law",
+  "Labor Law",
+  "Real Estate Law",
+  "Other",
 ];
 
-const DESIGNATIONS = [
-  "Founding Partner",
-  "Senior Partner",
-  "Junior Partner",
+const FALLBACK_DESIGNATIONS = [
   "Associate",
+  "Senior Associate",
+  "Senior Partner",
+  "Managing Partner",
   "Of Counsel",
-  "Counselor",
-  "Solo Practitioner",
-  "Public Attorney",
-  "Prosecutor",
-  "Government Counsel",
+  "Other",
 ];
 
 type Step = "personal" | "credentials" | "practice";
 
 export function ProfileSetupPage() {
   const navigate = useNavigate();
+  const { setLawyerState } = useAuth();
   const [step, setStep] = useState<Step>("personal");
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [practiceAreaOptions, setPracticeAreaOptions] = useState<string[]>(FALLBACK_PRACTICE_AREAS);
+  const [designationOptions, setDesignationOptions] = useState<string[]>(FALLBACK_DESIGNATIONS);
 
-  // Personal
   const [firstName, setFirstName] = useState("");
   const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
   const [suffix, setSuffix] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [designation, setDesignation] = useState("");
-
-  // Bar credentials
   const [ibpRoll, setIbpRoll] = useState("");
   const [yearAdmitted, setYearAdmitted] = useState("");
   const [ibpChapter, setIbpChapter] = useState("");
   const [ptrNumber, setPtrNumber] = useState("");
   const [mcleNumber, setMcleNumber] = useState("");
   const [lawSchool, setLawSchool] = useState("");
-
-  // Practice
   const [practiceAreas, setPracticeAreas] = useState<string[]>([]);
-
-  // Office
   const [firmName, setFirmName] = useState("");
   const [officePhone, setOfficePhone] = useState("");
   const [mobile, setMobile] = useState("");
   const [officeEmail, setOfficeEmail] = useState("");
   const [officeAddress, setOfficeAddress] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get<{ practice_areas: string[]; designations: string[] }>(
+          "/lawyer/options",
+        );
+        if (!cancelled) {
+          setPracticeAreaOptions(data.practice_areas);
+          setDesignationOptions(data.designations);
+        }
+      } catch {
+        /* keep fallbacks */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function toggleArea(area: string) {
     setPracticeAreas((prev) =>
@@ -82,14 +91,56 @@ export function ProfileSetupPage() {
     return ibpRoll.trim() && yearAdmitted.trim() && ibpChapter.trim();
   }
 
-  function handleFinish() {
+  async function handleFinish() {
     if (practiceAreas.length === 0) {
       setError("Please select at least one practice area.");
       return;
     }
-    // Navigate to dashboard — backend integration handled separately
-    markProfileComplete(auth.currentUser!.uid);
-    navigate("/", { replace: true });
+    const uid = auth.currentUser?.uid;
+    if (!uid) {
+      setError("Your session expired. Please sign in again.");
+      return;
+    }
+
+    setError("");
+    setSaving(true);
+    try {
+      await auth.currentUser.getIdToken(true);
+      const body = buildLawyerProfileUpdateBody({
+        firstName,
+        middleName,
+        lastName,
+        suffix,
+        displayName,
+        designation,
+        practiceAreas,
+        ibpRoll,
+        yearAdmitted,
+        ibpChapter,
+        ptrNumber,
+        mcleNumber,
+        lawSchool,
+        firmName,
+        officePhone,
+        mobile,
+        officeEmail,
+        officeAddress,
+      });
+      const { data } = await api.put<LawyerState>("/lawyer/profile", body);
+      setLawyerState(data);
+      if (!data.profile.is_profile_complete) {
+        setError(
+          "Your profile was saved but required fields are still missing. Go through each step and ensure nothing is blank.",
+        );
+        return;
+      }
+      markProfileComplete(uid);
+      navigate("/", { replace: true });
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Could not save your profile. Please try again."));
+    } finally {
+      setSaving(false);
+    }
   }
 
   const steps: { key: Step; label: string }[] = [
@@ -199,7 +250,11 @@ export function ProfileSetupPage() {
                     <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide">Designation <span className="text-red-500">*</span></label>
                     <select value={designation} onChange={(e) => setDesignation(e.target.value)} className={inputCls + " appearance-none"}>
                       <option value="">Select…</option>
-                      {DESIGNATIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+                      {designationOptions.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -292,7 +347,7 @@ export function ProfileSetupPage() {
 
               <div className="bg-white rounded-2xl border border-[#d9b8c4]/40 p-6">
                 <div className="flex flex-wrap gap-2.5">
-                  {PRACTICE_AREAS.map((area) => {
+                  {practiceAreaOptions.map((area) => {
                     const selected = practiceAreas.includes(area);
                     return (
                       <button
@@ -365,10 +420,11 @@ export function ProfileSetupPage() {
             ) : (
               <button
                 type="button"
-                onClick={handleFinish}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#703d57] text-sm font-semibold text-white transition hover:bg-[#5a3046]"
+                onClick={() => void handleFinish()}
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#703d57] text-sm font-semibold text-white transition hover:bg-[#5a3046] disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Finish setup
+                {saving ? "Saving…" : "Finish setup"}
                 <Check className="h-4 w-4" />
               </button>
             )}

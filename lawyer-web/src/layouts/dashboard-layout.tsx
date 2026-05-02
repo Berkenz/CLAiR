@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { useAuth } from "@/features/auth/auth-provider";
 import { cn } from "@/lib/cn";
 import {
   LayoutDashboard, Briefcase, CalendarDays, MessageSquare,
@@ -21,7 +22,23 @@ const navItems = [
 
 export function DashboardLayout() {
   const navigate = useNavigate();
+  const { lawyerState } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const sidebarUser = useMemo(() => {
+    const u = lawyerState?.user;
+    const p = lawyerState?.profile;
+    const display =
+      p?.display_name?.trim() ||
+      [u?.first_name, u?.last_name].filter(Boolean).join(" ").trim() ||
+      u?.email?.split("@")[0] ||
+      "Lawyer";
+    const fi = (u?.first_name ?? "").trim().charAt(0);
+    const li = (u?.last_name ?? "").trim().charAt(0);
+    const initials =
+      fi && li ? `${fi}${li}`.toUpperCase() : display.slice(0, 2).toUpperCase() || "?";
+    return { display, initials };
+  }, [lawyerState]);
 
   async function handleSignOut() {
     await signOut(auth);
@@ -82,10 +99,10 @@ export function DashboardLayout() {
             )}
           >
             <div className="h-7 w-7 rounded-full bg-[#957186] flex items-center justify-center text-xs font-bold text-white shrink-0">
-              A
+              {sidebarUser.initials}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-white truncate">Atty. Mat.</p>
+              <p className="text-xs font-semibold text-white truncate">{sidebarUser.display}</p>
               <p className="text-[10px] text-white/50 truncate">View profile</p>
             </div>
             <ChevronRight className="h-3.5 w-3.5 text-white/30 group-hover:text-white/60 transition-colors shrink-0" />

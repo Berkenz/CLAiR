@@ -29,7 +29,9 @@ class User(Base):
         String(255), unique=True, index=True, nullable=True
     )
     first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    middle_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    name_suffix: Mapped[str | None] = mapped_column(String(30), nullable=True)
     photo_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     location: Mapped[str | None] = mapped_column(String(255), nullable=True)
     auth_provider: Mapped[str] = mapped_column(
@@ -58,6 +60,14 @@ class User(Base):
 
     @property
     def full_name(self) -> str | None:
-        if self.first_name and self.last_name:
-            return f"{self.first_name} {self.last_name}"
-        return self.first_name or self.last_name
+        parts: list[str] = []
+        if self.first_name:
+            parts.append(self.first_name)
+        if self.middle_name:
+            parts.append(self.middle_name)
+        if self.last_name:
+            parts.append(self.last_name)
+        base = " ".join(parts) if parts else None
+        if base and self.name_suffix:
+            return f"{base}, {self.name_suffix}"
+        return base or self.last_name or self.first_name

@@ -54,21 +54,40 @@ class LawyerService:
     ) -> tuple[User, LawyerProfile]:
         """
         Update user name fields and lawyer profile fields together.
-        Marks is_profile_complete=True when all required fields are populated.
+        Marks is_profile_complete=True when all required wizard fields are present.
         """
         user.first_name = data.first_name
+        user.middle_name = data.middle_name
         user.last_name = data.last_name
+        user.name_suffix = data.name_suffix
 
         profile.display_name = data.display_name
         profile.designation = data.designation
         profile.practice_areas = data.practice_areas
+        profile.ibp_roll_number = data.ibp_roll_number
+        profile.year_admitted = data.year_admitted
+        profile.ibp_chapter = data.ibp_chapter
+        profile.ptr_number = data.ptr_number
+        profile.mcle_compliance_number = data.mcle_compliance_number
+        profile.law_school = data.law_school
+        profile.firm_name = data.firm_name
+        profile.office_phone = data.office_phone
+        profile.mobile_phone = data.mobile_phone
+        profile.office_email = data.office_email
+        profile.office_address = data.office_address
+
+        def _filled(s: str | None) -> bool:
+            return bool(s and str(s).strip())
 
         profile.is_profile_complete = bool(
-            data.first_name.strip()
-            and data.last_name.strip()
-            and data.display_name.strip()
-            and data.designation.strip()
-            and data.practice_areas
+            _filled(data.first_name)
+            and _filled(data.last_name)
+            and _filled(data.display_name)
+            and _filled(data.designation)
+            and bool(data.practice_areas)
+            and _filled(data.ibp_roll_number)
+            and _filled(data.year_admitted)
+            and _filled(data.ibp_chapter)
         )
 
         await db.flush()

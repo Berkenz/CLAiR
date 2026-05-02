@@ -4,7 +4,7 @@ import { updatePassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { api } from "@/lib/api";
 import { useAuth, type LawyerState } from "@/features/auth/auth-provider";
-import { markPasswordChanged } from "@/app";
+import { markPasswordChanged } from "@/features/auth/onboarding-storage";
 import { Scale, Eye, EyeOff } from "lucide-react";
 
 const MIN_LENGTH = 8;
@@ -39,31 +39,39 @@ export function ChangePasswordPage() {
       const currentUser = auth.currentUser;
       if (!currentUser) throw new Error("Not authenticated");
 
-      // Step 1 — Update Firebase password
       await updatePassword(currentUser, newPassword);
 
-      // Step 2 — Mark step complete in localStorage (works without backend)
+      const token = await currentUser.getIdToken(true);
+      const { data } = await api.post<LawyerState>(
+        "/lawyer/auth/confirm-password-change",
+        {},
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setLawyerState(data);
       markPasswordChanged(currentUser.uid);
 
-      // Step 3 — Notify backend (best effort — never blocks navigation)
-      try {
-        const token = await currentUser.getIdToken(true);
-        const { data } = await api.post<LawyerState>(
-          "/lawyer/auth/confirm-password-change",
-          null,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-        setLawyerState(data);
-      } catch {
-        // Backend not up yet — that's fine, flow continues
-      }
-
-      // Step 4 — Always proceed to profile setup
       navigate("/profile-setup", { replace: true });
 
     } catch (err: unknown) {
-      if (err instanceof Error && err.message.includes("requires-recent-login")) {
+      const code =
+        err != null && typeof err === "object" && "code" in err
+          ? String((err as { code?: string }).code)
+          : "";
+      if (code.includes("requires-recent-login")) {
         setError("Your session has expired. Please log out and log in again.");
+      } else if (
+        err != null &&
+        typeof err === "object" &&
+        "response" in err &&
+        (err as { response?: { status?: number } }).response?.status != null
+      ) {
+        const detail = (err as { response?: { data?: { detail?: string } } }).response?.data
+          ?.detail;
+        setError(
+          typeof detail === "string"
+            ? detail
+            : "Your password may have updated in Firebase, but the server could not confirm it. Try signing in again.",
+        );
       } else {
         setError("Failed to change password. Please try again.");
       }

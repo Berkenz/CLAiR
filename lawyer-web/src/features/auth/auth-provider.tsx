@@ -17,6 +17,17 @@ export interface LawyerProfile {
   display_name: string | null;
   designation: string | null;
   practice_areas: string[] | null;
+  ibp_roll_number: string | null;
+  year_admitted: string | null;
+  ibp_chapter: string | null;
+  ptr_number: string | null;
+  mcle_compliance_number: string | null;
+  law_school: string | null;
+  firm_name: string | null;
+  office_phone: string | null;
+  mobile_phone: string | null;
+  office_email: string | null;
+  office_address: string | null;
   must_change_password: boolean;
   is_profile_complete: boolean;
   created_at: string;
@@ -28,7 +39,9 @@ export interface LawyerUser {
   firebase_uid: string;
   email: string | null;
   first_name: string | null;
+  middle_name: string | null;
   last_name: string | null;
+  name_suffix: string | null;
   photo_url: string | null;
   is_active: boolean;
   created_at: string;
@@ -65,12 +78,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // manage lawyerState themselves — fetching here would race against them.
   const isInitialLoad = useRef(true);
 
-  const fetchLawyerProfile = useCallback(async () => {
+  const fetchLawyerProfile = useCallback(async (): Promise<boolean> => {
     try {
       const { data } = await api.get<LawyerState>("/lawyer/profile");
       setLawyerState(data);
+      return true;
     } catch {
       setLawyerState(null);
+      return false;
     }
   }, []);
 
