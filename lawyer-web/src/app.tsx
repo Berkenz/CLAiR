@@ -8,7 +8,6 @@ import { ProfileSetupPage } from "@/features/profile-setup/pages/profile-setup-p
 import { DashboardPage } from "@/features/dashboard/pages/dashboard-page";
 import { CasesPage } from "@/features/cases/pages/cases-page";
 import { AppointmentsPage } from "@/features/appointments/pages/appointments-page";
-import { MessagesPage } from "@/features/messages/pages/messages-page";
 import { DocumentsPage } from "@/features/documents/pages/documents-page";
 import { ProfilePage } from "@/features/profile/pages/profile-page";
 import { AiAssessmentPage } from "@/features/ai-assessment/pages/ai-assessment-page";
@@ -85,7 +84,6 @@ export function App() {
         <Route path="/cases"           element={<CasesPage />} />
         <Route path="/appointments"    element={<AppointmentsPage />} />
         <Route path="/availability"    element={<AvailabilityCalendarPage />} />
-        <Route path="/messages"        element={<MessagesPage />} />
         <Route path="/documents"       element={<DocumentsPage />} />
         <Route path="/profile"         element={<ProfilePage />} />
         <Route path="/ai-assessment"   element={<AiAssessmentPage />} />

@@ -368,9 +368,6 @@ function ChatTab() {
           <Plus className="h-3.5 w-3.5" />
           New conversation
         </button>
-        <p className="text-[10px] text-[#957186] mb-2 leading-relaxed px-0.5">
-          Chats are saved to your lawyer account (same as the mobile CLAiR engine).
-        </p>
         {historiesError ? (
           <div className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[10px] text-red-700 mb-2">
             {historiesError}

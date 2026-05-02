@@ -1,9 +1,8 @@
-import { Briefcase, CalendarDays, MessageSquare, FolderOpen } from "lucide-react";
+import { Briefcase, CalendarDays, FolderOpen } from "lucide-react";
 
 const stats = [
   { label: "Active Cases",   value: "67", sub: "+2 this month",  icon: Briefcase,      color: "bg-[#703d57]" },
   { label: "Appointments",   value: "6",  sub: "This week",      icon: CalendarDays,   color: "bg-[#957186]" },
-  { label: "Messages",       value: "3",  sub: "Unread",         icon: MessageSquare,  color: "bg-[#402a2c]" },
   { label: "Documents",      value: "28", sub: "Generated",      icon: FolderOpen,     color: "bg-[#703d57]" },
 ];
 
@@ -33,7 +32,7 @@ export function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map(({ label, value, sub, icon: Icon, color }) => (
           <div
             key={label}

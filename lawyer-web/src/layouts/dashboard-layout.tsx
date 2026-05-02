@@ -5,7 +5,7 @@ import { auth } from "@/lib/firebase";
 import { useAuth } from "@/features/auth/auth-provider";
 import { cn } from "@/lib/cn";
 import {
-  LayoutDashboard, Briefcase, CalendarDays, MessageSquare,
+  LayoutDashboard, Briefcase, CalendarDays,
   FolderOpen, LogOut, Menu, X, Scale, ChevronRight,
   Sparkles, CalendarRange,
 } from "lucide-react";
@@ -15,7 +15,6 @@ const navItems = [
   { to: "/cases",             label: "Cases",        icon: Briefcase },
   { to: "/appointments",      label: "Appointments", icon: CalendarDays },
   { to: "/availability",      label: "Availability", icon: CalendarRange },
-  { to: "/messages",          label: "Messages",     icon: MessageSquare },
   { to: "/documents",         label: "Documents",    icon: FolderOpen },
   { to: "/ai-assessment",     label: "AI Assessment",icon: Sparkles },
 ];
