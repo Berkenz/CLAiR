@@ -5,9 +5,14 @@ import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:clair/features/auth/presentation/screens/google_complete_screen.dart';
 import 'package:clair/features/auth/presentation/screens/login_screen.dart';
+import 'package:clair/features/auth/presentation/screens/email_screen.dart';
+import 'package:clair/features/auth/presentation/screens/privacy_policy_screen.dart';
 import 'package:clair/features/auth/presentation/screens/profile_screen.dart';
+import 'package:clair/features/auth/presentation/screens/report_screen.dart';
+import 'package:clair/features/auth/presentation/screens/security_screen.dart';
 import 'package:clair/features/auth/presentation/screens/signup_name_screen.dart';
 import 'package:clair/features/auth/presentation/screens/signup_screen.dart';
+import 'package:clair/features/auth/presentation/screens/terms_of_use_screen.dart';
 import 'package:clair/features/auth/presentation/screens/verify_email_screen.dart';
 import 'package:clair/features/chat/presentation/screens/chat_screen.dart';
 import 'package:clair/features/history/presentation/screens/history_screen.dart';
@@ -25,9 +30,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           state.matchedLocation.startsWith('/login') ||
           state.matchedLocation.startsWith('/signup') ||
           state.matchedLocation.startsWith('/verify-email') ||
-          state.matchedLocation.startsWith('/forgot-password');
+          state.matchedLocation.startsWith('/forgot-password') ||
+          state.matchedLocation.startsWith('/terms') ||
+          state.matchedLocation.startsWith('/privacy-policy');
 
-      if (user != null && isOnAuthPage) {
+      final isLegalPage = state.matchedLocation.startsWith('/terms') ||
+          state.matchedLocation.startsWith('/privacy-policy');
+
+      if (user != null && isOnAuthPage && !isLegalPage) {
         return '/home';
       }
       return null;
@@ -98,6 +108,26 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/notifications',
         builder: (context, state) => const NotificationFullScreen(),
+      ),
+      GoRoute(
+        path: '/email-settings',
+        builder: (context, state) => const EmailScreen(),
+      ),
+      GoRoute(
+        path: '/security',
+        builder: (context, state) => const SecurityScreen(),
+      ),
+      GoRoute(
+        path: '/report',
+        builder: (context, state) => const ReportScreen(),
+      ),
+      GoRoute(
+        path: '/terms',
+        builder: (context, state) => const TermsOfUseScreen(),
+      ),
+      GoRoute(
+        path: '/privacy-policy',
+        builder: (context, state) => const PrivacyPolicyScreen(),
       ),
     ],
   );

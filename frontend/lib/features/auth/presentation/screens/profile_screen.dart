@@ -4,19 +4,56 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/core/theme/appearance_provider.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/auth/presentation/screens/appearance_screen.dart';
+import 'package:clair/features/auth/presentation/screens/email_screen.dart';
+import 'package:clair/features/auth/presentation/screens/security_screen.dart';
 import 'package:clair/features/auth/presentation/screens/edit_profile_screen.dart';
 import 'package:clair/features/auth/presentation/screens/privacy_policy_screen.dart';
 import 'package:clair/features/auth/presentation/screens/report_screen.dart';
+import 'package:clair/features/auth/presentation/screens/help_center_screen.dart';
 import 'package:clair/features/auth/presentation/screens/terms_of_use_screen.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  bool _isDeleting = false;
+
+  Future<void> _deleteAccount(String? password) async {
+    setState(() => _isDeleting = true);
+    try {
+      final repo = ref.read(authRepositoryProvider);
+      await repo.deleteAccount(password: password);
+      ref.read(currentUserProvider.notifier).state = null;
+      ref.read(chatProvider.notifier).reset();
+      if (mounted) context.go('/login');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: const Color(0xFFDC4C4C),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDeleting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final cl = context.c;
     final user = ref.watch(currentUserProvider);
     final name = user?.displayName ?? 'User';
@@ -164,14 +201,32 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: 28),
 
             _section(context, 'Account', [
-              _row(context, Icons.mail_outline_rounded, 'Email', () {}),
+              _row(
+                context,
+                Icons.mail_outline_rounded,
+                'Email',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const EmailScreen()),
+                ),
+              ),
               _row(
                 context,
                 Icons.notifications_outlined,
                 'Notifications',
                 () => context.push('/notifications'),
               ),
-              _row(context, Icons.lock_outline_rounded, 'Security', () {}),
+              _row(
+                context,
+                Icons.lock_outline_rounded,
+                'Security',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SecurityScreen(),
+                  ),
+                ),
+              ),
             ]),
             const SizedBox(height: 16),
 
@@ -201,7 +256,16 @@ class ProfileScreen extends ConsumerWidget {
                   MaterialPageRoute(builder: (_) => const ReportScreen()),
                 ),
               ),
-              _row(context, Icons.help_outline_rounded, 'Help Center', () {}),
+              _row(
+                context,
+                Icons.help_outline_rounded,
+                'Help Center',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const HelpCenterScreen()),
+                ),
+              ),
               _row(
                 context,
                 Icons.description_outlined,
@@ -223,6 +287,96 @@ class ProfileScreen extends ConsumerWidget {
             ]),
             const SizedBox(height: 24),
 
+            GestureDetector(
+              onTap: () async {
+                final ok = await showDialog<bool>(
+                  context: context,
+                  barrierDismissible: true,
+                  builder: (ctx) {
+                    final d = ctx.c;
+                    return AlertDialog(
+                      backgroundColor: d.surface,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      title: Text(
+                        'Reset all settings?',
+                        style: GoogleFonts.nunito(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: d.textDark,
+                        ),
+                      ),
+                      content: Text(
+                        'Appearance options (theme, accent, and font size) will '
+                        'return to their defaults.',
+                        style: GoogleFonts.nunito(fontSize: 13, height: 1.45, color: d.textMid),
+                      ),
+                      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: Text(
+                            'Cancel',
+                            style: GoogleFonts.nunito(
+                              fontWeight: FontWeight.w700,
+                              color: d.textMid,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: Text(
+                            'Confirm',
+                            style: GoogleFonts.nunito(
+                              fontWeight: FontWeight.w800,
+                              color: d.accent,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+
+                if (ok != true || !context.mounted) return;
+
+                final messenger = ScaffoldMessenger.of(context);
+                await ref.read(appearanceProvider.notifier).resetToDefaultsAndPersist();
+                if (!context.mounted) return;
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Settings reset to default.',
+                      style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
+                    ),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                );
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: cl.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: cl.border),
+                ),
+                child: Center(
+                  child: Text(
+                    'Reset All to Default',
+                    style: GoogleFonts.nunito(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: cl.textMid,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Log Out
             GestureDetector(
               onTap: () async {
                 await ref.read(authRepositoryProvider).signOut();
@@ -247,6 +401,66 @@ class ProfileScreen extends ConsumerWidget {
                       color: const Color(0xFFDC4C4C),
                     ),
                   ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Delete Account
+            GestureDetector(
+              onTap: _isDeleting
+                  ? null
+                  : () async {
+                      final user = ref.read(currentUserProvider);
+                      if (user == null) return;
+                      final passwordCompleter = _PasswordCompleter();
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        barrierDismissible: true,
+                        builder: (_) => _DeleteAccountDialog(
+                          authProvider: user.authProvider,
+                          isAnonymous: user.isAnonymous,
+                          email: user.email,
+                          onConfirm: (password) {
+                            passwordCompleter.value = password;
+                          },
+                        ),
+                      );
+                      if (confirmed == true && mounted) {
+                        await _deleteAccount(passwordCompleter.value);
+                      }
+                    },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: const Color(0xFFDC4C4C).withOpacity(0.35),
+                  ),
+                ),
+                child: Center(
+                  child: _isDeleting
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Color(0xFFDC4C4C),
+                            ),
+                          ),
+                        )
+                      : Text(
+                          'Delete Account',
+                          style: GoogleFonts.nunito(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFDC4C4C).withOpacity(0.75),
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -322,6 +536,335 @@ class ProfileScreen extends ConsumerWidget {
               color: cl.textLight,
             ),
           ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// Simple mutable holder so the dialog can return the password
+/// alongside the bool result from [showDialog].
+class _PasswordCompleter {
+  String? value;
+}
+
+class _DeleteAccountDialog extends StatefulWidget {
+  const _DeleteAccountDialog({
+    required this.authProvider,
+    required this.isAnonymous,
+    this.email,
+    required this.onConfirm,
+  });
+
+  final String authProvider;
+  final bool isAnonymous;
+  final String? email;
+  final void Function(String? password) onConfirm;
+
+  @override
+  State<_DeleteAccountDialog> createState() => _DeleteAccountDialogState();
+}
+
+class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
+  final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _confirmedWarning = false;
+
+  bool get _isEmailProvider =>
+      widget.authProvider == 'email' && !widget.isAnonymous;
+
+  bool get _isGoogleProvider =>
+      widget.authProvider == 'google' && !widget.isAnonymous;
+
+  bool get _canProceed {
+    if (!_confirmedWarning) return false;
+    if (_isEmailProvider) return _passwordController.text.isNotEmpty;
+    return true;
+  }
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cl = context.c;
+
+    return Dialog(
+      backgroundColor: cl.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.delete_forever_rounded,
+                    color: Color(0xFFDC4C4C),
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Delete Account',
+                    style: GoogleFonts.nunito(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: cl.textDark,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Warning box
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFECACA)),
+              ),
+              child: Text(
+                'This action is permanent and cannot be undone. '
+                'Your account, chat history, and all personal data will be '
+                'permanently deleted in accordance with our Privacy Policy.',
+                style: GoogleFonts.nunito(
+                  fontSize: 12.5,
+                  color: const Color(0xFFB91C1C),
+                  height: 1.5,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Provider-specific section
+            if (_isEmailProvider) ...[
+              Text(
+                'Enter your password to confirm',
+                style: GoogleFonts.nunito(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: cl.textDark,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: _passwordController,
+                builder: (_, __, ___) {
+                  return TextField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    autofocus: true,
+                    onChanged: (_) => setState(() {}),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontFamily: 'Satoshi',
+                      color: cl.textDark,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Current password',
+                      hintStyle: TextStyle(
+                        fontSize: 14,
+                        color: cl.textLight,
+                        fontFamily: 'Satoshi',
+                      ),
+                      prefixIcon: Icon(
+                        Icons.lock_outline_rounded,
+                        color: cl.textMid,
+                        size: 20,
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                          color: cl.textMid,
+                          size: 20,
+                        ),
+                        onPressed: () =>
+                            setState(() => _obscurePassword = !_obscurePassword),
+                      ),
+                      filled: true,
+                      fillColor: cl.fieldBg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: cl.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: cl.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFFDC4C4C),
+                          width: 2,
+                        ),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 14,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+            ] else if (_isGoogleProvider) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: cl.fieldBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: cl.border),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.g_mobiledata_rounded,
+                        color: cl.textMid, size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'You\'ll be asked to re-authenticate with Google before your account is deleted.',
+                        style: GoogleFonts.nunito(
+                          fontSize: 12.5,
+                          color: cl.textMid,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ] else ...[
+              const SizedBox(height: 4),
+            ],
+
+            // "I understand" checkbox
+            GestureDetector(
+              onTap: () =>
+                  setState(() => _confirmedWarning = !_confirmedWarning),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: Checkbox(
+                      value: _confirmedWarning,
+                      onChanged: (v) =>
+                          setState(() => _confirmedWarning = v ?? false),
+                      activeColor: const Color(0xFFDC4C4C),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'I understand this will permanently delete my account and all associated data.',
+                      style: GoogleFonts.nunito(
+                        fontSize: 12.5,
+                        color: cl.textMid,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.of(context).pop(false),
+                    child: Container(
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: cl.fieldBg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: cl.border),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.nunito(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: cl.textMid,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: AnimatedOpacity(
+                    opacity: _canProceed ? 1.0 : 0.45,
+                    duration: const Duration(milliseconds: 200),
+                    child: GestureDetector(
+                      onTap: _canProceed
+                          ? () {
+                              widget.onConfirm(
+                                _isEmailProvider
+                                    ? _passwordController.text
+                                    : null,
+                              );
+                              Navigator.of(context).pop(true);
+                            }
+                          : null,
+                      child: Container(
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDC4C4C),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Delete Account',
+                            style: GoogleFonts.nunito(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

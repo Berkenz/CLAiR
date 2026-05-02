@@ -6,11 +6,14 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'package:go_router/go_router.dart';
+
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/history/domain/entities/conversation_entity.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
+import 'package:clair/features/lawyer/presentation/providers/lawyer_sharing_provider.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
@@ -412,13 +415,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   void _shareToLawyer(ConversationEntity conversation) {
-    // TODO: Implement share to lawyer feature
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Share to Lawyer feature coming soon'),
-        behavior: SnackBarBehavior.floating,
-      ),
+    ref.read(lawyerSharingProvider.notifier).state = ConversationSharingData(
+      title: conversation.title,
+      conversationId: conversation.id,
     );
+    // Switch to the Lawyers tab, then pop back to the main shell.
+    ref.read(mainShellTabProvider.notifier).state = 3;
+    context.pop();
   }
 
   Future<void> _downloadConversation(ConversationEntity conversation) async {

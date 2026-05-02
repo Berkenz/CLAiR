@@ -51,7 +51,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
       state = state.copyWith(
         messages: [...state.messages, aiMessage],
         isLoading: false,
-        conversationId: response.conversationId,
+        // Preserve existing conversationId if backend returned empty.
+        conversationId: response.conversationId.isNotEmpty
+            ? response.conversationId
+            : state.conversationId,
         conversationTitle: response.conversationTitle.isNotEmpty
             ? response.conversationTitle
             : state.conversationTitle,
