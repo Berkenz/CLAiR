@@ -2,117 +2,136 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { api } from "@/lib/api";
-import { useAuth, type LawyerState } from "@/features/auth/auth-provider";
+import { Scale } from "lucide-react";
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { setLawyerState } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setError("");
     setLoading(true);
-
     try {
-      const credential = await signInWithEmailAndPassword(auth, email, password);
-      const token = await credential.user.getIdToken();
-
-      const { data } = await api.post<LawyerState>("/lawyer/auth/login", {
-        firebase_token: token,
-      });
-
-      setLawyerState(data);
-
-      if (data.profile.must_change_password) {
-        navigate("/change-password", { replace: true });
-      } else if (!data.profile.is_profile_complete) {
-        navigate("/profile-setup", { replace: true });
+      await signInWithEmailAndPassword(auth, email, password);
+      navigate("/change-password", { replace: true });
+    } catch (err: any) {
+      if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found") {
+        setError("Invalid email or password. Please try again.");
+      } else if (err.code === "auth/too-many-requests") {
+        setError("Too many attempts. Please try again later.");
       } else {
-        navigate("/", { replace: true });
+        setError("Invalid email or password. Please try again.");
       }
-    } catch (err: unknown) {
-      const detail =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      const message = detail ?? "Invalid email or password. Please try again.";
-      setError(message);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-brand-900">
-            CLAiR
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Lawyer Portal — Sign in to your account
-          </p>
+    <div className="min-h-screen flex bg-[#f7f0f4]">
+      {/* Left decorative panel */}
+      <div className="hidden lg:flex w-[420px] flex-col justify-between bg-[#241715] p-12 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#703d57]">
+            <Scale className="h-5 w-5 text-white" />
+          </div>
+          <span className="text-xl font-bold text-white tracking-wide">CLAiR</span>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm"
-        >
-          {error && (
-            <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
+        <div>
+          <blockquote className="text-[#d9b8c4] text-lg leading-relaxed font-light italic mb-6">
+            "Justice is the constant and perpetual will to allot to every man his due."
+          </blockquote>
+          <p className="text-[#957186] text-sm">— Justinian I</p>
+        </div>
 
-          <div className="space-y-5">
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Email
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="text-xs text-white/30 uppercase tracking-widest">Powered by AI</span>
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
+          <p className="text-xs text-white/25 text-center leading-relaxed">
+            CLAiR is an AI-assisted legal practice management platform built for Filipino lawyers.
+          </p>
+        </div>
+      </div>
+
+      {/* Right login form */}
+      <div className="flex flex-1 items-center justify-center px-6 py-12">
+        <div className="w-full max-w-sm">
+          {/* Mobile logo */}
+          <div className="flex items-center gap-2.5 mb-10 lg:hidden">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#703d57]">
+              <Scale className="h-4 w-4 text-white" />
+            </div>
+            <span className="text-lg font-bold text-[#241715] tracking-wide">CLAiR</span>
+          </div>
+
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-[#241715]">Welcome back</h1>
+            <p className="mt-1.5 text-sm text-[#957186]">
+              Sign in with the credentials provided to you.
+            </p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide">
+                Email address
               </label>
               <input
-                id="email"
                 type="email"
-                required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1.5 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 focus:outline-none"
-                placeholder="lawyer@example.com"
+                required
+                autoComplete="email"
+                placeholder="your@email.com"
+                className="w-full rounded-xl border border-[#d9b8c4] bg-white px-4 py-3 text-sm text-[#241715] placeholder-[#c490aa] outline-none transition focus:border-[#703d57] focus:ring-2 focus:ring-[#703d57]/10"
               />
             </div>
 
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700"
-              >
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide">
                 Password
               </label>
               <input
-                id="password"
                 type="password"
-                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1.5 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 focus:outline-none"
+                required
+                autoComplete="current-password"
                 placeholder="••••••••"
+                className="w-full rounded-xl border border-[#d9b8c4] bg-white px-4 py-3 text-sm text-[#241715] outline-none transition focus:border-[#703d57] focus:ring-2 focus:ring-[#703d57]/10"
               />
             </div>
+
+            {error && (
+              <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-800 focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:outline-none disabled:opacity-50"
+              className="w-full rounded-xl bg-[#703d57] py-3 text-sm font-semibold text-white transition hover:bg-[#5a3046] disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {loading ? "Signing in..." : "Sign in"}
+              {loading ? "Signing in…" : "Sign in"}
             </button>
-          </div>
-        </form>
+          </form>
+
+          <p className="mt-8 text-center text-xs text-[#957186]">
+            Don't have credentials?{" "}
+            <span className="text-[#703d57] font-medium">
+              Contact your CLAiR administrator.
+            </span>
+          </p>
+        </div>
       </div>
     </div>
   );

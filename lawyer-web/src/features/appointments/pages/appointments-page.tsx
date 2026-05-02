@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  Check, X, RefreshCw, Loader2, Smartphone, CalendarDays, Clock, FileText, ChevronDown, ChevronUp,
+  Check, X, RefreshCw, Loader2, Smartphone, CalendarDays, Clock,
+  FileText, ChevronDown, ChevronUp, WifiOff,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -43,29 +44,34 @@ const TYPE_COLORS: Record<string, string> = {
 export function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [backendDown, setBackendDown] = useState(false);
 
-  // Accept state
   const [accepting, setAccepting] = useState<string | null>(null);
-
-  // Reject modal state
   const [rejectTarget, setRejectTarget] = useState<Appointment | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [rejecting, setRejecting] = useState(false);
   const [rejectError, setRejectError] = useState<string | null>(null);
-
-  // Collapsed sections
   const [confirmedCollapsed, setConfirmedCollapsed] = useState(false);
   const [cancelledCollapsed, setCancelledCollapsed] = useState(true);
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setBackendDown(false);
     try {
       const { data } = await api.get<{ appointments: Appointment[] }>("/lawyer/appointments");
       setAppointments(data.appointments);
-    } catch {
-      setError("Could not load appointments.");
+    } catch (err: any) {
+      // If there's no response object, the backend is simply unreachable.
+      // We do NOT let this bubble up to api.ts interceptor — we handle it
+      // right here so the user stays on this page and is NOT signed out.
+      if (!err?.response) {
+        setBackendDown(true);
+      }
+      // If err.response exists (e.g. 404, 500), still show offline state
+      // rather than crashing the session — backend team will fix those.
+      else {
+        setBackendDown(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -126,6 +132,8 @@ export function AppointmentsPage() {
           <p className="mt-0.5 text-sm text-[#957186]">
             {loading
               ? "Loading…"
+              : backendDown
+              ? "Backend unavailable — your session is still active"
               : `${appointments.length} total · ${pending.length} pending · ${confirmed.length} confirmed`}
           </p>
         </div>
@@ -139,22 +147,34 @@ export function AppointmentsPage() {
         </button>
       </div>
 
-      {/* Error */}
-      {error && (
-        <div className="flex items-center justify-between rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-          <span>{error}</span>
-          <button onClick={fetchAppointments} className="font-semibold underline">Retry</button>
-        </div>
-      )}
-
       {loading ? (
         <div className="py-24 flex items-center justify-center gap-2 text-[#957186]">
           <Loader2 className="h-5 w-5 animate-spin" />
           <span className="text-sm">Loading appointments…</span>
         </div>
+      ) : backendDown ? (
+        /* ── Backend offline state — stays on page, no sign out ── */
+        <div className="py-24 flex flex-col items-center justify-center gap-4 text-center">
+          <div className="h-16 w-16 rounded-2xl bg-[#f7f0f4] border border-[#d9b8c4]/40 flex items-center justify-center">
+            <WifiOff className="h-7 w-7 text-[#957186]" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-[#241715]">Backend not reachable</p>
+            <p className="text-xs text-[#957186] max-w-xs mt-1 leading-relaxed">
+              The server isn't responding right now. You're still logged in — appointments will load once the backend is available.
+            </p>
+          </div>
+          <button
+            onClick={fetchAppointments}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#703d57] text-sm font-semibold text-white hover:bg-[#5a3046] transition"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Try again
+          </button>
+        </div>
       ) : (
         <>
-          {/* ── Pending Requests ───────────────────────────────── */}
+          {/* ── Pending Requests ── */}
           <section>
             <div className="flex items-center gap-2 mb-3">
               <h2 className="text-sm font-bold text-[#241715]">Pending Requests</h2>
@@ -164,7 +184,6 @@ export function AppointmentsPage() {
                 </span>
               )}
             </div>
-
             {pending.length === 0 ? (
               <div className="rounded-2xl border border-[#d9b8c4]/40 bg-white shadow-sm py-10 text-center text-sm text-gray-400">
                 No pending requests.
@@ -182,9 +201,7 @@ export function AppointmentsPage() {
                           disabled={accepting === a.id}
                           className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors disabled:opacity-60"
                         >
-                          {accepting === a.id
-                            ? <Loader2 className="h-4 w-4 animate-spin" />
-                            : <Check className="h-4 w-4" />}
+                          {accepting === a.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                           Accept
                         </button>
                         <button
@@ -203,63 +220,45 @@ export function AppointmentsPage() {
             )}
           </section>
 
-          {/* ── Confirmed ──────────────────────────────────────── */}
+          {/* ── Confirmed ── */}
           <section>
-            <button
-              onClick={() => setConfirmedCollapsed((v) => !v)}
-              className="flex w-full items-center gap-2 mb-3 group"
-            >
+            <button onClick={() => setConfirmedCollapsed((v) => !v)} className="flex w-full items-center gap-2 mb-3 group">
               <h2 className="text-sm font-bold text-[#241715]">Confirmed</h2>
               {confirmed.length > 0 && (
-                <span className="rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5">
-                  {confirmed.length}
-                </span>
+                <span className="rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5">{confirmed.length}</span>
               )}
               <span className="ml-auto text-gray-400 group-hover:text-gray-600">
                 {confirmedCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
               </span>
             </button>
-
             {!confirmedCollapsed && (
               confirmed.length === 0 ? (
-                <div className="rounded-2xl border border-[#d9b8c4]/40 bg-white shadow-sm py-10 text-center text-sm text-gray-400">
-                  No confirmed appointments.
-                </div>
+                <div className="rounded-2xl border border-[#d9b8c4]/40 bg-white shadow-sm py-10 text-center text-sm text-gray-400">No confirmed appointments.</div>
               ) : (
-                <div className="space-y-3">
-                  {confirmed.map((a) => <AppointmentCard key={a.id} appt={a} />)}
-                </div>
+                <div className="space-y-3">{confirmed.map((a) => <AppointmentCard key={a.id} appt={a} />)}</div>
               )
             )}
           </section>
 
-          {/* ── Rejected / Cancelled ───────────────────────────── */}
+          {/* ── Rejected / Cancelled ── */}
           {cancelled.length > 0 && (
             <section>
-              <button
-                onClick={() => setCancelledCollapsed((v) => !v)}
-                className="flex w-full items-center gap-2 mb-3 group"
-              >
+              <button onClick={() => setCancelledCollapsed((v) => !v)} className="flex w-full items-center gap-2 mb-3 group">
                 <h2 className="text-sm font-bold text-[#241715]">Rejected</h2>
-                <span className="rounded-full bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5">
-                  {cancelled.length}
-                </span>
+                <span className="rounded-full bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5">{cancelled.length}</span>
                 <span className="ml-auto text-gray-400 group-hover:text-gray-600">
                   {cancelledCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
                 </span>
               </button>
-
               {!cancelledCollapsed && (
-                <div className="space-y-3">
-                  {cancelled.map((a) => <AppointmentCard key={a.id} appt={a} />)}
-                </div>
+                <div className="space-y-3">{cancelled.map((a) => <AppointmentCard key={a.id} appt={a} />)}</div>
               )}
             </section>
           )}
         </>
       )}
 
-      {/* ── Reject Modal ─────────────────────────────────────────── */}
+      {/* ── Reject Modal ── */}
       {rejectTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white shadow-xl p-6">
@@ -274,7 +273,6 @@ export function AppointmentsPage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-
             <div>
               <label className="block text-xs font-semibold text-[#703d57] mb-1.5">
                 <FileText className="h-3 w-3 inline mr-1" />Reason for rejection *
@@ -288,24 +286,15 @@ export function AppointmentsPage() {
                 onChange={(e) => setRejectReason(e.target.value)}
               />
               {rejectError && (
-                <p className="mt-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                  {rejectError}
-                </p>
+                <p className="mt-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{rejectError}</p>
               )}
             </div>
-
             <div className="flex gap-3 mt-5">
-              <button
-                onClick={() => setRejectTarget(null)}
-                className="flex-1 rounded-xl border border-[#d9b8c4]/60 py-2.5 text-sm font-semibold text-[#402a2c] hover:bg-[#f7f0f4] transition-colors"
-              >
+              <button onClick={() => setRejectTarget(null)} className="flex-1 rounded-xl border border-[#d9b8c4]/60 py-2.5 text-sm font-semibold text-[#402a2c] hover:bg-[#f7f0f4] transition-colors">
                 Cancel
               </button>
-              <button
-                onClick={handleReject}
-                disabled={rejecting}
-                className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
-              >
+              <button onClick={handleReject} disabled={rejecting}
+                className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
                 {rejecting && <Loader2 className="h-4 w-4 animate-spin" />}
                 Reject
               </button>
@@ -317,7 +306,6 @@ export function AppointmentsPage() {
   );
 }
 
-/* ── Reusable appointment card ─────────────────────────────────────────── */
 function AppointmentCard({ appt, actions }: { appt: Appointment; actions?: React.ReactNode }) {
   const statusStyle: Record<string, string> = {
     pending:   "bg-amber-50 text-amber-700 border-amber-200",
@@ -327,31 +315,25 @@ function AppointmentCard({ appt, actions }: { appt: Appointment; actions?: React
 
   return (
     <div className="rounded-2xl border border-[#d9b8c4]/40 bg-white shadow-sm p-5">
-      {/* Top row */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-semibold text-[#241715] text-sm">{appt.client_name}</p>
             {appt.client_user_id && (
               <span className="flex items-center gap-1 text-xs text-[#957186]" title="Booked via mobile app">
-                <Smartphone className="h-3 w-3" />
-                Mobile
+                <Smartphone className="h-3 w-3" />Mobile
               </span>
             )}
           </div>
           <div className="flex items-center gap-3 mt-1.5 flex-wrap">
             <span className="flex items-center gap-1 text-xs text-gray-500">
-              <CalendarDays className="h-3 w-3" />
-              {formatDate(appt.appointment_date)}
+              <CalendarDays className="h-3 w-3" />{formatDate(appt.appointment_date)}
             </span>
             <span className="flex items-center gap-1 text-xs text-gray-500">
-              <Clock className="h-3 w-3" />
-              {formatTime(appt.appointment_time)}
+              <Clock className="h-3 w-3" />{formatTime(appt.appointment_time)}
             </span>
           </div>
         </div>
-
-        {/* Status + type badges */}
         <div className="flex flex-col items-end gap-1.5 shrink-0">
           <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border capitalize ${statusStyle[appt.status] ?? "bg-gray-100 text-gray-600 border-gray-200"}`}>
             {appt.status}
@@ -361,16 +343,11 @@ function AppointmentCard({ appt, actions }: { appt: Appointment; actions?: React
           </span>
         </div>
       </div>
-
-      {/* Description */}
       {appt.description && (
         <p className="mt-3 text-xs text-gray-500 leading-relaxed border-t border-gray-100 pt-3">
-          <FileText className="h-3 w-3 inline mr-1 text-gray-400" />
-          {appt.description}
+          <FileText className="h-3 w-3 inline mr-1 text-gray-400" />{appt.description}
         </p>
       )}
-
-      {/* Rejection reason */}
       {appt.status === "cancelled" && appt.rejection_reason && (
         <div className="mt-3 border-t border-gray-100 pt-3">
           <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">
@@ -378,8 +355,6 @@ function AppointmentCard({ appt, actions }: { appt: Appointment; actions?: React
           </p>
         </div>
       )}
-
-      {/* Action slot */}
       {actions}
     </div>
   );

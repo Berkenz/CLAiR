@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/features/auth/auth-provider";
 import { AuthLayout } from "@/layouts/auth-layout";
 import { DashboardLayout } from "@/layouts/dashboard-layout";
@@ -10,123 +10,104 @@ import { CasesPage } from "@/features/cases/pages/cases-page";
 import { AppointmentsPage } from "@/features/appointments/pages/appointments-page";
 import { MessagesPage } from "@/features/messages/pages/messages-page";
 import { DocumentsPage } from "@/features/documents/pages/documents-page";
+import { ProfilePage } from "@/features/profile/pages/profile-page";
+import { AiAssessmentPage } from "@/features/ai-assessment/pages/ai-assessment-page";
+import { AvailabilityCalendarPage } from "@/features/availability/pages/availability-calendar-page";
+
+function flowKey(uid: string, step: "passwordChanged" | "profileComplete") {
+  return `clair_${uid}_${step}`;
+}
+export function markPasswordChanged(uid: string) {
+  localStorage.setItem(flowKey(uid, "passwordChanged"), "true");
+}
+export function markProfileComplete(uid: string) {
+  localStorage.setItem(flowKey(uid, "profileComplete"), "true");
+}
+function hasChangedPassword(uid: string) {
+  return localStorage.getItem(flowKey(uid, "passwordChanged")) === "true";
+}
+function hasCompletedProfile(uid: string) {
+  return localStorage.getItem(flowKey(uid, "profileComplete")) === "true";
+}
+function getNextStep(uid: string): "/change-password" | "/profile-setup" | "/" {
+  if (!hasChangedPassword(uid)) return "/change-password";
+  if (!hasCompletedProfile(uid)) return "/profile-setup";
+  return "/";
+}
 
 function Spinner() {
   return (
-    <div className="flex h-screen items-center justify-center bg-gray-50">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" />
+    <div className="flex h-screen items-center justify-center bg-[#241715]">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#957186] border-t-transparent" />
     </div>
   );
 }
 
-/**
- * Guards that require a Firebase-authenticated lawyer account.
- * Redirects to /login if not signed in.
- * After sign-in, enforces the setup funnel:
- *   must_change_password  → /change-password
- *   !is_profile_complete  → /profile-setup
- *   fully set up          → dashboard
- */
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { firebaseUser, lawyerState, loading } = useAuth();
+function useAuthStatus() {
+  const { firebaseUser, loading } = useAuth();
+  return { firebaseUser, isLoggedIn: !!firebaseUser, loading };
+}
 
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const { firebaseUser, isLoggedIn, loading } = useAuthStatus();
   if (loading) return <Spinner />;
-
-  if (!firebaseUser) return <Navigate to="/login" replace />;
-
-  if (lawyerState?.profile.must_change_password) {
-    return <Navigate to="/change-password" replace />;
-  }
-
-  if (lawyerState && !lawyerState.profile.is_profile_complete) {
-    return <Navigate to="/profile-setup" replace />;
-  }
-
+  if (isLoggedIn && firebaseUser) return <Navigate to={getNextStep(firebaseUser.uid)} replace />;
   return <>{children}</>;
 }
 
-/**
- * Guards the change-password and profile-setup steps.
- * Prevents accessing a step that is already done or not yet unlocked.
- */
-function SetupRoute({
-  step,
-  children,
-}: {
-  step: "change-password" | "profile-setup";
-  children: React.ReactNode;
-}) {
-  const { firebaseUser, lawyerState, loading } = useAuth();
-
+function ChangePasswordRoute({ children }: { children: React.ReactNode }) {
+  const { firebaseUser, isLoggedIn, loading } = useAuthStatus();
   if (loading) return <Spinner />;
+  if (!isLoggedIn || !firebaseUser) return <Navigate to="/login" replace />;
+  if (hasChangedPassword(firebaseUser.uid)) return <Navigate to={getNextStep(firebaseUser.uid)} replace />;
+  return <>{children}</>;
+}
 
-  if (!firebaseUser) return <Navigate to="/login" replace />;
+function ProfileSetupRoute({ children }: { children: React.ReactNode }) {
+  const { firebaseUser, isLoggedIn, loading } = useAuthStatus();
+  if (loading) return <Spinner />;
+  if (!isLoggedIn || !firebaseUser) return <Navigate to="/login" replace />;
+  if (!hasChangedPassword(firebaseUser.uid)) return <Navigate to="/change-password" replace />;
+  if (hasCompletedProfile(firebaseUser.uid)) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
 
-  if (!lawyerState) return <Spinner />;
-
-  if (step === "change-password") {
-    if (!lawyerState.profile.must_change_password) {
-      return lawyerState.profile.is_profile_complete
-        ? <Navigate to="/" replace />
-        : <Navigate to="/profile-setup" replace />;
-    }
-  }
-
-  if (step === "profile-setup") {
-    if (lawyerState.profile.must_change_password) {
-      return <Navigate to="/change-password" replace />;
-    }
-    if (lawyerState.profile.is_profile_complete) {
-      return <Navigate to="/" replace />;
-    }
-  }
-
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { firebaseUser, isLoggedIn, loading } = useAuthStatus();
+  if (loading) return <Spinner />;
+  if (!isLoggedIn || !firebaseUser) return <Navigate to="/login" replace />;
+  const next = getNextStep(firebaseUser.uid);
+  if (next !== "/") return <Navigate to={next} replace />;
   return <>{children}</>;
 }
 
 export function App() {
   return (
     <Routes>
-      {/* Public auth routes */}
+      {/* Step 1 — Login */}
       <Route element={<AuthLayout />}>
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       </Route>
 
-      {/* Onboarding funnel — no sidebar layout */}
-      <Route
-        path="/change-password"
-        element={
-          <SetupRoute step="change-password">
-            <ChangePasswordPage />
-          </SetupRoute>
-        }
-      />
-      <Route
-        path="/profile-setup"
-        element={
-          <SetupRoute step="profile-setup">
-            <ProfileSetupPage />
-          </SetupRoute>
-        }
-      />
+      {/* Step 2 — Change password */}
+      <Route path="/change-password" element={<ChangePasswordRoute><ChangePasswordPage /></ChangePasswordRoute>} />
 
-      {/* Protected dashboard routes */}
-      <Route
-        element={
-          <ProtectedRoute>
-            <DashboardLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route path="/"             element={<DashboardPage />} />
-        <Route path="/cases"        element={<CasesPage />} />
-        <Route path="/appointments" element={<AppointmentsPage />} />
-        <Route path="/messages"     element={<MessagesPage />} />
-        <Route path="/documents"    element={<DocumentsPage />} />
+      {/* Step 3 — Profile setup */}
+      <Route path="/profile-setup" element={<ProfileSetupRoute><ProfileSetupPage /></ProfileSetupRoute>} />
+
+      {/* Step 4 — Dashboard */}
+      <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+        <Route path="/"                element={<DashboardPage />} />
+        <Route path="/cases"           element={<CasesPage />} />
+        <Route path="/appointments"    element={<AppointmentsPage />} />
+        <Route path="/availability"    element={<AvailabilityCalendarPage />} />
+        <Route path="/messages"        element={<MessagesPage />} />
+        <Route path="/documents"       element={<DocumentsPage />} />
+        <Route path="/profile"         element={<ProfilePage />} />
+        <Route path="/ai-assessment"   element={<AiAssessmentPage />} />
       </Route>
 
-      {/* Catch-all */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }
