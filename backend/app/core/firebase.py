@@ -33,17 +33,20 @@ def verify_firebase_token(token: str) -> dict:
     try:
         init_firebase()
         return auth.verify_id_token(token)
-    except auth.InvalidIdTokenError:
+    except auth.InvalidIdTokenError as e:
+        print(f"[DEBUG] InvalidIdTokenError: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired Firebase token",
         )
-    except auth.ExpiredIdTokenError:
+    except auth.ExpiredIdTokenError as e:
+        print(f"[DEBUG] ExpiredIdTokenError: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Firebase token has expired",
         )
     except Exception as e:
+        print(f"[DEBUG] Token verification failed ({type(e).__name__}): {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Token verification failed: {str(e)}",
