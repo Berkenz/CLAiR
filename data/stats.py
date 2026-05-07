@@ -63,7 +63,7 @@ def main():
 
         if args.verbose and info.get("sample"):
             s = info["sample"]
-            print(f"    Sample → {s.get('number', 'N/A')}: {s.get('title', 'N/A')[:60]}...")
+            print(f"    Sample: {s.get('number', 'N/A')}: {s.get('title', 'N/A')[:60]}...")
 
     print("-" * 65)
     print(f"  {'TOTAL':<30} {grand_total:>8} {grand_size:>12.2f}")

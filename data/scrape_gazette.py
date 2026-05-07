@@ -2,6 +2,11 @@
 """
 Scraper for officialgazette.gov.ph — the official publication of the Philippine government.
 
+⚠️  STATUS: This site currently blocks automated requests (HTTP 403).
+    Use lawphil.net and thecorpusjuris.com as primary sources instead.
+    For content only available on the Gazette, download manually from the site
+    and place the JSON files in the appropriate data/ folders.
+
 Covers:
   - Republic Acts
   - Executive Orders
@@ -15,8 +20,8 @@ The Official Gazette organizes content by type:
   /downloads/presidential-decrees/
   ...
 
-Note: This site can be slow and sometimes requires manual download.
-      The scraper handles what it can; for anything it misses, do manual download.
+Note: This site blocks automated scraping (403 Forbidden).
+      Manual download is recommended — see README.md for instructions.
 
 Usage:
     python scrape_gazette.py                 # scrape everything

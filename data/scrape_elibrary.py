@@ -2,11 +2,16 @@
 """
 Scraper for elibrary.judiciary.gov.ph — Supreme Court E-Library.
 
+⚠️  STATUS: This site uses JavaScript-rendered DataTables with server-side
+    processing and CSRF protection. The AJAX API returns 500 errors for
+    external requests. Use lawphil.net SC decisions scraper as primary source.
+    For supplementary content, download manually from the site.
+
 This is the official repository of the Philippine Supreme Court for decisions
 and resolutions. It has a search interface and organized by year.
 
-Note: This site may require manual download for some content.
-      The scraper attempts to pull what's publicly accessible.
+Note: This site blocks automated scraping via JS rendering + CSRF.
+      Manual download is recommended — see README.md for instructions.
 
 Covers:
   - Supreme Court Decisions

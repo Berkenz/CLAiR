@@ -168,26 +168,57 @@ def chunk_text(text, chunk_size=800, overlap=200):
 
 ---
 
+## Scraper Status (Tested May 2026)
+
+| Scraper | Status | Entries Found |
+|---------|--------|---------------|
+| **Corpus Juris** (RAs) | Working | 11,161 Republic Acts |
+| **Corpus Juris** (PDs) | Working | 2,020 Presidential Decrees |
+| **LawPhil** (RAs) | Working | 1,408 Republic Acts |
+| **LawPhil** (EOs) | Working | 1,281 Executive Orders |
+| **LawPhil** (BPs) | Working | 890 Batas Pambansa |
+| **LawPhil** (CAs) | Working | 733 Commonwealth Acts |
+| **LawPhil** (AOs) | Working | 14 Administrative Orders |
+| **LawPhil** (SC) | Working | ~300+/year SC decisions |
+| **Official Gazette** | Blocked (403) | Manual download needed |
+| **SC E-Library** | Blocked (JS/CSRF) | Manual download needed |
+
+**Recommended:** Run only Corpus Juris + LawPhil — they cover everything:
+```bash
+python scrape_all.py --sources cj lp
+```
+
+---
+
 ## Notes and Caveats
 
 - **Scraping takes a long time.** The full lawphil + corpus juris run may take 24–72 hours depending on connection. Use `--limit` to test first.
 - **Be respectful.** The scrapers have a built-in 1.5s delay between requests (`config.py → REQUEST_DELAY_SECONDS`). Don't lower this — these are free public legal databases.
 - **Resumable.** If the scraper crashes or you stop it, just run again. It skips files already downloaded.
 - **Status field is mostly `unknown`.** Determining if a law is repealed/amended requires cross-referencing which isn't automated yet.
-- **officialgazette.gov.ph** can be very slow/unreliable. The scraper handles timeouts gracefully. You may also manually download from there.
-- **elibrary.judiciary.gov.ph** may have session/captcha protections. If the scraper gets blocked, download manually.
+- **officialgazette.gov.ph** blocks automated requests (403 Forbidden). Manual download only — visit the site in a browser and save pages.
+- **elibrary.judiciary.gov.ph** uses JavaScript rendering + CSRF tokens to block scrapers. Manual download only.
 - **Data is NOT committed to git** (too large). Run the scrapers on whatever machine will host the RAG.
+
+### Manual Download (Gazette & E-Library)
+
+If you need content only available from these sites:
+
+1. Visit the page in your browser
+2. Copy the full text of the law/decision
+3. Create a JSON file following the format above
+4. Save it in the appropriate `data/` subfolder
 
 ---
 
 ## Sources
 
-| Source | URL | Best For |
-|--------|-----|----------|
-| LawPhil | https://lawphil.net | SC decisions, most comprehensive statute coverage |
-| Corpus Juris | https://thecorpusjuris.com | Clean structured statutes, good RA/PD coverage |
-| Official Gazette | https://officialgazette.gov.ph | Official executive issuances |
-| SC E-Library | https://elibrary.judiciary.gov.ph | Official SC decision texts |
+| Source | URL | Status | Best For |
+|--------|-----|--------|----------|
+| LawPhil | https://lawphil.net | **Working** | SC decisions, most comprehensive statute coverage |
+| Corpus Juris | https://thecorpusjuris.com | **Working** | Clean structured statutes, good RA/PD coverage |
+| Official Gazette | https://officialgazette.gov.ph | **Manual only** | Official executive issuances |
+| SC E-Library | https://elibrary.judiciary.gov.ph | **Manual only** | Official SC decision texts |
 
 ---
 
@@ -198,7 +229,7 @@ def chunk_text(text, chunk_size=800, overlap=200):
 | `ModuleNotFoundError: No module named 'bs4'` | Run `pip install -r requirements.txt` |
 | Scraper gets stuck / hangs | Check your internet; increase `REQUEST_TIMEOUT_SECONDS` in `config.py` |
 | Too many 429 errors (rate limited) | Increase `REQUEST_DELAY_SECONDS` in `config.py` (try 3–5 seconds) |
-| Gazette times out | Normal — the site is slow. Use `--sources cj lp` to skip it |
-| E-Library blocked | May need manual download. Use the other 3 sources first |
+| Gazette returns 403 | This is expected — download manually from the site |
+| E-Library returns 0 results | This is expected — download manually from the site |
 | Want to re-scrape a specific law | Delete its `.json` file from the folder, then re-run |
 | Duplicate records across sources | Run `python merge_dedup.py` after scraping |
