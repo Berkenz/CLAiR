@@ -59,6 +59,15 @@ coverage.xml
 *.cover
 .hypothesis/
 
+# Scraped legal data (too large for git — run scrapers locally)
+data/republic_acts/*.json
+data/presidential_decrees/*.json
+data/executive_orders/*.json
+data/batas_pambansa/*.json
+data/commonwealth_acts/*.json
+data/supreme_court_decisions/*.json
+data/administrative_orders/*.json
+
 # Misc
 *.swp
 *.swo
