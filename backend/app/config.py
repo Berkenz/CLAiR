@@ -13,8 +13,10 @@ class Settings(BaseSettings):
     FIREBASE_SERVICE_ACCOUNT_KEY: str | None = None
     FIREBASE_WEB_API_KEY: str | None = None
     GEMINI_API_KEY: str | None = None
+    GROQ_API_KEY: str | None = None
     SUPABASE_URL: str | None = None
     SUPABASE_SERVICE_ROLE_KEY: str | None = None
+    SUPABASE_DB_URL: str | None = None
     # Lawyer portal (Vite) runs on 5173; include 127.0.0.1 — browsers treat it separately from localhost.
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",

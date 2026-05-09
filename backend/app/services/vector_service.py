@@ -1,0 +1,162 @@
+"""
+RAG retrieval service.
+
+Embeds the user's query with Gemini text-embedding-004, then performs a
+cosine-similarity search against the law_chunks table in Supabase (pgvector).
+
+Graceful degradation: if SUPABASE_DB_URL or GEMINI_API_KEY is not configured,
+or if the DB is unreachable, get_relevant_chunks() returns [] so the chatbot
+continues to work without RAG context.
+"""
+
+from __future__ import annotations
+
+import logging
+
+import asyncpg
+from google.genai import Client, types
+
+from app.config import settings
+
+logger = logging.getLogger(__name__)
+
+_pool: asyncpg.Pool | None = None
+
+# Retrieve 3 chunks — enough to ground the answer without burning token budget.
+_TOP_K = 3
+
+# Only inject chunks that are clearly relevant (≥0.60 similarity).
+_MIN_SIMILARITY = 0.60
+
+# Max words per chunk shown in the prompt. The stored chunk is 800 words but
+# we only send the first 250 words — saves ~1 400 tokens per request.
+_MAX_CHUNK_WORDS = 250
+
+
+async def _get_pool() -> asyncpg.Pool | None:
+    """Return (and lazily create) the asyncpg connection pool to Supabase."""
+    global _pool
+
+    if not settings.SUPABASE_DB_URL:
+        return None
+
+    if _pool is None:
+        try:
+            _pool = await asyncpg.create_pool(
+                settings.SUPABASE_DB_URL,
+                ssl="require",
+                min_size=1,
+                max_size=5,
+                command_timeout=10,
+            )
+            logger.info("pgvector pool connected to Supabase")
+        except Exception:
+            logger.exception("Could not connect to Supabase for pgvector — RAG disabled")
+            return None
+
+    return _pool
+
+
+_gemini_client: Client | None = None
+
+
+def _get_gemini() -> Client | None:
+    global _gemini_client
+    if not settings.GEMINI_API_KEY:
+        return None
+    if _gemini_client is None:
+        _gemini_client = Client(api_key=settings.GEMINI_API_KEY)
+    return _gemini_client
+
+
+async def _embed(text: str) -> list[float] | None:
+    """Return 768-dimensional Gemini embedding for *text*, or None on error."""
+    client = _get_gemini()
+    if client is None:
+        return None
+    try:
+        result = await client.aio.models.embed_content(
+            model="models/gemini-embedding-001",
+            contents=text,
+        )
+        return list(result.embeddings[0].values)
+    except Exception:
+        logger.exception("Gemini embedding failed")
+        return None
+
+
+async def get_relevant_chunks(query: str, top_k: int = _TOP_K) -> list[dict]:
+    """
+    Return the top-k most relevant law chunks for *query*.
+
+    Each result dict has keys:
+        text, number, title, category, source_url, similarity (float 0–1)
+    """
+    pool = await _get_pool()
+    if pool is None:
+        return []
+
+    embedding = await _embed(query)
+    if embedding is None:
+        return []
+
+    # Format as a pgvector literal: '[0.1,0.2,...]'
+    vec_literal = "[" + ",".join(f"{v:.8f}" for v in embedding) + "]"
+
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT
+                    text,
+                    number,
+                    title,
+                    category,
+                    source_url,
+                    1 - (embedding <=> $1::vector) AS similarity
+                FROM law_chunks
+                WHERE 1 - (embedding <=> $1::vector) >= $3
+                ORDER BY embedding <=> $1::vector
+                LIMIT $2
+                """,
+                vec_literal,
+                top_k,
+                _MIN_SIMILARITY,
+            )
+        return [dict(r) for r in rows]
+    except Exception:
+        logger.exception("pgvector search failed")
+        return []
+
+
+def format_rag_context(chunks: list[dict]) -> str:
+    """
+    Turn retrieved chunks into a Markdown block that is injected into the
+    system prompt so Groq can cite actual Philippine legal text.
+
+    Returns an empty string when *chunks* is empty (no context is injected).
+    """
+    if not chunks:
+        return ""
+
+    parts: list[str] = []
+    for chunk in chunks:
+        header = f"[{chunk.get('number', 'Unknown')} — {chunk.get('title', '')}]"
+        # Truncate to _MAX_CHUNK_WORDS to keep prompt token cost predictable
+        words = chunk["text"].split()
+        body = " ".join(words[:_MAX_CHUNK_WORDS])
+        if len(words) > _MAX_CHUNK_WORDS:
+            body += " …"
+        parts.append(f"{header}\n{body}")
+
+    joined = "\n\n---\n\n".join(parts)
+
+    return (
+        "\n\n## RETRIEVED PHILIPPINE LEGAL TEXT\n\n"
+        "The following excerpts were retrieved from Philippine statutes and are "
+        "directly relevant to the user's question. Ground your answer in this text "
+        "and cite the law numbers specifically. "
+        "If an excerpt is not relevant to the user's query, ignore it.\n\n"
+        f"{joined}\n\n"
+        "---\n"
+    )

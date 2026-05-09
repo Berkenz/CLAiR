@@ -1,124 +1,103 @@
-from google.genai import Client, types
+from groq import AsyncGroq
 
 from app.config import settings
+from app.services.vector_service import format_rag_context, get_relevant_chunks
 
+# Compact but complete system prompt — every sentence earns its tokens.
 SYSTEM_INSTRUCTION = (
-    "You are CLAiR, a warm, empathetic, and knowledgeable AI legal assistant "
-    "specializing in Philippine law. Your primary goal is to help users fully "
-    "articulate their legal situation so that both you and any lawyer they consult "
-    "later have a complete, accurate picture of their case.\n\n"
-    "## HOW TO CONDUCT THE CONVERSATION\n\n"
-    "1. **Ask before you advise.** When a user first describes their problem, do NOT "
-    "immediately launch into a full legal explanation. Instead, acknowledge their "
-    "situation warmly, then ask 2–3 focused follow-up questions to gather missing "
-    "details (e.g., dates, parties involved, location, documents, what has already "
-    "been done, what outcome they want).\n\n"
-    "2. **Keep digging until the picture is complete.** After each user reply, "
-    "evaluate whether you have enough facts. If anything important is still unclear "
-    "— timeline, relationships between parties, amounts of money, type of property, "
-    "prior agreements, etc. — ask about it before moving on. Never assume facts not "
-    "stated by the user.\n\n"
-    "3. **Ask one focused question at a time when possible.** If you must ask "
-    "multiple questions, group them logically and number them so the user can answer "
-    "each clearly.\n\n"
-    "4. **Summarize before concluding.** Once you have enough details, briefly "
-    "summarize the situation back to the user ('Based on what you've shared: ...') "
-    "and confirm you have it right before giving your full legal explanation.\n\n"
-    "5. **Offer to go deeper.** At the end of a substantive answer, always invite "
-    "the user to share more or ask follow-up questions (e.g., 'Is there anything "
-    "else about this situation you'd like me to clarify?' or 'Can you tell me more "
-    "about [specific detail]?').\n\n"
-    "## LEGAL GUIDANCE RULES\n\n"
-    "- Always remind users that your responses are for informational purposes only "
-    "and do not constitute legal advice.\n"
-    "- Recommend consulting a licensed attorney for specific legal matters, "
-    "especially before signing documents or taking formal legal action.\n\n"
-    "## FORMAT YOUR RESPONSES using Markdown for readability:\n"
-    "- Use **bold** to highlight key legal terms, important phrases, and article/section references.\n"
-    "- Use numbered lists (1. 2. 3.) for sequential steps or procedures.\n"
-    "- Use bullet points (-) for non-sequential items, rights, or conditions.\n"
-    "- Use ### headings to separate major sections when the answer covers multiple topics.\n"
-    "- Use > blockquotes when citing specific legal provisions or statutes.\n"
-    "- Keep paragraphs concise — prefer short paragraphs over long walls of text.\n"
-    "- End with a brief disclaimer in italics when appropriate."
+    "You are CLAiR, a warm, empathetic AI legal assistant specializing in Philippine law. "
+    "Help users fully articulate their legal situation before giving advice.\n\n"
+    "## CONVERSATION RULES\n"
+    "1. **Ask before advising.** On a new problem, acknowledge warmly then ask 2–3 focused questions "
+    "(dates, parties, location, documents, desired outcome) before giving a full explanation.\n"
+    "2. **Keep gathering facts** until the picture is complete. Never assume unstated facts.\n"
+    "3. **One question at a time** when possible; number them if you must ask several.\n"
+    "4. **Summarize first.** Once you have enough details, confirm your understanding before concluding.\n"
+    "5. **Invite follow-up** at the end of every substantive answer.\n\n"
+    "## LEGAL RULES\n"
+    "- Responses are for information only — not legal advice.\n"
+    "- Always recommend consulting a licensed attorney before signing documents or taking formal action.\n\n"
+    "## FORMAT\n"
+    "Use Markdown: **bold** for key terms, numbered lists for steps, bullets for conditions, "
+    "### headings for multi-topic answers, > blockquotes for statute citations. "
+    "Keep paragraphs short. End with an italicised disclaimer when appropriate."
 )
 
-_client = None
+# Keep only the most recent N messages to bound history token cost.
+# 8 messages = 4 back-and-forth turns — enough for context without runaway growth.
+_MAX_HISTORY_MESSAGES = 8
+
+# Title generation uses the fast 8B model — quality is fine for a short label.
+_CHAT_MODEL = "llama-3.3-70b-versatile"
+_TITLE_MODEL = "llama-3.1-8b-instant"
+
+_client: AsyncGroq | None = None
 
 
-def _get_client() -> Client:
+def _get_client() -> AsyncGroq:
     global _client
     if _client is None:
-        _client = Client(api_key=settings.GEMINI_API_KEY)
+        _client = AsyncGroq(api_key=settings.GROQ_API_KEY)
     return _client
+
+
+def _build_messages(
+    message: str,
+    history: list[dict[str, str]],
+    rag_context: str,
+) -> list[dict[str, str]]:
+    """Convert CLAiR history format → Groq messages list, capping history length."""
+    system_content = SYSTEM_INSTRUCTION + rag_context
+
+    messages: list[dict[str, str]] = [{"role": "system", "content": system_content}]
+
+    # Cap history — take the most recent N messages to limit token cost.
+    recent = history[-_MAX_HISTORY_MESSAGES:] if len(history) > _MAX_HISTORY_MESSAGES else history
+    for msg in recent:
+        # Gemini uses "model" as the assistant role; Groq uses "assistant"
+        role = "assistant" if msg["role"] == "model" else msg["role"]
+        messages.append({"role": role, "content": msg["text"]})
+
+    messages.append({"role": "user", "content": message})
+    return messages
 
 
 async def get_chat_response(
     message: str,
     history: list[dict[str, str]],
 ) -> str:
+    chunks = await get_relevant_chunks(message)
+    rag_context = format_rag_context(chunks)
+
+    messages = _build_messages(message, history, rag_context)
+
     client = _get_client()
-
-    contents = []
-    for msg in history:
-        contents.append(
-            types.Content(
-                role=msg["role"],
-                parts=[types.Part(text=msg["text"])],
-            )
-        )
-    contents.append(
-        types.Content(role="user", parts=[types.Part(text=message)])
+    response = await client.chat.completions.create(
+        model=_CHAT_MODEL,
+        messages=messages,
+        max_tokens=1024,
+        temperature=0.7,
     )
 
-    response = await client.aio.models.generate_content(
-        model="gemini-3.1-flash-lite-preview",
-        contents=contents,
-        config=types.GenerateContentConfig(
-            system_instruction=SYSTEM_INSTRUCTION,
-        ),
-    )
-
-    if response.text:
-        return response.text
-
-    parts = []
-    for candidate in (response.candidates or []):
-        for part in (candidate.content.parts or []):
-            if part.text:
-                parts.append(part.text)
-    return "\n".join(parts) if parts else "Sorry, I couldn't generate a response. Please try again."
+    content = response.choices[0].message.content
+    return content or "Sorry, I couldn't generate a response. Please try again."
 
 
 _TITLE_SYSTEM = (
-    "You write conversation titles for a Philippine legal assistant (CLAiR). "
-    "Output exactly one line: plain text only, no quotes, no markdown, no trailing period.\n"
-    "Rules:\n"
-    "- NEVER output a single word or generic label (e.g. do not use only 'car', 'law', 'help').\n"
-    "- Use short phrases needed to describe what happened and the legal angle.\n"
-    "- Include concrete facts from the user: parties, incident type, injury, property, or claim.\n"
-    "- Example good titles: 'Car accident where motorcycle struck my vehicle — liability and claims'; "
-    "'Tenant eviction notice in Metro Manila — rights and procedures'.\n"
-    "- If details are only in the assistant reply, pull them into the title.\n"
-    "- Use sentence-style phrasing; Title Case is optional."
+    "Write one conversation title for a Philippine legal assistant chat. "
+    "Plain text only — no quotes, no markdown, no trailing period. "
+    "Include the legal issue and concrete facts (parties, incident type, property, claim). "
+    "Example: 'Tenant eviction notice in Metro Manila — rights and procedures'. "
+    "Never output a single word or a generic label."
 )
 
-_TITLE_USER_MAX = 800
+_TITLE_USER_MAX = 600
 
 
 def _title_too_vague(title: str) -> bool:
-    """Reject one-word or overly short titles the model sometimes returns."""
     t = title.strip()
-    if not t:
-        return True
     words = t.split()
-    if len(words) == 1:
-        return True
-    if len(t) < 18:
-        return True
-    if len(words) < 4:
-        return True
-    return False
+    return not t or len(words) < 4 or len(t) < 18
 
 
 async def generate_conversation_title(
@@ -129,58 +108,38 @@ async def generate_conversation_title(
 ) -> str:
     """Derive a descriptive history title from the first user turn and assistant reply."""
     um = user_message.strip()
-    ar = assistant_reply.strip()
     if not um:
         return fallback_title[:200]
 
-    preview_user = um[:_TITLE_USER_MAX]
-    preview_reply = ar[:_TITLE_USER_MAX]
     prompt = (
-        "Write one descriptive conversation title for the chat history list.\n"
-        "It must summarize the user's situation (who/what/when type details), not a single keyword.\n\n"
-        f"User message:\n{preview_user}\n\n"
-        f"Assistant reply (for context):\n{preview_reply}\n\n"
-        "Reply with the title line only."
+        f"User message:\n{um[:_TITLE_USER_MAX]}\n\n"
+        f"Assistant reply:\n{assistant_reply.strip()[:_TITLE_USER_MAX]}\n\n"
+        "Write the title line only."
     )
 
     try:
         client = _get_client()
-        response = await client.aio.models.generate_content(
-            model="gemini-3.1-flash-lite-preview",
-            contents=[
-                types.Content(
-                    role="user",
-                    parts=[types.Part(text=prompt)],
-                )
+        response = await client.chat.completions.create(
+            model=_TITLE_MODEL,
+            messages=[
+                {"role": "system", "content": _TITLE_SYSTEM},
+                {"role": "user", "content": prompt},
             ],
-            config=types.GenerateContentConfig(
-                system_instruction=_TITLE_SYSTEM,
-                temperature=0.35,
-                max_output_tokens=128,
-            ),
+            max_tokens=64,
+            temperature=0.3,
         )
-        raw = (response.text or "").strip()
-        if not raw:
-            parts: list[str] = []
-            for candidate in (response.candidates or []):
-                for part in (candidate.content.parts or []):
-                    if part.text:
-                        parts.append(part.text.strip())
-            raw = " ".join(parts).strip()
+        raw = (response.choices[0].message.content or "").strip()
         if not raw:
             return fallback_title[:200]
 
         one_line = " ".join(raw.split())
         for prefix in ("title:", "conversation:"):
             if one_line.lower().startswith(prefix):
-                one_line = one_line[len(prefix) :].strip()
-        one_line = one_line.strip("\"'“”")
+                one_line = one_line[len(prefix):].strip()
+        one_line = one_line.strip("\"'\u201c\u201d")
         if len(one_line) > 200:
             one_line = one_line[:197] + "..."
 
-        if _title_too_vague(one_line):
-            return fallback_title[:200]
-
-        return one_line or fallback_title[:200]
+        return one_line if not _title_too_vague(one_line) else fallback_title[:200]
     except Exception:
         return fallback_title[:200]
