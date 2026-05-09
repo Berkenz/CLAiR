@@ -6,13 +6,10 @@ import { LoginPage } from "@/features/auth/pages/login-page";
 import { ChangePasswordPage } from "@/features/auth/pages/change-password-page";
 import { ProfileSetupPage } from "@/features/profile-setup/pages/profile-setup-page";
 import { DashboardPage } from "@/features/dashboard/pages/dashboard-page";
-import { CasesPage } from "@/features/cases/pages/cases-page";
-import { AppointmentsPage } from "@/features/appointments/pages/appointments-page";
-import { MessagesPage } from "@/features/messages/pages/messages-page";
+import { ConversationsPage } from "@/features/conversations/pages/conversations-page";
 import { DocumentsPage } from "@/features/documents/pages/documents-page";
 import { ProfilePage } from "@/features/profile/pages/profile-page";
 import { AiAssessmentPage } from "@/features/ai-assessment/pages/ai-assessment-page";
-import { AvailabilityCalendarPage } from "@/features/availability/pages/availability-calendar-page";
 
 function flowKey(uid: string, step: "passwordChanged" | "profileComplete") {
   return `clair_${uid}_${step}`;
@@ -84,27 +81,20 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 export function App() {
   return (
     <Routes>
-      {/* Step 1 — Login */}
+      {/* Auth flow */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       </Route>
-
-      {/* Step 2 — Change password */}
       <Route path="/change-password" element={<ChangePasswordRoute><ChangePasswordPage /></ChangePasswordRoute>} />
+      <Route path="/profile-setup"   element={<ProfileSetupRoute><ProfileSetupPage /></ProfileSetupRoute>} />
 
-      {/* Step 3 — Profile setup */}
-      <Route path="/profile-setup" element={<ProfileSetupRoute><ProfileSetupPage /></ProfileSetupRoute>} />
-
-      {/* Step 4 — Dashboard */}
+      {/* Dashboard — 4 tabs only */}
       <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-        <Route path="/"                element={<DashboardPage />} />
-        <Route path="/cases"           element={<CasesPage />} />
-        <Route path="/appointments"    element={<AppointmentsPage />} />
-        <Route path="/availability"    element={<AvailabilityCalendarPage />} />
-        <Route path="/messages"        element={<MessagesPage />} />
-        <Route path="/documents"       element={<DocumentsPage />} />
-        <Route path="/profile"         element={<ProfilePage />} />
-        <Route path="/ai-assessment"   element={<AiAssessmentPage />} />
+        <Route path="/"               element={<DashboardPage />} />
+        <Route path="/conversations"  element={<ConversationsPage />} />
+        <Route path="/documents"      element={<DocumentsPage />} />
+        <Route path="/ai-assessment"  element={<AiAssessmentPage />} />
+        <Route path="/profile"        element={<ProfilePage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />
