@@ -37,7 +37,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLegalPage = state.matchedLocation.startsWith('/terms') ||
           state.matchedLocation.startsWith('/privacy-policy');
 
-      if (user != null && isOnAuthPage && !isLegalPage) {
+      if (user != null && user.isAnonymous != true && isOnAuthPage && !isLegalPage) {
         return '/home';
       }
       return null;

@@ -152,6 +152,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
   void _openLawyer(LawyerEntity l) {
     final sharing = ref.read(lawyerSharingProvider);
     if (sharing != null) {
+      if (showGuestBookingPrompt(context, ref)) return;
       showLawyerBookingSheet(
         context,
         l,

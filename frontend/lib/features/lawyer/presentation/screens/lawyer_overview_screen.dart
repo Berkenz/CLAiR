@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
@@ -8,13 +9,13 @@ import 'package:clair/features/lawyer/presentation/sheets/lawyer_concern_sheet.d
 import 'package:clair/shared/widgets/spring_button.dart';
 
 /// Full professional lawyer profile screen shown before booking.
-class LawyerOverviewScreen extends StatelessWidget {
+class LawyerOverviewScreen extends ConsumerWidget {
   const LawyerOverviewScreen({super.key, required this.lawyer});
 
   final LawyerEntity lawyer;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cl = context.c;
 
     return Scaffold(
@@ -155,7 +156,10 @@ class LawyerOverviewScreen extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SpringButton(
-                    onTap: () => showLawyerBookingSheet(context, lawyer),
+                    onTap: () {
+                      if (showGuestBookingPrompt(context, ref)) return;
+                      showLawyerBookingSheet(context, lawyer);
+                    },
                     child: Container(
                       width: double.infinity,
                       height: 52,
