@@ -14,10 +14,14 @@ class ChatRepositoryImpl implements ChatRepository {
     required String message,
     required List<ChatMessageEntity> history,
     String? conversationId,
+    double? userLat,
+    double? userLng,
   }) =>
       _remote.sendMessage(
         message: message,
         history: history,
         conversationId: conversationId,
+        userLat: userLat,
+        userLng: userLng,
       );
 }

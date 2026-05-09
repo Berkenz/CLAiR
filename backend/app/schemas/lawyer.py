@@ -81,7 +81,10 @@ class LawyerProfileUpdate(BaseModel):
     mobile_phone: str | None = None
     office_email: str | None = None
     office_address: str | None = None
+    bio: str | None = None
     office_hours: dict | None = None
+    latitude: float | None = None
+    longitude: float | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -137,7 +140,10 @@ class LawyerProfileResponse(BaseModel):
     mobile_phone: str | None = None
     office_email: str | None = None
     office_address: str | None = None
+    bio: str | None = None
     office_hours: dict | None = None
+    latitude: float | None = None
+    longitude: float | None = None
     must_change_password: bool
     is_profile_complete: bool
     created_at: datetime
@@ -178,6 +184,14 @@ class LawyerDirectoryItem(BaseModel):
     practice_areas: list[str] | None = None
     first_name: str | None = None
     last_name: str | None = None
+    bio: str | None = None
+    office_address: str | None = None
+    office_hours: dict | None = None
+    office_phone: str | None = None
+    mobile_phone: str | None = None
+    office_email: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 class LawyerDirectoryResponse(BaseModel):

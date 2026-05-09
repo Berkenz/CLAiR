@@ -6,5 +6,7 @@ abstract class ChatRepository {
     required String message,
     required List<ChatMessageEntity> history,
     String? conversationId,
+    double? userLat,
+    double? userLng,
   });
 }

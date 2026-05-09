@@ -28,7 +28,10 @@ export interface LawyerProfile {
   mobile_phone: string | null;
   office_email: string | null;
   office_address: string | null;
+  bio: string | null;
   office_hours: Record<string, { enabled: boolean; ranges: { id: string; start: string; end: string }[] }> | null;
+  latitude: number | null;
+  longitude: number | null;
   must_change_password: boolean;
   is_profile_complete: boolean;
   created_at: string;

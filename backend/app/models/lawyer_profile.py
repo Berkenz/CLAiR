@@ -44,7 +44,10 @@ class LawyerProfile(Base):
     mobile_phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
     office_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     office_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    bio: Mapped[str | None] = mapped_column(Text, nullable=True)
     office_hours: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    latitude: Mapped[float | None] = mapped_column(nullable=True)
+    longitude: Mapped[float | None] = mapped_column(nullable=True)
     must_change_password: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False, server_default="true"
     )

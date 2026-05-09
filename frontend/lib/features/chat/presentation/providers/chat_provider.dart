@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:clair/core/services/location_service.dart';
 import 'package:clair/features/chat/data/datasources/chat_remote_datasource.dart';
 import 'package:clair/features/chat/data/repositories/chat_repository_impl.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
@@ -24,11 +25,12 @@ final _historyRepoProvider = Provider<HistoryRepository>((ref) {
 });
 
 class ChatNotifier extends StateNotifier<ChatState> {
-  ChatNotifier(this._repository, this._historyRepository)
+  ChatNotifier(this._repository, this._historyRepository, this._ref)
       : super(ChatState.initial());
 
   final ChatRepository _repository;
   final HistoryRepository _historyRepository;
+  final Ref _ref;
 
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty || state.isLoading) return;
@@ -40,14 +42,23 @@ class ChatNotifier extends StateNotifier<ChatState> {
       error: null,
     );
 
+    // Attach location if already available (no blocking permission request here)
+    final loc = _ref.read(locationProvider);
+
     try {
       final response = await _repository.sendMessage(
         message: text.trim(),
         history: state.messages.where((m) => m != userMessage).toList(),
         conversationId: state.conversationId,
+        userLat: loc.latitude,
+        userLng: loc.longitude,
       );
 
-      final aiMessage = ChatMessageEntity(text: response.reply, isUser: false);
+      final aiMessage = ChatMessageEntity(
+        text: response.reply,
+        isUser: false,
+        suggestedLawyers: response.suggestedLawyers,
+      );
       state = state.copyWith(
         messages: [...state.messages, aiMessage],
         isLoading: false,
@@ -213,5 +224,5 @@ class ChatState {
 final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>((ref) {
   final repository = ref.watch(chatRepositoryProvider);
   final historyRepository = ref.watch(_historyRepoProvider);
-  return ChatNotifier(repository, historyRepository);
+  return ChatNotifier(repository, historyRepository, ref);
 });

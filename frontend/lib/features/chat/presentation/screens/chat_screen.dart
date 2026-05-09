@@ -10,12 +10,15 @@ import 'package:share_plus/share_plus.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:clair/app/main_shell_tab.dart';
+import 'package:clair/core/services/location_service.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
 import 'package:clair/features/chat/presentation/widgets/message_report_sheet.dart';
+import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 import 'package:clair/features/lawyer/presentation/providers/lawyer_sharing_provider.dart';
+import 'package:clair/features/lawyer/presentation/screens/lawyer_overview_screen.dart';
 import 'package:clair/shared/widgets/app_drawer.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -42,6 +45,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _ensureBottomOnEntry();
+      // Silently fetch location in the background so it's ready for the first message.
+      // Does not block the UI; errors are ignored here.
+      ref.read(locationProvider.notifier).fetchLocation().ignore();
     });
   }
 
@@ -701,6 +707,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     ),
                   ],
                 ),
+                if (message.suggestedLawyers.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _SuggestedLawyersList(lawyers: message.suggestedLawyers),
+                ],
               ],
             ),
           ),
@@ -1201,6 +1211,165 @@ class _TypingDotsState extends State<_TypingDots>
           ),
         );
       }),
+    );
+  }
+}
+
+// ── Suggested lawyer cards ────────────────────────────────────────────────────
+
+class _SuggestedLawyersList extends StatelessWidget {
+  const _SuggestedLawyersList({required this.lawyers});
+  final List<LawyerEntity> lawyers;
+
+  @override
+  Widget build(BuildContext context) {
+    final cl = context.c;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.people_alt_outlined, size: 13, color: cl.accent),
+            const SizedBox(width: 5),
+            Text(
+              'Lawyers near you',
+              style: GoogleFonts.nunito(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: cl.accent,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 120,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: lawyers.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, i) =>
+                _LawyerChip(lawyer: lawyers[i], cl: cl),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LawyerChip extends StatelessWidget {
+  const _LawyerChip({required this.lawyer, required this.cl});
+  final LawyerEntity lawyer;
+  final AppColorTheme cl;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => LawyerOverviewScreen(lawyer: lawyer),
+        ),
+      ),
+      child: Container(
+        width: 180,
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        decoration: BoxDecoration(
+          color: cl.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: cl.accent.withValues(alpha: 0.25)),
+          boxShadow: [
+            BoxShadow(
+                color: cl.cardShadow,
+                blurRadius: 8,
+                offset: const Offset(0, 2)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        cl.accent.withValues(alpha: 0.14),
+                        cl.accentLight.withValues(alpha: 0.3),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Text(
+                      lawyer.initials,
+                      style: GoogleFonts.nunito(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: cl.accent,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    lawyer.name,
+                    style: GoogleFonts.nunito(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: cl.textDark,
+                      height: 1.2,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            if (lawyer.designation != null)
+              Text(
+                lawyer.designation!,
+                style: GoogleFonts.nunito(
+                    fontSize: 10, color: cl.accent, height: 1.2),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            Text(
+              lawyer.categoryLine,
+              style: GoogleFonts.nunito(
+                  fontSize: 10, color: cl.textMid, height: 1.3),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: cl.accent,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'View profile',
+                  style: GoogleFonts.nunito(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

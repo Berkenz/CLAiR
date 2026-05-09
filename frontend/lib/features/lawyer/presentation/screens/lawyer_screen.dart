@@ -8,6 +8,7 @@ import 'package:clair/features/lawyer/presentation/providers/lawyer_provider.dar
 import 'package:clair/features/lawyer/presentation/providers/lawyer_sharing_provider.dart';
 import 'package:clair/features/lawyer/presentation/screens/lawyer_overview_screen.dart';
 import 'package:clair/features/lawyer/presentation/sheets/lawyer_booking_sheet.dart';
+import 'package:clair/features/lawyer/presentation/widgets/lawyer_map_view.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
 
@@ -90,6 +91,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
   final _scrollCtrl = ScrollController();
   final Set<int> _selectedCats = {};
   bool _searching = false;
+  bool _showMap = false;
   late final AnimationController _anim;
 
   @override
@@ -184,7 +186,24 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
           // ── Sharing banner ───────────────────────────────────────────────
           if (sharing != null) _SharingBanner(data: sharing, cl: cl, ref: ref),
 
-          // ── Scrollable area ──────────────────────────────────────────────
+          // ── Map view ─────────────────────────────────────────────────────
+          if (_showMap)
+            Expanded(
+              child: Column(
+                children: [
+                  _buildHeader(cl, state.isLoading),
+                  Expanded(
+                    child: LawyerMapView(
+                      lawyers: state.lawyers,
+                      onTap: _openLawyer,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // ── Scrollable list ──────────────────────────────────────────────
+          if (!_showMap)
           Expanded(
             child: CustomScrollView(
               controller: _scrollCtrl,
@@ -286,6 +305,43 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
                 child: CircularProgressIndicator(
                     strokeWidth: 2, color: cl.accent),
               ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () => setState(() => _showMap = !_showMap),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _showMap ? cl.accent : cl.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: _showMap ? cl.accent : cl.border,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _showMap
+                          ? Icons.list_rounded
+                          : Icons.map_outlined,
+                      size: 16,
+                      color: _showMap ? Colors.white : cl.accent,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _showMap ? 'List' : 'Map',
+                      style: GoogleFonts.nunito(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: _showMap ? Colors.white : cl.accent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ]),
           const SizedBox(height: 14),
           // Search bar

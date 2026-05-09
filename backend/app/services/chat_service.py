@@ -1,6 +1,10 @@
+import math
+
 from groq import AsyncGroq
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.services.lawyer_service import lawyer_service
 from app.services.vector_service import format_rag_context, get_relevant_chunks
 
 # Compact but complete system prompt — every sentence earns its tokens.
@@ -41,6 +45,81 @@ def _get_client() -> AsyncGroq:
     return _client
 
 
+def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Great-circle distance in kilometres between two coordinate pairs."""
+    r = 6371.0
+    d_lat = math.radians(lat2 - lat1)
+    d_lng = math.radians(lng2 - lng1)
+    a = (
+        math.sin(d_lat / 2) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(d_lng / 2) ** 2
+    )
+    return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+# When the LLM includes this marker in its reply, the backend strips it and
+# returns the nearby lawyers list so the mobile app can show profile cards.
+_SUGGEST_MARKER = "[[SUGGEST_LAWYERS]]"
+
+
+async def _build_location_context(
+    db: AsyncSession,
+    user_lat: float,
+    user_lng: float,
+    radius_km: float = 50.0,
+    max_lawyers: int = 5,
+) -> tuple[str, list[dict]]:
+    """
+    Returns (context_text, nearby_lawyers_list).
+    context_text is injected into the system prompt.
+    nearby_lawyers_list is the raw lawyer dicts for use in the API response.
+    """
+    all_lawyers = await lawyer_service.get_all_complete_lawyers(db)
+    nearby: list[tuple[float, dict]] = []
+    for lawyer in all_lawyers:
+        lat = lawyer.get("latitude")
+        lng = lawyer.get("longitude")
+        if lat is None or lng is None:
+            continue
+        dist = _haversine_km(user_lat, user_lng, lat, lng)
+        if dist <= radius_km:
+            nearby.append((dist, lawyer))
+
+    nearby.sort(key=lambda x: x[0])
+    nearby = nearby[:max_lawyers]
+
+    lines = [
+        f"\n\n## USER LOCATION\n"
+        f"The user is located in the Philippines "
+        f"(internal coordinates: {user_lat:.4f}, {user_lng:.4f} — do NOT reveal these to the user). "
+        f"Use this to tailor legal answers to the relevant region, local courts, "
+        f"and jurisdiction where applicable.",
+    ]
+
+    if nearby:
+        lines.append("\n### Nearby CLAiR Partner Lawyers")
+        for dist_km, lawyer in nearby:
+            name = lawyer.get("display_name") or (
+                f"Atty. {lawyer.get('first_name', '')} {lawyer.get('last_name', '')}".strip()
+            )
+            areas = ", ".join(lawyer.get("practice_areas") or []) or "General practice"
+            lines.append(f"- **{name}** ({areas}) — approx. {dist_km:.1f} km away")
+        lines.append(
+            f"\nIf the user asks about finding a lawyer or you recommend any of these "
+            f"lawyers, include the exact text `{_SUGGEST_MARKER}` anywhere in your response "
+            f"so the app can display their profile cards."
+        )
+    else:
+        lines.append(
+            "\nNo CLAiR partner lawyers are currently registered near this location."
+        )
+
+    nearby_dicts = [lawyer for _, lawyer in nearby]
+    return "".join(lines), nearby_dicts
+
+
 def _build_messages(
     message: str,
     history: list[dict[str, str]],
@@ -65,9 +144,24 @@ def _build_messages(
 async def get_chat_response(
     message: str,
     history: list[dict[str, str]],
-) -> str:
+    db: AsyncSession | None = None,
+    user_lat: float | None = None,
+    user_lng: float | None = None,
+) -> tuple[str, list[dict]]:
+    """Returns (reply_text, suggested_lawyers).
+
+    suggested_lawyers is non-empty only when the model included the
+    [[SUGGEST_LAWYERS]] marker in its reply and nearby lawyers exist.
+    """
     chunks = await get_relevant_chunks(message)
     rag_context = format_rag_context(chunks)
+
+    nearby_lawyers: list[dict] = []
+    if db is not None and user_lat is not None and user_lng is not None:
+        location_context, nearby_lawyers = await _build_location_context(
+            db, user_lat, user_lng
+        )
+        rag_context = rag_context + location_context
 
     messages = _build_messages(message, history, rag_context)
 
@@ -79,8 +173,17 @@ async def get_chat_response(
         temperature=0.7,
     )
 
-    content = response.choices[0].message.content
-    return content or "Sorry, I couldn't generate a response. Please try again."
+    content = response.choices[0].message.content or (
+        "Sorry, I couldn't generate a response. Please try again."
+    )
+
+    # Strip the marker and decide whether to surface nearby lawyers.
+    suggested: list[dict] = []
+    if _SUGGEST_MARKER in content:
+        content = content.replace(_SUGGEST_MARKER, "").strip()
+        suggested = nearby_lawyers
+
+    return content, suggested
 
 
 _TITLE_SYSTEM = (

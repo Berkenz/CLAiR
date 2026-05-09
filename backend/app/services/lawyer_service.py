@@ -75,8 +75,11 @@ class LawyerService:
         profile.mobile_phone = data.mobile_phone
         profile.office_email = data.office_email
         profile.office_address = data.office_address
+        profile.bio = data.bio
         if data.office_hours is not None:
             profile.office_hours = data.office_hours
+        profile.latitude = data.latitude
+        profile.longitude = data.longitude
 
         def _filled(s: str | None) -> bool:
             return bool(s and str(s).strip())
@@ -127,6 +130,14 @@ class LawyerService:
                 "practice_areas": profile.practice_areas,
                 "first_name": user.first_name,
                 "last_name": user.last_name,
+                "bio": profile.bio,
+                "office_address": profile.office_address,
+                "office_hours": profile.office_hours,
+                "office_phone": profile.office_phone,
+                "mobile_phone": profile.mobile_phone,
+                "office_email": profile.office_email,
+                "latitude": profile.latitude,
+                "longitude": profile.longitude,
             }
             for profile, user in rows
         ]

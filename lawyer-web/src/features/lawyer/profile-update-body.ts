@@ -24,7 +24,10 @@ export interface LawyerProfileUpdateBody {
   mobile_phone?: string | null;
   office_email?: string | null;
   office_address?: string | null;
+  bio?: string | null;
   office_hours?: OfficeHoursSchedule | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 function emptyToNull(s: string): string | null {
@@ -51,7 +54,10 @@ export function buildLawyerProfileUpdateBody(input: {
   mobile: string;
   officeEmail: string;
   officeAddress: string;
+  bio?: string | null;
   officeHours?: OfficeHoursSchedule | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }): LawyerProfileUpdateBody {
   const fn = input.firstName.trim();
   const ln = input.lastName.trim();
@@ -78,6 +84,9 @@ export function buildLawyerProfileUpdateBody(input: {
     mobile_phone: emptyToNull(input.mobile),
     office_email: emptyToNull(input.officeEmail),
     office_address: emptyToNull(input.officeAddress),
+    bio: input.bio != null ? (input.bio.trim() || null) : null,
     office_hours: input.officeHours ?? null,
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
   };
 }

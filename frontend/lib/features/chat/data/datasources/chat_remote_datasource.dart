@@ -4,6 +4,7 @@ import 'package:clair/core/constants/app_constants.dart';
 import 'package:clair/core/network/api_endpoints.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/chat/domain/entities/chat_response_entity.dart';
+import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 
 class ChatRemoteDataSource {
   ChatRemoteDataSource({required Dio dio}) : _dio = dio;
@@ -14,6 +15,8 @@ class ChatRemoteDataSource {
     required String message,
     required List<ChatMessageEntity> history,
     String? conversationId,
+    double? userLat,
+    double? userLng,
   }) async {
     try {
       final data = <String, dynamic>{
@@ -22,6 +25,10 @@ class ChatRemoteDataSource {
       };
       if (conversationId != null) {
         data['conversation_id'] = conversationId;
+      }
+      if (userLat != null && userLng != null) {
+        data['user_lat'] = userLat;
+        data['user_lng'] = userLng;
       }
 
       final response = await _dio.post<Map<String, dynamic>>(
@@ -48,10 +55,18 @@ class ChatRemoteDataSource {
       // conversation_id may be absent on some backends; fall back gracefully.
       final convId = (body['conversation_id'] as String?)?.trim() ?? '';
 
+      final rawLawyers =
+          body['suggested_lawyers'] as List<dynamic>? ?? [];
+      final suggestedLawyers = rawLawyers
+          .whereType<Map<String, dynamic>>()
+          .map(LawyerEntity.fromJson)
+          .toList();
+
       return ChatResponseEntity(
         reply: replyText,
         conversationId: convId,
         conversationTitle: (body['conversation_title'] as String?)?.trim() ?? '',
+        suggestedLawyers: suggestedLawyers,
       );
     } on DioException catch (e) {
       final data = e.response?.data;

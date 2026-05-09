@@ -1,12 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 import 'package:clair/features/lawyer/presentation/sheets/lawyer_booking_sheet.dart';
 import 'package:clair/features/lawyer/presentation/sheets/lawyer_concern_sheet.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
+
+// ─── Days meta ────────────────────────────────────────────────────────────────
+
+const _kDayOrder = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const _kDayLabels = <String, String>{
+  'mon': 'Monday',
+  'tue': 'Tuesday',
+  'wed': 'Wednesday',
+  'thu': 'Thursday',
+  'fri': 'Friday',
+  'sat': 'Saturday',
+  'sun': 'Sunday',
+};
 
 /// Full professional lawyer profile screen shown before booking.
 class LawyerOverviewScreen extends ConsumerWidget {
@@ -63,7 +79,7 @@ class LawyerOverviewScreen extends ConsumerWidget {
                     const SizedBox(height: 22),
                   ],
 
-                  // About
+                  // About (bio)
                   _InfoCard(
                     cl: cl,
                     icon: Icons.person_outline_rounded,
@@ -76,39 +92,19 @@ class LawyerOverviewScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 14),
 
-                  // Office details (Location + Hours side-by-side cards)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _InfoCard(
-                          cl: cl,
-                          icon: Icons.location_on_outlined,
-                          title: 'Office',
-                          compact: true,
-                          child: Text(
-                            lawyer.officeLocationOrDefault,
-                            style: GoogleFonts.nunito(
-                                fontSize: 13, height: 1.45, color: cl.textDark),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _InfoCard(
-                          cl: cl,
-                          icon: Icons.schedule_rounded,
-                          title: 'Hours',
-                          compact: true,
-                          child: Text(
-                            lawyer.officeHoursOrDefault,
-                            style: GoogleFonts.nunito(
-                                fontSize: 13, height: 1.45, color: cl.textDark),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  // Office location — mini-map if coordinates available
+                  _LocationCard(lawyer: lawyer, cl: cl),
                   const SizedBox(height: 14),
+
+                  // Office hours — structured day list or fallback
+                  _HoursCard(lawyer: lawyer, cl: cl),
+                  const SizedBox(height: 14),
+
+                  // Contact details
+                  if (lawyer.hasContactInfo) ...[
+                    _ContactCard(lawyer: lawyer, cl: cl),
+                    const SizedBox(height: 14),
+                  ],
 
                   // Disclaimer
                   Container(
@@ -217,6 +213,426 @@ class LawyerOverviewScreen extends ConsumerWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Location card ─────────────────────────────────────────────────────────────
+
+class _LocationCard extends StatelessWidget {
+  const _LocationCard({required this.lawyer, required this.cl});
+  final LawyerEntity lawyer;
+  final AppColorTheme cl;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasCoords = lawyer.latitude != null && lawyer.longitude != null;
+    final hasAddress = lawyer.officeLocation?.trim().isNotEmpty ?? false;
+
+    return _InfoCard(
+      cl: cl,
+      icon: Icons.location_on_outlined,
+      title: 'Office',
+      child: hasCoords
+          ? _MiniMap(lawyer: lawyer, cl: cl)
+          : Text(
+              hasAddress
+                  ? lawyer.officeLocation!
+                  : 'Provided when your appointment is confirmed.',
+              style: GoogleFonts.nunito(
+                  fontSize: 13, height: 1.45, color: cl.textDark),
+            ),
+    );
+  }
+}
+
+/// Compact non-interactive map preview that opens a full-screen map on tap.
+class _MiniMap extends StatelessWidget {
+  const _MiniMap({required this.lawyer, required this.cl});
+  final LawyerEntity lawyer;
+  final AppColorTheme cl;
+
+  @override
+  Widget build(BuildContext context) {
+    final point = LatLng(lawyer.latitude!, lawyer.longitude!);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (lawyer.officeLocation?.trim().isNotEmpty ?? false) ...[
+          Text(
+            lawyer.officeLocation!,
+            style: GoogleFonts.nunito(
+                fontSize: 12.5, height: 1.4, color: cl.textMid),
+          ),
+          const SizedBox(height: 10),
+        ],
+        GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => _FullMapScreen(lawyer: lawyer),
+            ),
+          ),
+          child: Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  height: 160,
+                  child: FlutterMap(
+                    options: MapOptions(
+                      initialCenter: point,
+                      initialZoom: 15,
+                      interactionOptions: const InteractionOptions(
+                        flags: InteractiveFlag.none,
+                      ),
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.clair.app',
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: point,
+                            child: const Icon(Icons.location_on_rounded,
+                                color: Colors.red, size: 36),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Tap-to-expand hint overlay
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.open_in_full_rounded,
+                          size: 11, color: Colors.white),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Tap to expand',
+                        style: GoogleFonts.nunito(
+                            fontSize: 10.5,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Full-screen map screen pushed when the user taps the mini-map.
+class _FullMapScreen extends StatelessWidget {
+  const _FullMapScreen({required this.lawyer});
+  final LawyerEntity lawyer;
+
+  @override
+  Widget build(BuildContext context) {
+    final cl = context.c;
+    final point = LatLng(lawyer.latitude!, lawyer.longitude!);
+
+    return Scaffold(
+      backgroundColor: cl.bg,
+      appBar: AppBar(
+        backgroundColor: cl.surface,
+        foregroundColor: cl.textDark,
+        elevation: 0,
+        titleTextStyle: GoogleFonts.nunito(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: cl.textDark,
+        ),
+        title: Text(lawyer.name),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_rounded, color: cl.textDark),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Stack(
+        children: [
+          FlutterMap(
+            options: MapOptions(
+              initialCenter: point,
+              initialZoom: 15,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate:
+                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.clair.app',
+              ),
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: point,
+                    child: const Icon(Icons.location_on_rounded,
+                        color: Colors.red, size: 44),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // Info overlay at bottom
+          if (lawyer.officeLocation?.trim().isNotEmpty ?? false)
+            Positioned(
+              bottom: 20,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: cl.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: cl.border),
+                  boxShadow: [
+                    BoxShadow(
+                        color: cl.cardShadow,
+                        blurRadius: 12,
+                        offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.location_on_rounded,
+                        size: 16, color: cl.accent),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        lawyer.officeLocation!,
+                        style: GoogleFonts.nunito(
+                            fontSize: 13, color: cl.textDark, height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Hours card ────────────────────────────────────────────────────────────────
+
+class _HoursCard extends StatelessWidget {
+  const _HoursCard({required this.lawyer, required this.cl});
+  final LawyerEntity lawyer;
+  final AppColorTheme cl;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoCard(
+      cl: cl,
+      icon: Icons.schedule_rounded,
+      title: 'Office Hours',
+      child: _buildHoursContent(),
+    );
+  }
+
+  Widget _buildHoursContent() {
+    final raw = lawyer.officeHoursData;
+    if (raw == null || raw.isEmpty) {
+      return Text(
+        'Typical weekday hours apply; confirm after booking.',
+        style: GoogleFonts.nunito(fontSize: 13, height: 1.45, color: cl.textDark),
+      );
+    }
+
+    final rows = <Widget>[];
+    for (final day in _kDayOrder) {
+      final dayData = raw[day] as Map<String, dynamic>?;
+      if (dayData == null) continue;
+      final enabled = dayData['enabled'] as bool? ?? false;
+      final label = _kDayLabels[day] ?? day;
+      final ranges = dayData['ranges'] as List<dynamic>?;
+      String timeText;
+      if (!enabled || ranges == null || ranges.isEmpty) {
+        timeText = 'Closed';
+      } else {
+        final range = ranges.first as Map<String, dynamic>;
+        final start = range['start'] as String? ?? '';
+        final end = range['end'] as String? ?? '';
+        timeText = '$start – $end';
+      }
+
+      if (rows.isNotEmpty) {
+        rows.add(Divider(height: 1, thickness: 0.5, color: cl.border));
+      }
+      rows.add(_DayRow(
+        cl: cl,
+        label: label,
+        timeText: timeText,
+        enabled: enabled,
+      ));
+    }
+
+    return Column(children: rows);
+  }
+}
+
+class _DayRow extends StatelessWidget {
+  const _DayRow({
+    required this.cl,
+    required this.label,
+    required this.timeText,
+    required this.enabled,
+  });
+  final AppColorTheme cl;
+  final String label;
+  final String timeText;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 88,
+            child: Text(
+              label,
+              style: GoogleFonts.nunito(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: enabled ? cl.textDark : cl.textLight,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              timeText,
+              style: GoogleFonts.nunito(
+                fontSize: 12.5,
+                color: enabled ? cl.textDark : cl.textLight,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Contact card ──────────────────────────────────────────────────────────────
+
+class _ContactCard extends StatelessWidget {
+  const _ContactCard({required this.lawyer, required this.cl});
+  final LawyerEntity lawyer;
+  final AppColorTheme cl;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoCard(
+      cl: cl,
+      icon: Icons.contact_phone_outlined,
+      title: 'Contact',
+      child: Column(
+        children: [
+          if (lawyer.mobilePhone?.trim().isNotEmpty ?? false) ...[
+            _ContactRow(
+              cl: cl,
+              icon: Icons.phone_android_rounded,
+              label: lawyer.mobilePhone!.trim(),
+              onTap: () => _launch('tel:${lawyer.mobilePhone!.trim()}'),
+            ),
+            const SizedBox(height: 8),
+          ],
+          if (lawyer.officePhone?.trim().isNotEmpty ?? false) ...[
+            _ContactRow(
+              cl: cl,
+              icon: Icons.phone_outlined,
+              label: lawyer.officePhone!.trim(),
+              onTap: () => _launch('tel:${lawyer.officePhone!.trim()}'),
+            ),
+            const SizedBox(height: 8),
+          ],
+          if (lawyer.officeEmail?.trim().isNotEmpty ?? false)
+            _ContactRow(
+              cl: cl,
+              icon: Icons.mail_outline_rounded,
+              label: lawyer.officeEmail!.trim(),
+              onTap: () => _launch('mailto:${lawyer.officeEmail!.trim()}'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launch(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+}
+
+class _ContactRow extends StatelessWidget {
+  const _ContactRow({
+    required this.cl,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final AppColorTheme cl;
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: cl.accent.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: cl.accent),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.nunito(
+                fontSize: 13,
+                color: cl.accent,
+                fontWeight: FontWeight.w600,
+                decoration: TextDecoration.underline,
+                decorationColor: cl.accent.withValues(alpha: 0.4),
+              ),
+            ),
+          ),
+          Icon(Icons.arrow_forward_ios_rounded, size: 12, color: cl.textLight),
         ],
       ),
     );
@@ -403,26 +819,25 @@ class _InfoCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.child,
-    this.compact = false,
   });
 
   final AppColorTheme cl;
   final IconData icon;
   final String title;
   final Widget child;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(compact ? 14 : 18),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: cl.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: cl.border),
         boxShadow: [
-          BoxShadow(color: cl.cardShadow, blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: cl.cardShadow, blurRadius: 8, offset: const Offset(0, 2)),
         ],
       ),
       child: Column(

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
-from app.schemas.chat import ChatRequest, ChatResponse
+from app.schemas.chat import ChatRequest, ChatResponse, SuggestedLawyer
 from app.services.chat_service import generate_conversation_title, get_chat_response
 from app.services.conversation_service import conversation_service
 
@@ -39,7 +39,30 @@ async def send_message(
             )
 
         history = [{"role": m.role, "text": m.text} for m in body.history]
-        reply = await get_chat_response(message=body.message, history=history)
+        reply, nearby = await get_chat_response(
+            message=body.message,
+            history=history,
+            db=db,
+            user_lat=body.user_lat,
+            user_lng=body.user_lng,
+        )
+        suggested_lawyers = [
+            SuggestedLawyer(
+                id=str(l["id"]),
+                display_name=l.get("display_name"),
+                designation=l.get("designation"),
+                practice_areas=l.get("practice_areas") or [],
+                bio=l.get("bio"),
+                office_address=l.get("office_address"),
+                office_hours=l.get("office_hours"),
+                office_phone=l.get("office_phone"),
+                mobile_phone=l.get("mobile_phone"),
+                office_email=l.get("office_email"),
+                latitude=l.get("latitude"),
+                longitude=l.get("longitude"),
+            )
+            for l in nearby
+        ]
 
         await conversation_service.add_message(
             db, conversation_id=conv.id, role="user", text=body.message
@@ -70,6 +93,7 @@ async def send_message(
             reply=reply,
             conversation_id=conv.id,
             conversation_title=conversation_title,
+            suggested_lawyers=suggested_lawyers,
         )
 
     except HTTPException:

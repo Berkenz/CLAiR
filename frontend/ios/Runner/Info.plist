@@ -49,5 +49,9 @@
 	<string>CLAiR needs camera access to take profile photos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>CLAiR needs photo library access to choose profile photos.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>CLAiR uses your location to show nearby lawyers and provide location-relevant legal guidance.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>CLAiR uses your location to show nearby lawyers and provide location-relevant legal guidance.</string>
 </dict>
 </plist>

@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useAuth, type LawyerState } from "@/features/auth/auth-provider";
 import { buildLawyerProfileUpdateBody } from "@/features/lawyer/profile-update-body";
+import { LocationPicker } from "@/features/profile/components/LocationPicker";
 import { cn } from "@/lib/cn";
 import { Check, Camera } from "lucide-react";
 
@@ -64,7 +65,7 @@ const STANDARD_SCHEDULE: Schedule = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = "profile" | "account" | "hours";
+type Tab = "profile" | "account" | "hours" | "location";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -103,6 +104,7 @@ export function ProfilePage() {
   const [mobile, setMobile] = useState("");
   const [officeEmail, setOfficeEmail] = useState("");
   const [officeAddress, setOfficeAddress] = useState("");
+  const [bio, setBio] = useState("");
 
   // Account fields
   const [newEmail, setNewEmail] = useState("");
@@ -111,6 +113,10 @@ export function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [accountMsg, setAccountMsg] = useState("");
   const [accountError, setAccountError] = useState("");
+
+  // Office location coordinates — persisted with the profile
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
 
   // Office hours — persisted to the backend via PUT /lawyer/profile
   const [schedule, setSchedule] = useState<Schedule>(JSON.parse(JSON.stringify(STANDARD_SCHEDULE)));
@@ -160,9 +166,12 @@ export function ProfilePage() {
     setMobile(p.mobile_phone ?? "");
     setOfficeEmail(p.office_email ?? "");
     setOfficeAddress(p.office_address ?? "");
+    setBio(p.bio ?? "");
     if (p.office_hours) {
       setSchedule(p.office_hours as Schedule);
     }
+    setLatitude(p.latitude ?? null);
+    setLongitude(p.longitude ?? null);
   }, [lawyerState]);
 
   useEffect(() => {
@@ -211,6 +220,9 @@ export function ProfilePage() {
         mobile,
         officeEmail,
         officeAddress,
+        bio,
+        latitude,
+        longitude,
       });
       const { data } = await api.put<LawyerState>("/lawyer/profile", body);
       setLawyerState(data);
@@ -306,6 +318,7 @@ export function ProfilePage() {
         mobile,
         officeEmail,
         officeAddress,
+        bio,
         officeHours: schedule,
       });
       const { data } = await api.put<LawyerState>("/lawyer/profile", body);
@@ -337,9 +350,10 @@ export function ProfilePage() {
   const selectCls = "rounded-lg border border-[#d9b8c4] bg-[#fdf9fb] px-2.5 py-1.5 text-xs text-[#241715] outline-none focus:border-[#703d57] focus:bg-white transition appearance-none";
 
   const TABS: { key: Tab; label: string }[] = [
-    { key: "profile", label: "Professional Profile" },
-    { key: "account", label: "Account & Security" },
-    { key: "hours",   label: "Office Hours" },
+    { key: "profile",  label: "Professional Profile" },
+    { key: "account",  label: "Account & Security" },
+    { key: "hours",    label: "Office Hours" },
+    { key: "location", label: "Office Location" },
   ];
 
   return (
@@ -462,6 +476,16 @@ export function ProfilePage() {
               <div><label className={labelCls}>Office Phone</label><input className={inputCls} value={officePhone} onChange={(e) => setOfficePhone(e.target.value)} placeholder="+63 32 XXX XXXX" /></div>
               <div className="col-span-2"><label className={labelCls}>Office Email</label><input className={inputCls} value={officeEmail} onChange={(e) => setOfficeEmail(e.target.value)} /></div>
               <div className="col-span-2"><label className={labelCls}>Office Address</label><textarea className={inputCls + " resize-none"} rows={2} value={officeAddress} onChange={(e) => setOfficeAddress(e.target.value)} placeholder="Unit, Building, Street, Barangay, City, Province" /></div>
+              <div className="col-span-2">
+                <label className={labelCls}>Bio / About</label>
+                <textarea
+                  className={inputCls + " resize-none"}
+                  rows={4}
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="Write a short bio that clients will see on your profile, e.g. areas of expertise, years of experience, approach to clients."
+                />
+              </div>
             </div>
           </div>
 
@@ -610,6 +634,47 @@ export function ProfilePage() {
               className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#703d57] text-sm font-semibold text-white hover:bg-[#5a3046] transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {hoursSaved ? <><Check className="h-4 w-4" /> Saved!</> : hoursSaving ? "Saving…" : "Save office hours"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Tab: Office Location ── */}
+      {tab === "location" && (
+        <div className="space-y-5 pb-8">
+          <div className="rounded-2xl border border-[#d9b8c4]/40 bg-white p-6">
+            <h2 className="text-sm font-semibold text-[#241715] mb-1 pb-3 border-b border-[#d9b8c4]/30">
+              Office Location on Map
+            </h2>
+            <p className="text-xs text-[#957186] mt-3 mb-4">
+              Pin your office location so clients can find you on the map in the CLAiR mobile app.
+              Search your address or use "My location", then click the map or drag the pin to fine-tune.
+            </p>
+            <LocationPicker
+              lat={latitude}
+              lng={longitude}
+              onChange={(lat, lng) => { setLatitude(lat); setLongitude(lng); }}
+            />
+          </div>
+
+          {saveMsg && (
+            <div className="rounded-xl px-4 py-3 text-sm bg-emerald-50 border border-emerald-200 text-emerald-700">
+              {saveMsg}
+            </div>
+          )}
+          {saveError && (
+            <div className="rounded-xl px-4 py-3 text-sm bg-red-50 border border-red-200 text-red-700">
+              {saveError}
+            </div>
+          )}
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => void saveProfile()}
+              disabled={saving || !lawyerState}
+              className="px-6 py-2.5 rounded-xl bg-[#703d57] text-sm font-semibold text-white hover:bg-[#5a3046] disabled:opacity-60 transition"
+            >
+              {saving ? "Saving…" : "Save location"}
             </button>
           </div>
         </div>
