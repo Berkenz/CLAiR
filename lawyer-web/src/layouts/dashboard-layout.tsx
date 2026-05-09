@@ -5,15 +5,18 @@ import { auth } from "@/lib/firebase";
 import { useAuth } from "@/features/auth/auth-provider";
 import { cn } from "@/lib/cn";
 import {
-  LayoutDashboard, FolderOpen, LogOut, Menu, X,
-  Scale, ChevronRight, Sparkles, MessageSquare,
+  LayoutDashboard, Briefcase, CalendarDays, CalendarRange,
+  FolderOpen, LogOut, Menu, X, Scale, ChevronRight, Sparkles, MessageSquare,
 } from "lucide-react";
 
 const navItems = [
-  { to: "/",               label: "Home",                icon: LayoutDashboard },
-  { to: "/conversations",  label: "Client Convos",       icon: MessageSquare   },
-  { to: "/documents",      label: "Documents",           icon: FolderOpen      },
-  { to: "/ai-assessment",  label: "AI Assessment",       icon: Sparkles        },
+  { to: "/",               label: "Home",           icon: LayoutDashboard },
+  { to: "/cases",          label: "Cases",          icon: Briefcase },
+  { to: "/appointments",   label: "Appointments",   icon: CalendarDays },
+  { to: "/availability",   label: "Availability",   icon: CalendarRange },
+  { to: "/conversations",  label: "Client Convos",  icon: MessageSquare },
+  { to: "/documents",      label: "Documents",        icon: FolderOpen },
+  { to: "/ai-assessment",  label: "AI Assessment",    icon: Sparkles },
 ];
 
 export function DashboardLayout() {

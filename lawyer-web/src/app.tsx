@@ -6,6 +6,9 @@ import { LoginPage } from "@/features/auth/pages/login-page";
 import { ChangePasswordPage } from "@/features/auth/pages/change-password-page";
 import { ProfileSetupPage } from "@/features/profile-setup/pages/profile-setup-page";
 import { DashboardPage } from "@/features/dashboard/pages/dashboard-page";
+import { CasesPage } from "@/features/cases/pages/cases-page";
+import { AppointmentsPage } from "@/features/appointments/pages/appointments-page";
+import { AvailabilityCalendarPage } from "@/features/availability/pages/availability-calendar-page";
 import { ConversationsPage } from "@/features/conversations/pages/conversations-page";
 import { DocumentsPage } from "@/features/documents/pages/documents-page";
 import { ProfilePage } from "@/features/profile/pages/profile-page";
@@ -72,9 +75,11 @@ export function App() {
       <Route path="/change-password" element={<ChangePasswordRoute><ChangePasswordPage /></ChangePasswordRoute>} />
       <Route path="/profile-setup"   element={<ProfileSetupRoute><ProfileSetupPage /></ProfileSetupRoute>} />
 
-      {/* Dashboard — simplified nav (merged from origin/rhanz) */}
       <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
         <Route path="/"               element={<DashboardPage />} />
+        <Route path="/cases"          element={<CasesPage />} />
+        <Route path="/appointments"   element={<AppointmentsPage />} />
+        <Route path="/availability"   element={<AvailabilityCalendarPage />} />
         <Route path="/conversations"  element={<ConversationsPage />} />
         <Route path="/documents"      element={<DocumentsPage />} />
         <Route path="/ai-assessment"  element={<AiAssessmentPage />} />
