@@ -5,18 +5,15 @@ import { auth } from "@/lib/firebase";
 import { useAuth } from "@/features/auth/auth-provider";
 import { cn } from "@/lib/cn";
 import {
-  LayoutDashboard, Briefcase, CalendarDays,
-  FolderOpen, LogOut, Menu, X, Scale, ChevronRight,
-  Sparkles, CalendarRange,
+  LayoutDashboard, FolderOpen, LogOut, Menu, X,
+  Scale, ChevronRight, Sparkles, MessageSquare,
 } from "lucide-react";
 
 const navItems = [
-  { to: "/",                  label: "Home",         icon: LayoutDashboard },
-  { to: "/cases",             label: "Cases",        icon: Briefcase },
-  { to: "/appointments",      label: "Appointments", icon: CalendarDays },
-  { to: "/availability",      label: "Availability", icon: CalendarRange },
-  { to: "/documents",         label: "Documents",    icon: FolderOpen },
-  { to: "/ai-assessment",     label: "AI Assessment",icon: Sparkles },
+  { to: "/",               label: "Home",                icon: LayoutDashboard },
+  { to: "/conversations",  label: "Client Convos",       icon: MessageSquare   },
+  { to: "/documents",      label: "Documents",           icon: FolderOpen      },
+  { to: "/ai-assessment",  label: "AI Assessment",       icon: Sparkles        },
 ];
 
 export function DashboardLayout() {
@@ -55,7 +52,6 @@ export function DashboardLayout() {
         "bg-[#241715]",
         sidebarOpen ? "translate-x-0" : "-translate-x-full",
       )}>
-        {/* Logo */}
         <div className="flex h-16 items-center gap-2.5 px-5 border-b border-white/10">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#703d57]">
             <Scale className="h-4 w-4 text-white" />
@@ -66,7 +62,6 @@ export function DashboardLayout() {
           </button>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 space-y-0.5 px-3 py-5 overflow-y-auto">
           {navItems.map(({ to, label, icon: Icon }) => (
             <NavLink
@@ -87,7 +82,6 @@ export function DashboardLayout() {
           ))}
         </nav>
 
-        {/* User + Sign out */}
         <div className="border-t border-white/10 p-3 space-y-1">
           <NavLink
             to="/profile"
@@ -124,7 +118,6 @@ export function DashboardLayout() {
           </button>
           <span className="text-lg font-semibold text-[#241715]">CLAiR</span>
         </header>
-
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           <Outlet />
         </main>

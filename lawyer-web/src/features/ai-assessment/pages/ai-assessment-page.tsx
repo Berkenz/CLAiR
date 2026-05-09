@@ -1,4 +1,5 @@
-﻿import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Sparkles, MessageSquare, ThumbsUp, Flag, Send, Plus,
   X, AlertTriangle, Check, Bot, User, Pin, RefreshCw,
@@ -128,7 +129,16 @@ const REPORT_ISSUES = [
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function AiAssessmentPage() {
-  const [activeTab, setActiveTab] = useState<Tab>("chat");
+  const [searchParams] = useSearchParams();
+  const initialTab = (searchParams.get("tab") as Tab) ?? "chat";
+  const [activeTab, setActiveTab] = useState<Tab>(
+    initialTab === "assessment" ? "assessment" : "chat",
+  );
+
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t === "assessment" || t === "chat") setActiveTab(t);
+  }, [searchParams]);
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
