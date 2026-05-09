@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -44,6 +44,7 @@ class LawyerProfile(Base):
     mobile_phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
     office_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     office_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    office_hours: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     must_change_password: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False, server_default="true"
     )

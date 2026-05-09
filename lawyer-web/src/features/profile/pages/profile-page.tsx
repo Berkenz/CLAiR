@@ -6,7 +6,7 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { useAuth, type LawyerState } from "@/features/auth/auth-provider";
 import { buildLawyerProfileUpdateBody } from "@/features/lawyer/profile-update-body";
 import { cn } from "@/lib/cn";
-import { Check, Camera, X, Plus } from "lucide-react";
+import { Check, Camera } from "lucide-react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -84,7 +84,7 @@ export function ProfilePage() {
   const [practiceAreaOptions, setPracticeAreaOptions] = useState<string[]>(FALLBACK_PRACTICE_AREAS);
   const [designationOptions, setDesignationOptions] = useState<string[]>(FALLBACK_DESIGNATIONS);
 
-  // Profile fields — name & practice areas sync to the CLAiR API; office hours UI is local until backend supports them.
+  // Profile fields — name & practice areas sync to the CLAiR API
   const [firstName, setFirstName] = useState("");
   const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -112,9 +112,11 @@ export function ProfilePage() {
   const [accountMsg, setAccountMsg] = useState("");
   const [accountError, setAccountError] = useState("");
 
-  // Office hours (UI state; persist via API when backend supports it)
+  // Office hours — persisted to the backend via PUT /lawyer/profile
   const [schedule, setSchedule] = useState<Schedule>(JSON.parse(JSON.stringify(STANDARD_SCHEDULE)));
   const [hoursSaved, setHoursSaved] = useState(false);
+  const [hoursSaving, setHoursSaving] = useState(false);
+  const [hoursError, setHoursError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -158,6 +160,9 @@ export function ProfilePage() {
     setMobile(p.mobile_phone ?? "");
     setOfficeEmail(p.office_email ?? "");
     setOfficeAddress(p.office_address ?? "");
+    if (p.office_hours) {
+      setSchedule(p.office_hours as Schedule);
+    }
   }, [lawyerState]);
 
   useEffect(() => {
@@ -264,20 +269,6 @@ export function ProfilePage() {
       return next;
     });
   }
-  function addRange(day: string) {
-    setSchedule((prev) => {
-      const next = JSON.parse(JSON.stringify(prev));
-      next[day].ranges.push(defaultRange());
-      return next;
-    });
-  }
-  function removeRange(day: string, id: string) {
-    setSchedule((prev) => {
-      const next = JSON.parse(JSON.stringify(prev));
-      next[day].ranges = next[day].ranges.filter((r: TimeRange) => r.id !== id);
-      return next;
-    });
-  }
   function applyAll(day: string) {
     const source = schedule[day].ranges[0];
     if (!source) return;
@@ -292,9 +283,40 @@ export function ProfilePage() {
       return next;
     });
   }
-  function saveHours() {
-    setHoursSaved(true);
-    setTimeout(() => setHoursSaved(false), 2500);
+  async function saveHours() {
+    setHoursError("");
+    setHoursSaving(true);
+    try {
+      const body = buildLawyerProfileUpdateBody({
+        firstName,
+        middleName,
+        lastName,
+        suffix,
+        displayName,
+        designation,
+        practiceAreas,
+        ibpRoll,
+        yearAdmitted,
+        ibpChapter,
+        ptrNumber,
+        mcleNumber,
+        lawSchool,
+        firmName,
+        officePhone,
+        mobile,
+        officeEmail,
+        officeAddress,
+        officeHours: schedule,
+      });
+      const { data } = await api.put<LawyerState>("/lawyer/profile", body);
+      setLawyerState(data);
+      setHoursSaved(true);
+      setTimeout(() => setHoursSaved(false), 2500);
+    } catch (err) {
+      setHoursError(getApiErrorMessage(err, "Could not save office hours. Please try again."));
+    } finally {
+      setHoursSaving(false);
+    }
   }
 
   const initials =
@@ -530,9 +552,6 @@ export function ProfilePage() {
                     <div key={key} className="space-y-2">
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-bold text-[#241715] w-24">{label}</span>
-                        <button onClick={() => addRange(key)} className="text-xs text-[#703d57] font-semibold hover:underline flex items-center gap-0.5">
-                          <Plus className="h-3 w-3" />hours
-                        </button>
                         <button onClick={() => applyAll(key)} className="text-xs text-[#957186] hover:text-[#703d57] hover:underline transition-colors">
                           Apply All
                         </button>
@@ -547,11 +566,6 @@ export function ProfilePage() {
                             <select value={range.end} onChange={(e) => updateRange(key, range.id, "end", e.target.value)} className={selectCls}>
                               {HALF_HOURS.map((t) => <option key={t}>{t}</option>)}
                             </select>
-                            {schedule[key].ranges.length > 1 && (
-                              <button onClick={() => removeRange(key, range.id)} className="p-1 rounded-lg text-gray-300 hover:text-red-400 transition">
-                                <X className="h-3.5 w-3.5" />
-                              </button>
-                            )}
                           </div>
                         ))}
                       </div>
@@ -588,9 +602,14 @@ export function ProfilePage() {
             </div>
           </div>
 
-          <div className="flex justify-end">
-            <button onClick={saveHours} className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#703d57] text-sm font-semibold text-white hover:bg-[#5a3046] transition">
-              {hoursSaved ? <><Check className="h-4 w-4" /> Saved!</> : "Save office hours"}
+          <div className="flex flex-col items-end gap-2">
+            {hoursError && <p className="text-xs text-red-500">{hoursError}</p>}
+            <button
+              onClick={saveHours}
+              disabled={hoursSaving || !lawyerState}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#703d57] text-sm font-semibold text-white hover:bg-[#5a3046] transition disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {hoursSaved ? <><Check className="h-4 w-4" /> Saved!</> : hoursSaving ? "Saving…" : "Save office hours"}
             </button>
           </div>
         </div>

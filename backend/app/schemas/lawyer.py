@@ -81,6 +81,7 @@ class LawyerProfileUpdate(BaseModel):
     mobile_phone: str | None = None
     office_email: str | None = None
     office_address: str | None = None
+    office_hours: dict | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -136,6 +137,7 @@ class LawyerProfileResponse(BaseModel):
     mobile_phone: str | None = None
     office_email: str | None = None
     office_address: str | None = None
+    office_hours: dict | None = None
     must_change_password: bool
     is_profile_complete: bool
     created_at: datetime

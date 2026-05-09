@@ -75,6 +75,8 @@ class LawyerService:
         profile.mobile_phone = data.mobile_phone
         profile.office_email = data.office_email
         profile.office_address = data.office_address
+        if data.office_hours is not None:
+            profile.office_hours = data.office_hours
 
         def _filled(s: str | None) -> bool:
             return bool(s and str(s).strip())

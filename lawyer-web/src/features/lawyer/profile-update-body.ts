@@ -1,4 +1,10 @@
 /** Request body for `PUT /lawyer/profile` (matches backend `LawyerProfileUpdate`). */
+
+type OfficeHoursSchedule = Record<
+  string,
+  { enabled: boolean; ranges: { id: string; start: string; end: string }[] }
+>;
+
 export interface LawyerProfileUpdateBody {
   first_name: string;
   last_name: string;
@@ -18,6 +24,7 @@ export interface LawyerProfileUpdateBody {
   mobile_phone?: string | null;
   office_email?: string | null;
   office_address?: string | null;
+  office_hours?: OfficeHoursSchedule | null;
 }
 
 function emptyToNull(s: string): string | null {
@@ -44,6 +51,7 @@ export function buildLawyerProfileUpdateBody(input: {
   mobile: string;
   officeEmail: string;
   officeAddress: string;
+  officeHours?: OfficeHoursSchedule | null;
 }): LawyerProfileUpdateBody {
   const fn = input.firstName.trim();
   const ln = input.lastName.trim();
@@ -70,5 +78,6 @@ export function buildLawyerProfileUpdateBody(input: {
     mobile_phone: emptyToNull(input.mobile),
     office_email: emptyToNull(input.officeEmail),
     office_address: emptyToNull(input.officeAddress),
+    office_hours: input.officeHours ?? null,
   };
 }
