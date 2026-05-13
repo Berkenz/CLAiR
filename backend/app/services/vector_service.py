@@ -1,12 +1,13 @@
 """
 RAG retrieval service.
 
-Embeds the user's query with Gemini text-embedding-004, then performs a
-cosine-similarity search against the law_chunks table in Supabase (pgvector).
+Embeds the user's query by calling the embed microservice running on the
+Google Cloud VM (EMBED_SERVICE_URL), then performs a cosine-similarity search
+against the law_chunks table (pgvector).
 
-Graceful degradation: if SUPABASE_DB_URL or GEMINI_API_KEY is not configured,
-or if the DB is unreachable, get_relevant_chunks() returns [] so the chatbot
-continues to work without RAG context.
+Graceful degradation: if SUPABASE_DB_URL or EMBED_SERVICE_URL is not set,
+or if either service is unreachable, get_relevant_chunks() returns [] so the
+chatbot continues to work without RAG context.
 """
 
 from __future__ import annotations
@@ -14,13 +15,14 @@ from __future__ import annotations
 import logging
 
 import asyncpg
-from google.genai import Client, types
+import httpx
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 _pool: asyncpg.Pool | None = None
+_http: httpx.AsyncClient | None = None
 
 # Retrieve 3 chunks — enough to ground the answer without burning token budget.
 _TOP_K = 3
@@ -34,7 +36,7 @@ _MAX_CHUNK_WORDS = 250
 
 
 async def _get_pool() -> asyncpg.Pool | None:
-    """Return (and lazily create) the asyncpg connection pool to Supabase."""
+    """Return (and lazily create) the asyncpg connection pool."""
     global _pool
 
     if not settings.SUPABASE_DB_URL:
@@ -44,44 +46,39 @@ async def _get_pool() -> asyncpg.Pool | None:
         try:
             _pool = await asyncpg.create_pool(
                 settings.SUPABASE_DB_URL,
-                ssl="require",
+                ssl=False,
                 min_size=1,
                 max_size=5,
                 command_timeout=10,
             )
-            logger.info("pgvector pool connected to Supabase")
+            logger.info("pgvector pool connected")
         except Exception:
-            logger.exception("Could not connect to Supabase for pgvector — RAG disabled")
+            logger.exception("Could not connect to pgvector DB — RAG disabled")
             return None
 
     return _pool
 
 
-_gemini_client: Client | None = None
-
-
-def _get_gemini() -> Client | None:
-    global _gemini_client
-    if not settings.GEMINI_API_KEY:
-        return None
-    if _gemini_client is None:
-        _gemini_client = Client(api_key=settings.GEMINI_API_KEY)
-    return _gemini_client
+def _get_http() -> httpx.AsyncClient:
+    global _http
+    if _http is None:
+        _http = httpx.AsyncClient(timeout=10.0)
+    return _http
 
 
 async def _embed(text: str) -> list[float] | None:
-    """Return 768-dimensional Gemini embedding for *text*, or None on error."""
-    client = _get_gemini()
-    if client is None:
+    """Call the embed microservice on the VM and return a 768-dim vector."""
+    if not settings.EMBED_SERVICE_URL:
         return None
     try:
-        result = await client.aio.models.embed_content(
-            model="models/gemini-embedding-001",
-            contents=text,
+        resp = await _get_http().post(
+            f"{settings.EMBED_SERVICE_URL}/embed",
+            json={"text": text},
         )
-        return list(result.embeddings[0].values)
+        resp.raise_for_status()
+        return resp.json()["embedding"]
     except Exception:
-        logger.exception("Gemini embedding failed")
+        logger.exception("Embed service call failed")
         return None
 
 

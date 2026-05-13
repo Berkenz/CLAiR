@@ -7,6 +7,7 @@ Usage:
     python ingest.py --category ra      # only Republic Acts
     python ingest.py --limit 10         # test run (10 files per category)
     python ingest.py --dry-run          # count chunks without inserting
+    python ingest.py --stats            # expected vs DB chunks (how many left)
 
 Prerequisites:
     pip install -r requirements.txt
@@ -24,12 +25,11 @@ import asyncio
 import json
 import logging
 import os
-import time
 from pathlib import Path
 
 import asyncpg
 from dotenv import load_dotenv
-from google.genai import Client, types
+from sentence_transformers import SentenceTransformer
 
 # ── env setup ────────────────────────────────────────────────────────────────
 
@@ -37,7 +37,6 @@ _REPO_ROOT = Path(__file__).parent.parent
 load_dotenv(_REPO_ROOT / "backend" / ".env")
 
 SUPABASE_DB_URL: str = os.environ["SUPABASE_DB_URL"]
-GEMINI_API_KEY: str = os.environ["GEMINI_API_KEY"]
 
 # ── constants ─────────────────────────────────────────────────────────────────
 
@@ -59,7 +58,7 @@ MIN_CHUNK_WORDS = 60  # discard tiny trailing chunks
 
 # Gemini free-tier embedding: ~1 500 req/min → 0.04 s/req minimum.
 # 0.5 s gives comfortable headroom and avoids 429 errors.
-EMBED_DELAY_SECONDS = 0.5
+EMBED_DELAY_SECONDS = 0.1
 
 logging.basicConfig(
     level=logging.INFO,
@@ -82,14 +81,77 @@ def chunk_text(text: str) -> list[str]:
     return chunks
 
 
+def _expected_chunks_for_law(law: dict) -> int:
+    full_text = (law.get("full_text") or "").strip()
+    if not full_text:
+        return 0
+    return len(chunk_text(full_text))
+
+
+def scan_expected_chunks(folder_name: str) -> tuple[int, int, int]:
+    """
+    Walk *folder_name* under DATA_DIR.
+
+    Returns (json_files_seen, files_with_text, expected_chunk_count).
+    """
+    cat_dir = DATA_DIR / folder_name
+    if not cat_dir.exists():
+        return 0, 0, 0
+    paths = sorted(p for p in cat_dir.glob("*.json") if p.name != ".gitkeep")
+    files_seen = len(paths)
+    with_text = 0
+    chunks_total = 0
+    for path in paths:
+        try:
+            law = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        n = _expected_chunks_for_law(law)
+        if n:
+            with_text += 1
+        chunks_total += n
+    return files_seen, with_text, chunks_total
+
+
+async def print_ingestion_stats(category_keys: list[str]) -> None:
+    """Print expected chunk counts from disk vs rows in law_chunks (per category)."""
+    conn = await asyncpg.connect(SUPABASE_DB_URL, ssl=False)
+    rows = await conn.fetch(
+        """
+        SELECT category, COUNT(*)::bigint AS n
+        FROM law_chunks
+        GROUP BY category
+        ORDER BY category
+        """
+    )
+    await conn.close()
+    db_by_cat: dict[str, int] = {r["category"]: int(r["n"]) for r in rows}
+
+    print("\nIngestion progress (expected from JSON vs rows in DB)\n")
+    hdr = f"{'Category':<28} {'Files':>7} {'w/text':>7} {'Expected':>10} {'In DB':>10} {'Left':>10}"
+    print(hdr)
+    print("-" * len(hdr))
+
+    sum_exp = sum_db = 0
+    for key in category_keys:
+        folder = CATEGORIES[key]
+        files_seen, with_text, expected = scan_expected_chunks(folder)
+        in_db = int(db_by_cat.get(folder, 0))
+        left = max(0, expected - in_db)
+        sum_exp += expected
+        sum_db += in_db
+        print(
+            f"{folder:<28} {files_seen:>7} {with_text:>7} {expected:>10} {in_db:>10} {left:>10}"
+        )
+
+    print("-" * len(hdr))
+    print(f"{'TOTAL':<28} {'':>7} {'':>7} {sum_exp:>10} {sum_db:>10} {max(0, sum_exp - sum_db):>10}\n")
+
+
 # ── embedding ─────────────────────────────────────────────────────────────────
 
-async def embed_text(client: Client, text: str) -> list[float]:
-    result = await client.aio.models.embed_content(
-        model="models/gemini-embedding-001",
-        contents=text,
-    )
-    return list(result.embeddings[0].values)
+def embed_text(model: SentenceTransformer, text: str) -> list[float]:
+    return model.encode(text, normalize_embeddings=True).tolist()
 
 
 # ── ingestion ─────────────────────────────────────────────────────────────────
@@ -98,10 +160,12 @@ async def ingest(
     category_keys: list[str],
     limit: int | None,
     dry_run: bool,
+    newest: bool = False,
 ) -> None:
-    log.info("Connecting to Supabase …")
-    conn = await asyncpg.connect(SUPABASE_DB_URL, ssl="require")
-    gemini = Client(api_key=GEMINI_API_KEY)
+    log.info("Loading embedding model …")
+    model = SentenceTransformer("all-mpnet-base-v2")
+    log.info("Connecting to database …")
+    conn = await asyncpg.connect(SUPABASE_DB_URL, ssl=False)
 
     existing_ids: set[str] = {
         row["id"] for row in await conn.fetch("SELECT id FROM law_chunks")
@@ -121,6 +185,14 @@ async def ingest(
 
         json_files = sorted(cat_dir.glob("*.json"))
         if limit:
+            if newest:
+                # Sort by date_enacted inside the JSON, newest first
+                def _get_date(p: Path) -> str:
+                    try:
+                        return json.loads(p.read_text(encoding="utf-8")).get("date_enacted") or ""
+                    except Exception:
+                        return ""
+                json_files = sorted(json_files, key=_get_date, reverse=True)
             json_files = json_files[:limit]
 
         log.info("\n%s (%s): %d files to process", folder_name, key, len(json_files))
@@ -162,7 +234,7 @@ async def ingest(
                     continue
 
                 try:
-                    embedding = await embed_text(gemini, text_to_embed)
+                    embedding = embed_text(model, text_to_embed)
                 except Exception as exc:
                     log.error("  Embedding failed for %s: %s", chunk_id, exc)
                     continue
@@ -193,7 +265,6 @@ async def ingest(
                 if total_inserted % 50 == 0:
                     log.info("  … %d chunks inserted so far", total_inserted)
 
-                time.sleep(EMBED_DELAY_SECONDS)
 
     await conn.close()
 
@@ -226,9 +297,23 @@ def main() -> None:
         action="store_true",
         help="Count chunks without calling the embedding API or writing to DB",
     )
+    parser.add_argument(
+        "--newest",
+        action="store_true",
+        help="When used with --limit, pick the most recently enacted files instead of alphabetical",
+    )
+    parser.add_argument(
+        "--stats",
+        action="store_true",
+        help="Scan JSON folders and compare expected chunk counts to DB (no model, no writes)",
+    )
     args = parser.parse_args()
 
-    asyncio.run(ingest(args.category, args.limit, args.dry_run))
+    if args.stats:
+        asyncio.run(print_ingestion_stats(args.category))
+        return
+
+    asyncio.run(ingest(args.category, args.limit, args.dry_run, args.newest))
 
 
 if __name__ == "__main__":
