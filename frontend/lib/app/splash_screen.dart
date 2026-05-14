@@ -51,14 +51,22 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     _controller = VideoPlayerController.asset('assets/images/1.mp4')
       ..setVolume(0)
-      ..setLooping(false)
-      ..initialize().then((_) {
+      ..setLooping(false);
+    _controller.initialize().then((_) {
+      if (!mounted) return;
+      setState(() {});
+      _controller.play();
+      _fadeCtrl.forward();
+      _controller.addListener(_onProgress);
+    }).catchError((Object _, StackTrace __) {
+      // Hot reload / missing asset in build: still leave splash without crashing.
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        setState(() {});
-        _controller.play();
         _fadeCtrl.forward();
-        _controller.addListener(_onProgress);
+        _navigate();
       });
+    });
 
     Future.delayed(_maxDuration, _navigate);
   }

@@ -73,6 +73,41 @@ class NotificationInboxNotifier extends StateNotifier<NotificationInboxState> {
     await refresh();
   }
 
+  /// Marks unread inbox rows whose payload matches [appointmentId] (e.g. after
+  /// opening that appointment from the list).
+  Future<void> markReadForAppointment(String appointmentId) async {
+    final id = appointmentId.trim();
+    if (id.isEmpty) return;
+
+    List<String> unreadIdsForAppt() {
+      return state.notifications
+          .where(
+            (n) =>
+                !n.isRead &&
+                n.appointmentId != null &&
+                n.appointmentId == id,
+          )
+          .map((n) => n.id)
+          .toList();
+    }
+
+    var ids = unreadIdsForAppt();
+    if (ids.isEmpty) {
+      await refresh();
+      ids = unreadIdsForAppt();
+    }
+    if (ids.isEmpty) return;
+
+    for (final nid in ids) {
+      try {
+        await _remote.markRead(nid);
+      } catch (_) {
+        // One failure should not block the rest.
+      }
+    }
+    await refresh();
+  }
+
   void clearError() => state = state.copyWith(error: null);
 }
 

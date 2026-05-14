@@ -9,6 +9,7 @@ import 'package:clair/features/appointments/domain/entities/appointment_entity.d
 import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
 import 'package:clair/features/appointments/presentation/providers/direct_message_provider.dart';
 import 'package:clair/features/appointments/presentation/screens/appointment_detail_screen.dart';
+import 'package:clair/features/appointments/presentation/screens/lawyer_chat_screen.dart';
 import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
@@ -34,8 +35,104 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(
-        () => ref.read(appointmentProvider.notifier).loadAppointments());
+    Future.microtask(() async {
+      await ref.read(appointmentProvider.notifier).loadAppointments();
+      if (!mounted) return;
+      _processPendingNotificationRoutes(ref.read(appointmentProvider));
+    });
+  }
+
+  /// Opens chat or appointment detail when user tapped a matching inbox notification.
+  void _processPendingNotificationRoutes(AppointmentState next) {
+    if (next.isLoading) return;
+
+    final chatPending = ref.read(pendingLawyerChatAppointmentIdProvider);
+    if (chatPending != null) {
+      AppointmentEntity? foundChat;
+      for (final a in next.appointments) {
+        if (a.id == chatPending) {
+          foundChat = a;
+          break;
+        }
+      }
+      ref.read(pendingLawyerChatAppointmentIdProvider.notifier).state = null;
+      if (foundChat != null) {
+        final appt = foundChat;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (appt.canStartLawyerChat) {
+            Navigator.of(context).push<void>(
+              MaterialPageRoute(
+                builder: (_) => LawyerChatScreen(appointment: appt),
+              ),
+            );
+          } else {
+            Navigator.of(context)
+                .push<bool>(
+              MaterialPageRoute(
+                builder: (_) => AppointmentDetailScreen(appointment: appt),
+              ),
+            )
+                .then((changed) {
+              if (changed == true && mounted) {
+                ref
+                    .read(appointmentProvider.notifier)
+                    .loadAppointments(force: true);
+              }
+            });
+          }
+        });
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.apptNotFoundSnackbar),
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+        });
+      }
+      return;
+    }
+
+    final pending = ref.read(pendingAppointmentDetailIdProvider);
+    if (pending == null) return;
+
+    AppointmentEntity? found;
+    for (final a in next.appointments) {
+      if (a.id == pending) {
+        found = a;
+        break;
+      }
+    }
+    ref.read(pendingAppointmentDetailIdProvider.notifier).state = null;
+    if (found != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context)
+            .push<bool>(
+          MaterialPageRoute(
+            builder: (_) => AppointmentDetailScreen(appointment: found!),
+          ),
+        )
+            .then((changed) {
+          if (changed == true && mounted) {
+            ref.read(appointmentProvider.notifier).loadAppointments(force: true);
+          }
+        });
+      });
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.apptNotFoundSnackbar),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      });
+    }
   }
 
   @override
@@ -57,45 +154,7 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
         ref.read(appointmentProvider.notifier).clearError();
       }
 
-      final pending = ref.read(pendingAppointmentDetailIdProvider);
-      if (pending == null || next.isLoading) return;
-
-      AppointmentEntity? found;
-      for (final a in next.appointments) {
-        if (a.id == pending) {
-          found = a;
-          break;
-        }
-      }
-      ref.read(pendingAppointmentDetailIdProvider.notifier).state = null;
-      if (found != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          Navigator.of(context)
-              .push<bool>(
-            MaterialPageRoute(
-              builder: (_) => AppointmentDetailScreen(appointment: found!),
-            ),
-          )
-              .then((changed) {
-            if (changed == true && mounted) {
-              ref
-                  .read(appointmentProvider.notifier)
-                  .loadAppointments(force: true);
-            }
-          });
-        });
-      } else {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(AppLocalizations.of(context)!.apptNotFoundSnackbar),
-              backgroundColor: Colors.red.shade700,
-            ),
-          );
-        });
-      }
+      _processPendingNotificationRoutes(next);
     });
 
     final state = ref.watch(appointmentProvider);
@@ -775,143 +834,162 @@ class _AppointmentCardState extends ConsumerState<_AppointmentCard> {
                 ),
               ],
             ),
-            child: IntrinsicHeight(
-              child: Row(
-                children: [
-                  // Colored status strip
-                  Container(
-                    width: 4,
-                    constraints: const BoxConstraints(minHeight: 80),
-                    decoration: BoxDecoration(
-                      color: muted
-                          ? statusColor.withValues(alpha: 0.3)
-                          : statusColor,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(16),
-                        bottomLeft: Radius.circular(16),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        appointment.displayCaseTitle,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                          color: muted
+                                              ? cl.textDark
+                                                  .withValues(alpha: 0.45)
+                                              : cl.textDark,
+                                          fontFamily: 'Satoshi',
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        appointment.displayLawyerName,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: muted
+                                              ? cl.textMid
+                                                  .withValues(alpha: 0.55)
+                                              : cl.textMid,
+                                          fontFamily: 'Satoshi',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    Text(
-                                      appointment.displayCaseTitle,
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700,
-                                        color: muted
-                                            ? cl.textDark.withValues(alpha: 0.45)
-                                            : cl.textDark,
-                                        fontFamily: 'Satoshi',
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      appointment.displayLawyerName,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: muted
-                                            ? cl.textMid.withValues(alpha: 0.55)
-                                            : cl.textMid,
-                                        fontFamily: 'Satoshi',
-                                      ),
-                                    ),
+                                    _StatusPill(
+                                        appointment: appointment,
+                                        muted: muted),
+                                    if (isNew && !muted) ...[
+                                      const SizedBox(height: 4),
+                                      _NewBadge(l10n: l10n),
+                                    ],
                                   ],
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  _StatusPill(
-                                      appointment: appointment, muted: muted),
-                                  if (isNew && !muted) ...[
-                                    const SizedBox(height: 4),
-                                    _NewBadge(l10n: l10n),
-                                  ],
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.schedule_outlined,
-                                size: 12,
-                                color: cl.textLight,
-                              ),
-                              const SizedBox(width: 5),
-                              Expanded(
-                                child: Text(
-                                  bookedLine,
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.schedule_outlined,
+                                  size: 12,
+                                  color: cl.textLight,
+                                ),
+                                const SizedBox(width: 5),
+                                Expanded(
+                                  child: Text(
+                                    bookedLine,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: muted
+                                          ? cl.textMid
+                                              .withValues(alpha: 0.55)
+                                          : cl.textMid,
+                                      fontFamily: 'Satoshi',
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  appointment.appointmentType
+                                              .toLowerCase()
+                                              .contains('online') ||
+                                          appointment.appointmentType
+                                              .toLowerCase()
+                                              .contains('video')
+                                      ? Icons.videocam_outlined
+                                      : Icons.place_outlined,
+                                  size: 12,
+                                  color: cl.textLight,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  appointment.appointmentType,
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 11,
                                     color: muted
-                                        ? cl.textMid.withValues(alpha: 0.55)
-                                        : cl.textMid,
+                                        ? cl.textLight
+                                            .withValues(alpha: 0.55)
+                                        : cl.textLight,
                                     fontFamily: 'Satoshi',
                                   ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                              if (!muted && appointment.canStartLawyerChat)
-                                _ChatBadge(l10n: l10n),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Icon(
-                                appointment.appointmentType
-                                            .toLowerCase()
-                                            .contains('online') ||
-                                        appointment.appointmentType
-                                            .toLowerCase()
-                                            .contains('video')
-                                    ? Icons.videocam_outlined
-                                    : Icons.place_outlined,
-                                size: 12,
-                                color: cl.textLight,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                appointment.appointmentType,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: muted
-                                      ? cl.textLight.withValues(alpha: 0.55)
-                                      : cl.textLight,
-                                  fontFamily: 'Satoshi',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.center,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: Icon(Icons.chevron_right_rounded,
+                            size: 20, color: cl.textLight),
+                      ),
+                    ),
+                  ],
+                ),
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 4,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: muted
+                            ? statusColor.withValues(alpha: 0.3)
+                            : statusColor,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          bottomLeft: Radius.circular(16),
+                        ),
                       ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: Icon(Icons.chevron_right_rounded,
-                        size: 20, color: cl.textLight),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           // DM unread count badge — top-right corner of the card.
@@ -952,34 +1030,6 @@ class _AppointmentCardState extends ConsumerState<_AppointmentCard> {
       'cancelled' => const Color(0xFFD63031),
       _ => const Color(0xFF6B7280),
     };
-  }
-}
-
-// ── Chat affordance badge ─────────────────────────────────────────────────────
-
-class _ChatBadge extends StatelessWidget {
-  const _ChatBadge({required this.l10n});
-  final AppLocalizations l10n;
-
-  @override
-  Widget build(BuildContext context) {
-    final cl = context.c;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: cl.accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: cl.accent.withValues(alpha: 0.35)),
-      ),
-      child: Text(
-        l10n.apptCardChat,
-        style: GoogleFonts.nunito(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: cl.accent,
-        ),
-      ),
-    );
   }
 }
 

@@ -171,13 +171,22 @@ class _NotificationBody extends ConsumerWidget {
     if (!context.mounted) return;
 
     final apptId = n.appointmentId;
+    if (apptId != null && n.notificationType == 'new_direct_message') {
+      ref.read(mainShellTabProvider.notifier).state = 4;
+      await ref.read(appointmentProvider.notifier).loadAppointments(force: true);
+      if (!context.mounted) return;
+      ref.read(pendingLawyerChatAppointmentIdProvider.notifier).state = apptId;
+      Navigator.of(context).pop();
+      return;
+    }
     if (apptId != null &&
         (n.notificationType == 'appointment_accepted' ||
             n.notificationType == 'appointment_rejected')) {
-      ref.read(pendingAppointmentDetailIdProvider.notifier).state = apptId;
       ref.read(mainShellTabProvider.notifier).state = 4;
-      Navigator.of(context).pop();
       await ref.read(appointmentProvider.notifier).loadAppointments(force: true);
+      if (!context.mounted) return;
+      ref.read(pendingAppointmentDetailIdProvider.notifier).state = apptId;
+      Navigator.of(context).pop();
     } else {
       Navigator.of(context).pop();
     }
@@ -200,6 +209,7 @@ class _NotificationTile extends StatelessWidget {
     final icon = switch (notification.notificationType) {
       'appointment_accepted' => Icons.check_circle_outline_rounded,
       'appointment_rejected' => Icons.cancel_outlined,
+      'new_direct_message' => Icons.chat_bubble_outline_rounded,
       _ => Icons.notifications_none_rounded,
     };
 
@@ -304,6 +314,19 @@ class _NotificationTile extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(
                         'Tap to view appointment',
+                        style: GoogleFonts.nunito(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: cl.accent,
+                        ),
+                      ),
+                    ],
+                    if (notification.appointmentId != null &&
+                        notification.notificationType ==
+                            'new_direct_message') ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Tap to open chat',
                         style: GoogleFonts.nunito(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,

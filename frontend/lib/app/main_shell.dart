@@ -145,7 +145,8 @@ class _MainShellState extends ConsumerState<MainShell>
   Widget _buildNav(BuildContext context, int currentIndex, List<String> labels) {
     final cl = context.c;
     final bottom = MediaQuery.of(context).viewPadding.bottom;
-    final apptPendingCount = ref.watch(appointmentProvider).pendingCount;
+    final pendingApprovals =
+        ref.watch(appointmentProvider.select((s) => s.pendingCount));
 
     return Container(
       padding: EdgeInsets.only(bottom: bottom > 0 ? bottom : 8),
@@ -166,8 +167,11 @@ class _MainShellState extends ConsumerState<MainShell>
           children: List.generate(
             labels.length,
             (i) {
-              final badgeCount = i == 4 ? apptPendingCount : 0;
-              return _navItem(i, currentIndex, labels, badgeCount);
+              // Show pending confirmations on the icon only while browsing other
+              // tabs — on Appointments itself the list + banner already surface it.
+              final badge =
+                  i == 4 && currentIndex != 4 ? pendingApprovals : 0;
+              return _navItem(i, currentIndex, labels, badge);
             },
           ),
         ),

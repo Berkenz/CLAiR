@@ -11,6 +11,7 @@ import 'package:clair/features/appointments/presentation/providers/appointment_p
 import 'package:clair/features/appointments/presentation/providers/direct_message_provider.dart';
 import 'package:clair/features/appointments/presentation/screens/lawyer_chat_screen.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
+import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
 
 class AppointmentDetailScreen extends ConsumerStatefulWidget {
   const AppointmentDetailScreen({super.key, required this.appointment});
@@ -24,6 +25,16 @@ class AppointmentDetailScreen extends ConsumerStatefulWidget {
 
 class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScreen> {
   bool _cancelling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref
+          .read(notificationInboxProvider.notifier)
+          .markReadForAppointment(widget.appointment.id);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,8 +63,8 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                   _StatusBanner(appointment: appointment),
                   const SizedBox(height: 14),
 
-                  // ── 2. Date / time hero ───────────────────────────────────
-                  _DateTimeHeroCard(appointment: appointment),
+                  // ── 2. Booked at ───────────────────────────────────────────
+                  _BookedAtCard(appointment: appointment),
                   const SizedBox(height: 14),
 
                   // ── 3. PRIMARY ACTION ─────────────────────────────────────
@@ -193,19 +204,11 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                     ),
                   ],
 
-                  // ── 8. Timestamps ─────────────────────────────────────────
-                  const SizedBox(height: 20),
-                  _InfoCard(
-                    children: [
-                      _InfoRow(
-                        icon: Icons.schedule_rounded,
-                        label: l10n.apptDetailLabelBooked,
-                        value: DateFormat('MMM d, y · h:mm a')
-                            .format(appointment.createdAt.toLocal()),
-                        small: true,
-                      ),
-                      if (appointment.updatedAt != null) ...[
-                        _divider(cl),
+                  // ── 8. Last updated (booked time is shown above) ───────────
+                  if (appointment.updatedAt != null) ...[
+                    const SizedBox(height: 20),
+                    _InfoCard(
+                      children: [
                         _InfoRow(
                           icon: Icons.update_rounded,
                           label: l10n.apptDetailLabelUpdated,
@@ -214,8 +217,8 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                           small: true,
                         ),
                       ],
-                    ],
-                  ),
+                    ),
+                  ],
 
                   // ── 9. Cancel ─────────────────────────────────────────────
                   if (_canClientCancel(appointment)) ...[
@@ -496,35 +499,22 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
-// ── Date / time hero card ─────────────────────────────────────────────────────
+// ── Booked-at summary (created_at only) ───────────────────────────────────────
 
-class _DateTimeHeroCard extends StatelessWidget {
-  const _DateTimeHeroCard({required this.appointment});
+class _BookedAtCard extends StatelessWidget {
+  const _BookedAtCard({required this.appointment});
 
   final AppointmentEntity appointment;
-
-  static String _to12Hour(String value) {
-    try {
-      return DateFormat('h:mm a').format(DateFormat('HH:mm').parse(value));
-    } catch (_) {
-      return value;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final date = appointment.appointmentDate;
-    final dayName = DateFormat('EEEE').format(date);
-    final monthDay = DateFormat('MMMM d, y').format(date);
-    final time = _to12Hour(appointment.appointmentTime);
-
-    final isOnline = appointment.appointmentType.toLowerCase().contains('online') ||
-        appointment.appointmentType.toLowerCase().contains('video');
+    final l10n = AppLocalizations.of(context)!;
+    final booked = DateFormat('MMM d, y · h:mm a')
+        .format(appointment.createdAt.toLocal());
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
         color: cl.surface,
         borderRadius: BorderRadius.circular(16),
@@ -539,136 +529,28 @@ class _DateTimeHeroCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Calendar icon block
-          Container(
-            width: 52,
-            decoration: BoxDecoration(
-              color: cl.accent.withValues(alpha: isDark ? 0.12 : 0.08),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: cl.accent.withValues(alpha: isDark ? 0.2 : 0.15),
-              ),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  decoration: BoxDecoration(
-                    color: cl.accent,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(11),
-                    ),
-                  ),
-                  child: Text(
-                    DateFormat('MMM').format(date).toUpperCase(),
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.nunito(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Text(
-                    DateFormat('d').format(date),
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.nunito(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: cl.textDark,
-                      height: 1,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 14),
+          Icon(Icons.schedule_rounded, color: cl.accent, size: 22),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  dayName,
+                  l10n.apptDetailLabelBooked,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: cl.textMid,
+                    fontFamily: 'Satoshi',
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  booked,
                   style: GoogleFonts.nunito(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: cl.textDark,
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  monthDay,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: cl.textMid,
-                    fontFamily: 'Satoshi',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 9, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: cl.accent.withValues(
-                            alpha: isDark ? 0.15 : 0.09),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.access_time_rounded,
-                              size: 12, color: cl.accent),
-                          const SizedBox(width: 4),
-                          Text(
-                            time,
-                            style: GoogleFonts.nunito(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: cl.accent,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: cl.fieldBg,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: cl.border),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            isOnline
-                                ? Icons.videocam_outlined
-                                : Icons.place_outlined,
-                            size: 12,
-                            color: cl.textMid,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            appointment.appointmentType,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: cl.textMid,
-                              fontFamily: 'Satoshi',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),

@@ -89,3 +89,7 @@ final appointmentProvider =
 
 /// Set when user opens an appointment from a notification; [AppointmentTabScreen] opens detail then clears.
 final pendingAppointmentDetailIdProvider = StateProvider<String?>((ref) => null);
+
+/// Set for `new_direct_message` inbox taps; [AppointmentTabScreen] opens [LawyerChatScreen] then clears.
+final pendingLawyerChatAppointmentIdProvider =
+    StateProvider<String?>((ref) => null);
