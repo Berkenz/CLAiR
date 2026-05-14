@@ -48,6 +48,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get drawerNotifications => 'Notifications';
 
   @override
+  String get drawerAppointments => 'Appointments';
+
+  @override
   String get drawerAccount => 'Account';
 
   @override
@@ -673,6 +676,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get apptCardChat => 'Chat';
+
+  @override
+  String get apptBadgeNew => 'NEW';
 
   @override
   String get apptStatusPending => 'Pending';

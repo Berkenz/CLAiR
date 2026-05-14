@@ -178,6 +178,12 @@ abstract class AppLocalizations {
   /// **'Notifications'**
   String get drawerNotifications;
 
+  /// No description provided for @drawerAppointments.
+  ///
+  /// In en, this message translates to:
+  /// **'Appointments'**
+  String get drawerAppointments;
+
   /// No description provided for @drawerAccount.
   ///
   /// In en, this message translates to:
@@ -1341,6 +1347,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Chat'**
   String get apptCardChat;
+
+  /// No description provided for @apptBadgeNew.
+  ///
+  /// In en, this message translates to:
+  /// **'NEW'**
+  String get apptBadgeNew;
 
   /// No description provided for @apptStatusPending.
   ///

@@ -23,6 +23,13 @@ class AppointmentState {
   final bool isLoading;
   final String? error;
 
+  /// Appointments with status 'pending' waiting for lawyer confirmation.
+  int get pendingCount =>
+      appointments.where((a) => a.status == 'pending').length;
+
+  /// Appointments that are "new" (created/updated within 48h, non-cancelled).
+  int get newCount => appointments.where((a) => a.isNew).length;
+
   AppointmentState copyWith({
     List<AppointmentEntity>? appointments,
     bool? isLoading,

@@ -33,6 +33,14 @@ class AppointmentEntity {
 
   bool get canStartLawyerChat => status == 'confirmed';
 
+  /// True when this appointment was created or last updated within the past 48 hours
+  /// and has not been cancelled/declined — used for the "New" badge on cards.
+  bool get isNew {
+    final ref = updatedAt ?? createdAt;
+    return status != 'cancelled' &&
+        DateTime.now().difference(ref).inHours < 48;
+  }
+
   /// Matches backend `CLIENT_CANCEL_REASON_STORAGE_PREFIX` + label.
   static const String clientCancelReasonPrefix = 'Client cancelled:';
 

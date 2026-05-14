@@ -1,38 +1,24 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
+import 'package:clair/features/history/domain/entities/conversation_entity.dart';
+import 'package:clair/features/history/presentation/providers/history_provider.dart';
+import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
+import 'package:clair/features/lawyer/presentation/providers/lawyer_provider.dart';
+import 'package:clair/features/lawyer/presentation/screens/lawyer_overview_screen.dart';
 import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
-
-class _Lawyer {
-  final String name, specialty, initials;
-  final double rating;
-  final int cases;
-  const _Lawyer({required this.name, required this.specialty, required this.rating,
-      required this.cases, required this.initials});
-}
-
-class _Document {
-  final String name, date, size;
-  const _Document({required this.name, required this.date, required this.size});
-}
-
-const _lawyers = [
-  _Lawyer(name: 'Atty. Maria Santos', specialty: 'Family Law', rating: 4.8, cases: 142, initials: 'MS'),
-  _Lawyer(name: 'Atty. Juan Reyes', specialty: 'Property Law', rating: 4.6, cases: 98, initials: 'JR'),
-];
-
-const _documents = [
-  _Document(name: 'Land Dispute Petition.pdf', date: 'Mar 6, 2026', size: '184 KB'),
-  _Document(name: 'Affidavit of Ownership.pdf', date: 'Feb 20, 2026', size: '96 KB'),
-  _Document(name: 'Settlement Agreement.pdf', date: 'Jan 10, 2026', size: '212 KB'),
-];
 
 class _QuickAction {
   final IconData icon;
@@ -63,25 +49,48 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _anim;
 
   @override
   void initState() {
     super.initState();
-    _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..forward();
+    _anim = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 600))
+      ..forward();
+
+    Future.microtask(() {
+      final lawyerState = ref.read(lawyerProvider);
+      if (lawyerState.lawyers.isEmpty && !lawyerState.isLoading) {
+        ref.read(lawyerProvider.notifier).loadLawyers();
+      }
+      final historyState = ref.read(historyProvider);
+      if (historyState.conversations.isEmpty && !historyState.isLoading) {
+        ref.read(historyProvider.notifier).loadConversations();
+      }
+    });
   }
 
   @override
-  void dispose() { _anim.dispose(); super.dispose(); }
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
 
-  CurvedAnimation _stagger(double start) =>
-      CurvedAnimation(parent: _anim, curve: Interval(start, (start + 0.4).clamp(0, 1), curve: Curves.easeOut));
+  CurvedAnimation _stagger(double start) => CurvedAnimation(
+      parent: _anim,
+      curve: Interval(start, (start + 0.4).clamp(0, 1), curve: Curves.easeOut));
 
   Widget _fadeSlide(Widget w, double start) {
     final a = _stagger(start);
-    return FadeTransition(opacity: a,
-        child: SlideTransition(position: Tween(begin: const Offset(0, 0.08), end: Offset.zero).animate(a), child: w));
+    return FadeTransition(
+        opacity: a,
+        child: SlideTransition(
+            position: Tween(
+                    begin: const Offset(0, 0.08), end: Offset.zero)
+                .animate(a),
+            child: w));
   }
 
   @override
@@ -89,6 +98,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     final cl = context.c;
     final l10n = AppLocalizations.of(context)!;
     final user = ref.watch(currentUserProvider);
+    final lawyerState = ref.watch(lawyerProvider);
+    final historyState = ref.watch(historyProvider);
     final firstName = user == null
         ? null
         : (user.firstName ?? user.displayName.split(' ').first);
@@ -96,23 +107,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
         firstName == null ? l10n.homeHelloGuest : l10n.homeHelloName(firstName);
     final quickActions = _quickActions(cl.accent);
 
+    // Pick first 2 lawyers
+    final suggestedLawyers = lawyerState.lawyers.take(2).toList();
+
+    // Most recent 3 conversations
+    final recentConvs = [...historyState.conversations]
+      ..sort((a, b) {
+        final ta = a.updatedAt ?? a.createdAt;
+        final tb = b.updatedAt ?? b.createdAt;
+        return tb.compareTo(ta);
+      });
+    final recentDocs = recentConvs.take(3).toList();
+
     return Column(children: [
       const ClairAppBar(),
       Expanded(
         child: Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
                 colors: [cl.surface, cl.bg]),
           ),
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const SizedBox(height: 16),
               _fadeSlide(
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(greeting, style: GoogleFonts.nunito(fontSize: 28, fontWeight: FontWeight.w800, color: cl.textDark)),
+                  Text(greeting,
+                      style: GoogleFonts.nunito(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: cl.textDark)),
                   const SizedBox(height: 4),
-                  Text(l10n.homeTagline, style: GoogleFonts.nunito(fontSize: 14, color: cl.textMid)),
+                  Text(l10n.homeTagline,
+                      style:
+                          GoogleFonts.nunito(fontSize: 14, color: cl.textMid)),
                 ]),
                 0.0,
               ),
@@ -126,13 +158,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                   },
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
                       color: cl.surface,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: cl.border),
                       boxShadow: [
-                        BoxShadow(color: cl.cardShadow, blurRadius: 10, offset: const Offset(0, 2)),
+                        BoxShadow(
+                            color: cl.cardShadow,
+                            blurRadius: 10,
+                            offset: const Offset(0, 2)),
                       ],
                     ),
                     child: Row(
@@ -144,7 +180,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                             color: cl.accent.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(Icons.add_comment_rounded, size: 19, color: cl.accent),
+                          child: Icon(Icons.add_comment_rounded,
+                              size: 19, color: cl.accent),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -161,12 +198,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                               ),
                               Text(
                                 l10n.homeStartNewChatSubtitle,
-                                style: GoogleFonts.nunito(fontSize: 12, color: cl.textMid),
+                                style: GoogleFonts.nunito(
+                                    fontSize: 12, color: cl.textMid),
                               ),
                             ],
                           ),
                         ),
-                        Icon(Icons.arrow_forward_rounded, size: 18, color: cl.textLight),
+                        Icon(Icons.arrow_forward_rounded,
+                            size: 18, color: cl.textLight),
                       ],
                     ),
                   ),
@@ -206,19 +245,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               ),
               const SizedBox(height: 28),
 
-              _fadeSlide(_sectionHead(l10n.homeSuggestedLawyers, l10n.homeSeeAll, () => ref.read(mainShellTabProvider.notifier).state = 3), 0.2),
+              // ── Suggested Lawyers ──────────────────────────────────────────
+              _fadeSlide(
+                _sectionHead(
+                  l10n.homeSuggestedLawyers,
+                  l10n.homeSeeAll,
+                  () => ref.read(mainShellTabProvider.notifier).state = 3,
+                ),
+                0.2,
+              ),
               const SizedBox(height: 12),
-              _fadeSlide(Row(children: [
-                Expanded(child: _lawyerCard(_lawyers[0], l10n)),
-                const SizedBox(width: 12),
-                Expanded(child: _lawyerCard(_lawyers[1], l10n)),
-              ]), 0.25),
+              _fadeSlide(
+                _buildLawyersRow(
+                    lawyerState.isLoading, suggestedLawyers, l10n),
+                0.25,
+              ),
               const SizedBox(height: 28),
 
-              _fadeSlide(_sectionHead(l10n.homeGeneratedDocuments, l10n.homeViewAll, () {}), 0.35),
-              const SizedBox(height: 10),
-              ..._documents.asMap().entries.map((e) =>
-                  _fadeSlide(_docRow(e.value), 0.4 + e.key * 0.05)),
+              // ── Generated Documents ────────────────────────────────────────
+              if (historyState.isLoading || recentDocs.isNotEmpty) ...[
+                _fadeSlide(
+                  _sectionHead(
+                    l10n.homeGeneratedDocuments,
+                    l10n.homeViewAll,
+                    () => ref.read(mainShellTabProvider.notifier).state = 2,
+                  ),
+                  0.35,
+                ),
+                const SizedBox(height: 10),
+                if (historyState.isLoading && recentDocs.isEmpty)
+                  ..._buildDocSkeletons(cl)
+                else
+                  ...recentDocs.asMap().entries.map((e) => _fadeSlide(
+                      _docRow(e.value), 0.4 + e.key * 0.05)),
+              ],
+
               const SizedBox(height: 28),
             ]),
           ),
@@ -227,14 +288,245 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     ]);
   }
 
+  // ── Lawyers section ──────────────────────────────────────────────────────
+
+  Widget _buildLawyersRow(
+      bool isLoading, List<LawyerEntity> lawyers, AppLocalizations l10n) {
+    if (isLoading && lawyers.isEmpty) {
+      return Row(children: [
+        Expanded(child: _LawyerSkeleton()),
+        const SizedBox(width: 12),
+        Expanded(child: _LawyerSkeleton()),
+      ]);
+    }
+    if (lawyers.isEmpty) {
+      return _LawyerEmptyCard();
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: _lawyerCard(lawyers[0], l10n)),
+        if (lawyers.length > 1) ...[
+          const SizedBox(width: 12),
+          Expanded(child: _lawyerCard(lawyers[1], l10n)),
+        ] else
+          const Expanded(child: SizedBox()),
+      ],
+    );
+  }
+
+  Widget _lawyerCard(LawyerEntity lawyer, AppLocalizations l10n) {
+    final cl = context.c;
+    return SpringButton(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => LawyerOverviewScreen(lawyer: lawyer),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: cl.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: cl.border),
+          boxShadow: [
+            BoxShadow(
+                color: cl.cardShadow,
+                blurRadius: 10,
+                offset: const Offset(0, 3))
+          ],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [
+                cl.accent.withValues(alpha: 0.1),
+                cl.accentLight.withValues(alpha: 0.25)
+              ]),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Center(
+                child: Text(lawyer.initials,
+                    style: GoogleFonts.nunito(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: cl.accent))),
+          ),
+          const SizedBox(height: 10),
+          Text(lawyer.name,
+              style: GoogleFonts.nunito(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: cl.textDark),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 2),
+          Text(lawyer.specialty,
+              style: GoogleFonts.nunito(fontSize: 11, color: cl.textMid),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
+          if (lawyer.practiceAreas.length > 1) ...[
+            const SizedBox(height: 3),
+            Text(
+              lawyer.categoryLine,
+              style: GoogleFonts.nunito(fontSize: 10, color: cl.textLight),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: cl.accent,
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                    color: cl.accent.withValues(alpha: 0.2),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2))
+              ],
+            ),
+            child: Text(l10n.homeConnect,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white)),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  // ── Documents section ────────────────────────────────────────────────────
+
+  List<Widget> _buildDocSkeletons(AppColorTheme cl) {
+    return List.generate(
+      3,
+      (_) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: _DocSkeleton(),
+      ),
+    );
+  }
+
+  Widget _docRow(ConversationEntity conv) {
+    final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
+    final date = DateFormat('MMM d, y')
+        .format(conv.updatedAt ?? conv.createdAt);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SpringButton(
+        onTap: () => _downloadConversation(conv),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: cl.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: cl.border),
+            boxShadow: [
+              BoxShadow(
+                  color: cl.cardShadow,
+                  blurRadius: 6,
+                  offset: const Offset(0, 2))
+            ],
+          ),
+          child: Row(children: [
+            Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.picture_as_pdf_outlined,
+                    color: Color(0xFFDC6B6B), size: 17)),
+            const SizedBox(width: 12),
+            Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(conv.title,
+                      style: GoogleFonts.nunito(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: cl.textDark),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 1),
+                  Text(
+                    '$date  ·  ${l10n.chatMenuDownloadPdf}',
+                    style: GoogleFonts.nunito(fontSize: 11, color: cl.textMid),
+                  ),
+                ])),
+            Icon(Icons.download_outlined, size: 18, color: cl.textLight),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _downloadConversation(ConversationEntity conversation) async {
+    final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.histGeneratingPdf),
+        backgroundColor: cl.textDark,
+        duration: const Duration(seconds: 10),
+      ),
+    );
+
+    try {
+      await ref.read(chatProvider.notifier).loadConversation(
+            conversation.id,
+            title: conversation.title,
+            isPinned: conversation.isPinned,
+          );
+
+      final bytes = await ref.read(chatProvider.notifier).downloadPdf();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      if (bytes == null) return;
+
+      final dir = await getTemporaryDirectory();
+      final safeName = conversation.title
+          .replaceAll(RegExp(r'[^\w\s-]'), '_')
+          .trim();
+      final file = File('${dir.path}/CLAiR_$safeName.pdf');
+      await file.writeAsBytes(bytes);
+
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)]),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.histDownloadFailed(e.toString())),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
+  }
+
+  // ── Shared widgets ───────────────────────────────────────────────────────
+
   Widget _chip(_QuickAction a, BuildContext ctx, WidgetRef ref) {
     final cl = ctx.c;
     final l10n = AppLocalizations.of(ctx)!;
     return SpringButton(
       onTap: () {
-        if (a.resetChat) {
-          ref.read(chatProvider.notifier).reset();
-        }
+        if (a.resetChat) ref.read(chatProvider.notifier).reset();
         ref.read(mainShellTabProvider.notifier).state = a.tabIndex;
       },
       child: Container(
@@ -243,11 +535,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
           color: cl.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: cl.border),
-          boxShadow: [BoxShadow(color: cl.cardShadow, blurRadius: 8, offset: const Offset(0, 2))],
+          boxShadow: [
+            BoxShadow(
+                color: cl.cardShadow,
+                blurRadius: 8,
+                offset: const Offset(0, 2))
+          ],
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(
-            width: 36, height: 36,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: a.color.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
@@ -255,7 +553,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             child: Icon(a.icon, color: a.color, size: 18),
           ),
           const SizedBox(height: 8),
-          Text(a.label(l10n), style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w600, color: cl.textDark)),
+          Text(a.label(l10n),
+              style: GoogleFonts.nunito(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: cl.textDark)),
         ]),
       ),
     );
@@ -266,7 +568,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(title, style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w800, color: cl.textDark)),
+        Text(title,
+            style: GoogleFonts.nunito(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: cl.textDark)),
         GestureDetector(
           onTap: onAction,
           child: Container(
@@ -275,92 +581,106 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               color: cl.accent.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Text(action, style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w600, color: cl.accent)),
+            child: Text(action,
+                style: GoogleFonts.nunito(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: cl.accent)),
           ),
         ),
       ],
     );
   }
+}
 
-  Widget _lawyerCard(_Lawyer l, AppLocalizations l10n) {
+// ── Skeleton helpers ──────────────────────────────────────────────────────────
+
+class _LawyerSkeleton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     final cl = context.c;
-    return SpringButton(
-      onTap: () {},
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: cl.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: cl.border),
-          boxShadow: [BoxShadow(color: cl.cardShadow, blurRadius: 10, offset: const Offset(0, 3))],
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(
-            width: 42, height: 42,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [cl.accent.withValues(alpha: 0.1), cl.accentLight.withValues(alpha: 0.25)]),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Center(child: Text(l.initials, style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w800, color: cl.accent))),
-          ),
-          const SizedBox(height: 10),
-          Text(l.name, style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700, color: cl.textDark), maxLines: 1, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 2),
-          Text(l.specialty, style: GoogleFonts.nunito(fontSize: 11, color: cl.textMid)),
-          const SizedBox(height: 6),
-          Row(children: [
-            const Icon(Icons.star_rounded, size: 12, color: Color(0xFFE9A020)),
-            const SizedBox(width: 3),
-            Text(l10n.homeRatingCasesLine('${l.rating}', l.cases),
-                style: GoogleFonts.nunito(fontSize: 11, color: cl.textMid)),
-          ]),
-          const SizedBox(height: 10),
-          Container(
-            width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              color: cl.accent,
-              borderRadius: BorderRadius.circular(10),
-              boxShadow: [BoxShadow(color: cl.accent.withValues(alpha: 0.2), blurRadius: 6, offset: const Offset(0, 2))],
-            ),
-            child: Text(l10n.homeConnect, textAlign: TextAlign.center,
-                style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
-          ),
-        ]),
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cl.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: cl.border),
       ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _shimmer(cl, 42, 42, radius: 13),
+        const SizedBox(height: 10),
+        _shimmer(cl, double.infinity, 12, radius: 6),
+        const SizedBox(height: 5),
+        _shimmer(cl, 80, 10, radius: 5),
+        const SizedBox(height: 10),
+        _shimmer(cl, double.infinity, 32, radius: 10),
+      ]),
     );
   }
 
-  Widget _docRow(_Document d) {
+  Widget _shimmer(AppColorTheme cl, double w, double h, {double radius = 6}) =>
+      Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+          color: cl.fieldBg,
+          borderRadius: BorderRadius.circular(radius),
+        ),
+      );
+}
+
+class _LawyerEmptyCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     final cl = context.c;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: SpringButton(
-        onTap: () {},
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: cl.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: cl.border),
-            boxShadow: [BoxShadow(color: cl.cardShadow, blurRadius: 6, offset: const Offset(0, 2))],
-          ),
-          child: Row(children: [
-            Container(width: 36, height: 36,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.picture_as_pdf_outlined, color: Color(0xFFDC6B6B), size: 17)),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(d.name, style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w600, color: cl.textDark), maxLines: 1, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 1),
-              Text('${d.date}  ·  ${d.size}', style: GoogleFonts.nunito(fontSize: 11, color: cl.textMid)),
-            ])),
-            Icon(Icons.download_outlined, size: 18, color: cl.textLight),
-          ]),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+      decoration: BoxDecoration(
+        color: cl.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: cl.border),
+      ),
+      child: Center(
+        child: Text(
+          'No lawyers available yet',
+          style: GoogleFonts.nunito(fontSize: 13, color: cl.textLight),
         ),
       ),
+    );
+  }
+}
+
+class _DocSkeleton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final cl = context.c;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: cl.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cl.border),
+      ),
+      child: Row(children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: cl.fieldBg,
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(height: 12, decoration: BoxDecoration(color: cl.fieldBg, borderRadius: BorderRadius.circular(6))),
+                const SizedBox(height: 5),
+                Container(width: 100, height: 10, decoration: BoxDecoration(color: cl.fieldBg, borderRadius: BorderRadius.circular(5))),
+              ]),
+        ),
+      ]),
     );
   }
 }

@@ -8,6 +8,7 @@ import 'package:clair/features/home/presentation/screens/home_screen.dart';
 import 'package:clair/features/chat/presentation/screens/chat_screen.dart';
 import 'package:clair/features/library/presentation/screens/library_screen.dart';
 import 'package:clair/features/lawyer/presentation/screens/lawyer_screen.dart';
+import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
 import 'package:clair/features/appointments/presentation/screens/appointment_screen.dart';
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
@@ -88,6 +89,9 @@ class _MainShellState extends ConsumerState<MainShell> {
   Widget _buildNav(BuildContext context, int currentIndex, List<String> labels) {
     final cl = context.c;
     final bottom = MediaQuery.of(context).viewPadding.bottom;
+    final notifCount = ref.watch(notificationInboxProvider).unreadCount;
+    final apptPendingCount = ref.watch(appointmentProvider).pendingCount;
+
     return Container(
       padding: EdgeInsets.only(bottom: bottom > 0 ? bottom : 8),
       decoration: BoxDecoration(
@@ -106,43 +110,55 @@ class _MainShellState extends ConsumerState<MainShell> {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: List.generate(
             labels.length,
-            (i) => _navItem(
-              i,
-              currentIndex,
-              labels,
-              ref.watch(notificationInboxProvider).unreadCount,
-            ),
+            (i) {
+              final badgeCount = i == 0
+                  ? notifCount
+                  : i == 4
+                      ? apptPendingCount
+                      : 0;
+              return _navItem(i, currentIndex, labels, badgeCount);
+            },
           ),
         ),
       ),
     );
   }
 
-  Widget _navItem(int i, int currentIndex, List<String> labels, int unreadCount) {
+  Widget _navItem(int i, int currentIndex, List<String> labels, int badgeCount) {
     final cl = context.c;
     final active = currentIndex == i;
-    final showDot = unreadCount > 0 && (i == 0 || i == 4);
 
     Widget iconWidget = Icon(
       active ? _activeIcons[i] : _icons[i],
       size: 24,
       color: active ? cl.accent : cl.textLight,
     );
-    if (showDot) {
+
+    if (badgeCount > 0) {
       iconWidget = Stack(
         clipBehavior: Clip.none,
         children: [
           iconWidget,
           Positioned(
-            right: -2,
-            top: -2,
+            right: -6,
+            top: -4,
             child: Container(
-              width: 8,
-              height: 8,
+              constraints: const BoxConstraints(minWidth: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
               decoration: BoxDecoration(
                 color: Colors.red.shade600,
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: cl.surface, width: 1.2),
+              ),
+              child: Text(
+                badgeCount > 99 ? '99+' : '$badgeCount',
+                style: GoogleFonts.nunito(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  height: 1.2,
+                ),
+                textAlign: TextAlign.center,
               ),
             ),
           ),
