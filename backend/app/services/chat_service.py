@@ -4,6 +4,9 @@ from groq import AsyncGroq
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.services.lawyer_chat_feedback_context import (
+    build_global_lawyer_feedback_context_block,
+)
 from app.services.lawyer_service import lawyer_service
 from app.services.tavily_service import format_tavily_context, search_philippine_law
 from app.services.vector_service import format_rag_context, get_relevant_chunks
@@ -159,9 +162,15 @@ def _build_messages(
     history: list[dict[str, str]],
     rag_context: str,
     locale: str,
+    lawyer_feedback_block: str = "",
 ) -> list[dict[str, str]]:
     """Convert CLAiR history format → Groq messages list, capping history length."""
-    system_content = SYSTEM_INSTRUCTION + rag_context + _locale_rule(locale)
+    system_content = (
+        SYSTEM_INSTRUCTION
+        + rag_context
+        + lawyer_feedback_block
+        + _locale_rule(locale)
+    )
 
     messages: list[dict[str, str]] = [{"role": "system", "content": system_content}]
 
@@ -232,7 +241,13 @@ async def get_chat_response(
         )
         rag_context = rag_context + location_context
 
-    messages = _build_messages(message, history, rag_context, locale)
+    lawyer_feedback_block = ""
+    if db is not None:
+        lawyer_feedback_block = await build_global_lawyer_feedback_context_block(db)
+
+    messages = _build_messages(
+        message, history, rag_context, locale, lawyer_feedback_block
+    )
 
     client = _get_client()
     response = await client.chat.completions.create(
