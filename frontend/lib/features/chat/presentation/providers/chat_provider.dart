@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:clair/core/locale/app_locale_provider.dart';
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/core/services/location_service.dart';
 import 'package:clair/features/chat/data/datasources/chat_remote_datasource.dart';
 import 'package:clair/features/chat/data/repositories/chat_repository_impl.dart';
@@ -114,7 +115,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
     }
   }
@@ -140,7 +141,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
     }
   }
@@ -155,7 +156,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         conversationTitle: updated.title,
       );
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(error: friendlyErrorMessage(e));
     }
   }
 
@@ -169,7 +170,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
       );
       state = state.copyWith(conversationIsPinned: updated.isPinned);
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(error: friendlyErrorMessage(e));
     }
   }
 
@@ -180,7 +181,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
       await _historyRepository.deleteConversation(id);
       state = _freshChatForRef(_ref);
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(error: friendlyErrorMessage(e));
     }
   }
 
@@ -190,7 +191,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     try {
       return await _historyRepository.downloadPdf(id);
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(error: friendlyErrorMessage(e));
       return null;
     }
   }

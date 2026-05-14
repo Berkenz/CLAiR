@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/history/data/datasources/history_remote_datasource.dart';
 import 'package:clair/features/history/data/repositories/history_repository_impl.dart';
 import 'package:clair/features/history/domain/entities/conversation_entity.dart';
@@ -30,7 +31,7 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
     }
   }
@@ -44,7 +45,7 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
             .toList(),
       );
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(error: friendlyErrorMessage(e));
     }
   }
 
@@ -65,7 +66,7 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
 
       state = state.copyWith(conversations: updatedList);
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(error: friendlyErrorMessage(e));
     }
   }
 
@@ -77,7 +78,7 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
             state.conversations.where((c) => c.id != id).toList(),
       );
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(error: friendlyErrorMessage(e));
     }
   }
 

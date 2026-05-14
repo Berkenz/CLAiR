@@ -12,6 +12,8 @@ import 'package:clair/features/lawyer/presentation/screens/lawyer_screen.dart';
 import 'package:clair/features/appointments/presentation/screens/appointment_screen.dart';
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
+import 'package:clair/core/tutorial/tutorial_overlay.dart';
+import 'package:clair/core/tutorial/tutorial_provider.dart';
 import 'package:clair/shared/widgets/app_drawer.dart';
 
 class MainShell extends ConsumerStatefulWidget {
@@ -39,6 +41,9 @@ class _MainShellState extends ConsumerState<MainShell>
 
   bool _fabOpen = false;
   late final AnimationController _fabAnim;
+
+  // Keys for each bottom-nav item so the tutorial can spotlight them.
+  final _navKeys = List.generate(5, (_) => GlobalKey());
 
   @override
   void initState() {
@@ -104,40 +109,47 @@ class _MainShellState extends ConsumerState<MainShell>
       }
     });
 
-    return Scaffold(
-      backgroundColor: cl.bg,
-      drawer: const AppDrawer(),
-      body: GestureDetector(
-        // Tap anywhere in the body to close the FAB when open.
-        onTap: _fabOpen ? _closeFab : null,
-        behavior: HitTestBehavior.translucent,
-        child: SafeArea(
-          bottom: false,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            child: KeyedSubtree(
-              key: ValueKey(currentIndex),
-              child: [
-                const HomeScreen(),
-                const ChatScreen(),
-                const LibraryScreen(),
-                const LawyerTabScreen(),
-                const AppointmentTabScreen(),
-              ][currentIndex],
+    final tutorialActive = ref.watch(tutorialProvider).show;
+
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: cl.bg,
+          drawer: const AppDrawer(),
+          body: GestureDetector(
+            onTap: _fabOpen ? _closeFab : null,
+            behavior: HitTestBehavior.translucent,
+            child: SafeArea(
+              bottom: false,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: KeyedSubtree(
+                  key: ValueKey(currentIndex),
+                  child: [
+                    const HomeScreen(),
+                    const ChatScreen(),
+                    const LibraryScreen(),
+                    const LawyerTabScreen(),
+                    const AppointmentTabScreen(),
+                  ][currentIndex],
+                ),
+              ),
             ),
           ),
+          floatingActionButton: currentIndex == 1 || tutorialActive
+              ? null
+              : _QuickActionsFab(
+                  open: _fabOpen,
+                  anim: _fabAnim,
+                  onToggle: _toggleFab,
+                  onNewChat: _fabNewChat,
+                  onFindLawyer: _fabFindLawyer,
+                ),
+          bottomNavigationBar: _buildNav(context, currentIndex, navLabels),
         ),
-      ),
-      floatingActionButton: currentIndex == 1
-          ? null
-          : _QuickActionsFab(
-              open: _fabOpen,
-              anim: _fabAnim,
-              onToggle: _toggleFab,
-              onNewChat: _fabNewChat,
-              onFindLawyer: _fabFindLawyer,
-            ),
-      bottomNavigationBar: _buildNav(context, currentIndex, navLabels),
+        if (tutorialActive)
+          TutorialOverlay(navItemKeys: _navKeys),
+      ],
     );
   }
 
@@ -258,6 +270,7 @@ class _MainShellState extends ConsumerState<MainShell>
     }
 
     return GestureDetector(
+      key: _navKeys[i],
       onTap: () => ref.read(mainShellTabProvider.notifier).state = i,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(

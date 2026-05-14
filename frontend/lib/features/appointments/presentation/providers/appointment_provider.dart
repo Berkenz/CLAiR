@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/appointments/data/datasources/appointment_remote_datasource.dart';
 import 'package:clair/features/appointments/domain/entities/appointment_entity.dart';
 import 'package:clair/shared/providers/shared_providers.dart';
@@ -61,7 +62,7 @@ class AppointmentNotifier extends StateNotifier<AppointmentState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
     }
   }

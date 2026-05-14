@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 
 class SecurityScreen extends ConsumerStatefulWidget {
@@ -114,7 +115,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
       _confirmPwCtrl.clear();
       _snack('Password updated successfully.');
     } catch (e) {
-      _snack(e.toString(), isError: true);
+      _snack(friendlyErrorMessage(e), isError: true);
     } finally {
       if (mounted) setState(() => _savingPassword = false);
     }
@@ -131,7 +132,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
       setState(() => _resetSent = true);
       _snack('Reset link sent to $email');
     } catch (e) {
-      _snack(e.toString(), isError: true);
+      _snack(friendlyErrorMessage(e), isError: true);
     } finally {
       if (mounted) setState(() => _sendingReset = false);
     }
@@ -156,7 +157,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
       ref.read(currentUserProvider.notifier).state = null;
       if (mounted) context.go('/login');
     } catch (e) {
-      _snack(e.toString(), isError: true);
+      _snack(friendlyErrorMessage(e), isError: true);
     } finally {
       if (mounted) setState(() => _signingOutAll = false);
     }

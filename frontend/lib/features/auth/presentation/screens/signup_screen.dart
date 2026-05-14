@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/auth/presentation/screens/terms_of_use_screen.dart';
 import 'package:clair/features/auth/presentation/screens/privacy_policy_screen.dart';
@@ -85,7 +86,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         context.go('/verify-email', extra: {'email': email});
       }
     } catch (e) {
-      if (mounted) _showError(e.toString());
+      if (mounted) _showError(friendlyErrorMessage(e));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

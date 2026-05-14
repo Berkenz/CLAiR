@@ -304,6 +304,12 @@ abstract class AppLocalizations {
   /// **'Log Out'**
   String get logOut;
 
+  /// No description provided for @exitGuestSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit Guest Session'**
+  String get exitGuestSession;
+
   /// No description provided for @deleteAccount.
   ///
   /// In en, this message translates to:
@@ -2145,6 +2151,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Detailed FAQ answers below are in English for legal accuracy.'**
   String get helpFaqEnglishNotice;
+
+  /// No description provided for @tutorialSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get tutorialSkip;
+
+  /// No description provided for @tutorialNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get tutorialNext;
+
+  /// No description provided for @tutorialBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get tutorialBack;
+
+  /// No description provided for @tutorialDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Get Started'**
+  String get tutorialDone;
+
+  /// No description provided for @tutorialStepOf.
+  ///
+  /// In en, this message translates to:
+  /// **'{current} of {total}'**
+  String tutorialStepOf(Object current, Object total);
+
+  /// No description provided for @tutorialWelcomeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to CLAiR'**
+  String get tutorialWelcomeTitle;
+
+  /// No description provided for @tutorialWelcomeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your AI-powered legal assistant. Let us give you a quick tour of the main features.'**
+  String get tutorialWelcomeBody;
+
+  /// No description provided for @tutorialChatTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat with AI'**
+  String get tutorialChatTitle;
+
+  /// No description provided for @tutorialChatBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask CLAiR any legal question. Get instant, AI-powered guidance based on Philippine law.'**
+  String get tutorialChatBody;
+
+  /// No description provided for @tutorialLawyersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Find a Lawyer'**
+  String get tutorialLawyersTitle;
+
+  /// No description provided for @tutorialLawyersBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse verified lawyers near you, view their profiles, and book consultations.'**
+  String get tutorialLawyersBody;
+
+  /// No description provided for @tutorialLibraryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat Library'**
+  String get tutorialLibraryTitle;
+
+  /// No description provided for @tutorialLibraryBody.
+  ///
+  /// In en, this message translates to:
+  /// **'All your past conversations are saved here. Pin, search, or download them as PDFs.'**
+  String get tutorialLibraryBody;
+
+  /// No description provided for @tutorialAppointmentsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Appointments'**
+  String get tutorialAppointmentsTitle;
+
+  /// No description provided for @tutorialAppointmentsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Track your booked consultations, chat with your lawyer, and manage your schedule.'**
+  String get tutorialAppointmentsBody;
 }
 
 class _AppLocalizationsDelegate

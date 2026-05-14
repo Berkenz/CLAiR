@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/core/theme/appearance_provider.dart';
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/auth/presentation/screens/appearance_screen.dart';
 import 'package:clair/features/auth/presentation/screens/email_screen.dart';
@@ -40,7 +41,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text(friendlyErrorMessage(e)),
             backgroundColor: const Color(0xFFDC4C4C),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -203,35 +204,41 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             const SizedBox(height: 28),
 
-            _section(context, l10n.sectionAccount, [
-              _row(
-                context,
-                Icons.mail_outline_rounded,
-                l10n.email,
-                () => Navigator.push(
+            if (user?.isAnonymous != true) ...[
+              _section(context, l10n.sectionAccount, [
+                _row(
                   context,
-                  MaterialPageRoute(builder: (_) => const EmailScreen()),
-                ),
-              ),
-              _row(
-                context,
-                Icons.notifications_outlined,
-                l10n.notifications,
-                () => context.push('/notifications'),
-              ),
-              _row(
-                context,
-                Icons.lock_outline_rounded,
-                l10n.security,
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SecurityScreen(),
+                  Icons.mail_outline_rounded,
+                  l10n.email,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const EmailScreen()),
                   ),
                 ),
-              ),
-            ]),
-            const SizedBox(height: 16),
+                _row(
+                  context,
+                  Icons.notifications_outlined,
+                  l10n.notifications,
+                  () => context.push('/notifications'),
+                ),
+                _row(
+                  context,
+                  Icons.lock_outline_rounded,
+                  l10n.security,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const SecurityScreen(),
+                    ),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 16),
+            ] else ...[
+              // Guest: prompt to create a real account
+              const _GuestUpgradeBanner(),
+              const SizedBox(height: 16),
+            ],
 
             _section(context, l10n.sectionApp, [
               _row(
@@ -387,7 +394,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
             const SizedBox(height: 12),
 
-            // Log Out
+            // Log Out / Exit Guest Session
             GestureDetector(
               onTap: () async {
                 await ref.read(authRepositoryProvider).signOut();
@@ -405,7 +412,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    l10n.logOut,
+                    user?.isAnonymous == true
+                        ? l10n.exitGuestSession
+                        : l10n.logOut,
                     style: GoogleFonts.nunito(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -548,6 +557,73 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ]),
         ),
+      ),
+    );
+  }
+}
+
+class _GuestUpgradeBanner extends StatelessWidget {
+  const _GuestUpgradeBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final cl = context.c;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cl.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cl.border),
+        boxShadow: [
+          BoxShadow(
+            color: cl.cardShadow,
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: cl.accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.person_add_alt_1_rounded,
+              color: cl.accent,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Browsing as Guest',
+                  style: GoogleFonts.nunito(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: cl.textDark,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Create an account to save chats, book appointments, and more.',
+                  style: GoogleFonts.nunito(
+                    fontSize: 12,
+                    color: cl.textMid,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -761,6 +837,37 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
                           fontSize: 12.5,
                           color: cl.textMid,
                           height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ] else if (widget.isAnonymous) ...[
+              // Guest account — no re-auth needed
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: cl.fieldBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: cl.border),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline_rounded,
+                        color: cl.textMid, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'You\'re signed in as a guest. Deleting this guest session '
+                        'will erase your chat history and temporary data. '
+                        'No password is required.',
+                        style: GoogleFonts.nunito(
+                          fontSize: 12.5,
+                          color: cl.textMid,
+                          height: 1.45,
                         ),
                       ),
                     ),

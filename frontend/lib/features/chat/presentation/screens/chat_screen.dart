@@ -13,6 +13,7 @@ import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/locale/app_locale_provider.dart';
 import 'package:clair/core/services/location_service.dart';
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/chat/domain/entities/rag_source_entity.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
@@ -391,7 +392,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(l10n.chatPdfSaveFailed(e.toString())),
+          content: Text(l10n.chatPdfSaveFailed(friendlyErrorMessage(e))),
           backgroundColor: Colors.red.shade700,
         ),
       );

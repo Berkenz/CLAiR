@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/appointments/domain/entities/appointment_entity.dart';
 import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
 import 'package:clair/features/appointments/presentation/providers/direct_message_provider.dart';
@@ -384,7 +385,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString(), style: const TextStyle(fontFamily: 'Satoshi')),
+          content: Text(friendlyErrorMessage(e), style: const TextStyle(fontFamily: 'Satoshi')),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -434,7 +435,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString(), style: const TextStyle(fontFamily: 'Satoshi')),
+          content: Text(friendlyErrorMessage(e), style: const TextStyle(fontFamily: 'Satoshi')),
           backgroundColor: Colors.red.shade700,
         ),
       );
