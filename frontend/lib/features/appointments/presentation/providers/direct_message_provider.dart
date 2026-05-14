@@ -159,6 +159,19 @@ class DirectMessageNotifier extends StateNotifier<DirectMessageState> {
     }
   }
 
+  /// Fetches the unread count without loading all messages or marking as read.
+  /// Safe to call from list-view cards for badge display.
+  Future<void> fetchCountOnly() async {
+    if (state.isLoading || state.messages.isNotEmpty) return;
+    try {
+      final result = await _dataSource.listMessages(_appointmentId);
+      if (!mounted) return;
+      state = state.copyWith(unreadCount: result.unreadCount);
+    } catch (_) {
+      // Silently ignore — badge just stays at 0.
+    }
+  }
+
   void clearError() => state = state.copyWith(error: null);
 
   @override

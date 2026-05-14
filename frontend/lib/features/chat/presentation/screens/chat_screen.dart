@@ -562,6 +562,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ],
               ),
             ),
+            if (chatState.showTermsDisclaimer) _buildTermsDisclaimer(),
             if (chatState.isLoadedConversation) _buildDisclaimer(),
             _buildInputBar(chatState.isLoading),
           ],
@@ -963,6 +964,92 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
           child: Icon(icon, size: 14, color: iconColor),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTermsDisclaimer() {
+    final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      decoration: BoxDecoration(
+        color: isDark
+            ? cl.surface.withValues(alpha: 0.95)
+            : cl.fieldBg,
+        border: Border(
+          top: BorderSide(color: cl.border, width: 1),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(
+              Icons.shield_outlined,
+              size: 15,
+              color: cl.textMid,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                style: GoogleFonts.nunito(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w500,
+                  color: cl.textMid,
+                  height: 1.45,
+                ),
+                children: [
+                  TextSpan(text: '${l10n.chatTermsDisclaimerBody} '),
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.baseline,
+                    baseline: TextBaseline.alphabetic,
+                    child: GestureDetector(
+                      onTap: () => context.push('/terms'),
+                      child: Text(
+                        l10n.chatTermsDisclaimerTerms,
+                        style: GoogleFonts.nunito(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: cl.accent,
+                          height: 1.45,
+                          decoration: TextDecoration.underline,
+                          decorationColor: cl.accent.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                  TextSpan(text: ' ${l10n.chatTermsDisclaimerAnd} '),
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.baseline,
+                    baseline: TextBaseline.alphabetic,
+                    child: GestureDetector(
+                      onTap: () => context.push('/privacy-policy'),
+                      child: Text(
+                        l10n.chatTermsDisclaimerPrivacy,
+                        style: GoogleFonts.nunito(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: cl.accent,
+                          height: 1.45,
+                          decoration: TextDecoration.underline,
+                          decorationColor: cl.accent.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                  TextSpan(text: l10n.chatTermsDisclaimerPeriod),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

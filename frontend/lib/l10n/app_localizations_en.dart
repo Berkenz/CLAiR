@@ -440,6 +440,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatDisclaimerDismiss => 'Dismiss';
 
   @override
+  String get chatTermsDisclaimerBody =>
+      'By chatting with CLAiR, an AI chatbot, you agree to our';
+
+  @override
+  String get chatTermsDisclaimerTerms => 'Terms of Use';
+
+  @override
+  String get chatTermsDisclaimerAnd => 'and';
+
+  @override
+  String get chatTermsDisclaimerPrivacy => 'Privacy Policy';
+
+  @override
+  String get chatTermsDisclaimerPeriod => '.';
+
+  @override
   String get chatTitleNewChat => 'New Chat';
 
   @override

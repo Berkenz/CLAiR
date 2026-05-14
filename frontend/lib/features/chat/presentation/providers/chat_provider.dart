@@ -135,6 +135,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         conversationIsPinned: isPinned,
         isLoading: false,
         isLoadedConversation: true,
+        showTermsDisclaimer: false,
       );
     } catch (e) {
       state = state.copyWith(
@@ -199,7 +200,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
   }
 
   void hideDisclaimer() {
-    state = state.copyWith(isLoadedConversation: false);
+    state = state.copyWith(
+      isLoadedConversation: false,
+      showTermsDisclaimer: false,
+    );
   }
 
   void updateMessages(List<ChatMessageEntity> messages) {
@@ -219,6 +223,9 @@ class ChatState {
   final String? conversationTitle;
   final bool conversationIsPinned;
   final bool isLoadedConversation;
+  /// True on every fresh/new chat session — hidden when the user sends their
+  /// first message or loads a saved conversation.
+  final bool showTermsDisclaimer;
 
   const ChatState({
     required this.messages,
@@ -228,6 +235,7 @@ class ChatState {
     this.conversationTitle,
     this.conversationIsPinned = false,
     this.isLoadedConversation = false,
+    this.showTermsDisclaimer = false,
   });
 
   factory ChatState.freshChat(String assistantGreeting) => ChatState(
@@ -238,6 +246,7 @@ class ChatState {
           ),
         ],
         isLoading: false,
+        showTermsDisclaimer: true,
       );
 
   ChatState copyWith({
@@ -248,6 +257,7 @@ class ChatState {
     String? conversationTitle,
     bool? conversationIsPinned,
     bool? isLoadedConversation,
+    bool? showTermsDisclaimer,
   }) =>
       ChatState(
         messages: messages ?? this.messages,
@@ -257,6 +267,8 @@ class ChatState {
         conversationTitle: conversationTitle ?? this.conversationTitle,
         conversationIsPinned:
             conversationIsPinned ?? this.conversationIsPinned,
+        showTermsDisclaimer:
+            showTermsDisclaimer ?? this.showTermsDisclaimer,
         isLoadedConversation:
             isLoadedConversation ?? this.isLoadedConversation,
       );

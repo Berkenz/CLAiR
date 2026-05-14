@@ -19,12 +19,16 @@ import 'package:clair/features/history/presentation/screens/history_screen.dart'
 import 'package:clair/features/lawyer/presentation/screens/lawyer_screen.dart';
 import 'package:clair/features/notifications/presentation/screens/notification_screen.dart';
 import 'package:clair/app/main_shell.dart';
+import 'package:clair/app/splash_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/splash',
     debugLogDiagnostics: true,
     redirect: (context, state) {
+      // Never redirect away from the splash screen — let it handle navigation.
+      if (state.matchedLocation.startsWith('/splash')) return null;
+
       final user = ref.read(currentUserProvider);
       final isOnAuthPage = state.matchedLocation == '/' ||
           state.matchedLocation.startsWith('/login') ||
@@ -43,6 +47,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/',
         redirect: (_, __) => '/login',

@@ -441,6 +441,22 @@ class AppLocalizationsCeb extends AppLocalizations {
   String get chatDisclaimerDismiss => 'Sirhi';
 
   @override
+  String get chatTermsDisclaimerBody =>
+      'Pinaagi sa pag-chat sa CLAiR, usa ka AI chatbot, mouyon ka sa among';
+
+  @override
+  String get chatTermsDisclaimerTerms => 'Mga Termino sa Paggamit';
+
+  @override
+  String get chatTermsDisclaimerAnd => 'ug';
+
+  @override
+  String get chatTermsDisclaimerPrivacy => 'Patakaran sa Privacy';
+
+  @override
+  String get chatTermsDisclaimerPeriod => '.';
+
+  @override
   String get chatTitleNewChat => 'Bag-ong chat';
 
   @override

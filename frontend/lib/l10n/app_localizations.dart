@@ -916,6 +916,36 @@ abstract class AppLocalizations {
   /// **'Dismiss'**
   String get chatDisclaimerDismiss;
 
+  /// No description provided for @chatTermsDisclaimerBody.
+  ///
+  /// In en, this message translates to:
+  /// **'By chatting with CLAiR, an AI chatbot, you agree to our'**
+  String get chatTermsDisclaimerBody;
+
+  /// No description provided for @chatTermsDisclaimerTerms.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms of Use'**
+  String get chatTermsDisclaimerTerms;
+
+  /// No description provided for @chatTermsDisclaimerAnd.
+  ///
+  /// In en, this message translates to:
+  /// **'and'**
+  String get chatTermsDisclaimerAnd;
+
+  /// No description provided for @chatTermsDisclaimerPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get chatTermsDisclaimerPrivacy;
+
+  /// No description provided for @chatTermsDisclaimerPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'.'**
+  String get chatTermsDisclaimerPeriod;
+
   /// No description provided for @chatTitleNewChat.
   ///
   /// In en, this message translates to:

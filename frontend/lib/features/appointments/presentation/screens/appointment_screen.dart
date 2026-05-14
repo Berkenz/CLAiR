@@ -7,6 +7,7 @@ import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/appointments/domain/entities/appointment_entity.dart';
 import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
+import 'package:clair/features/appointments/presentation/providers/direct_message_provider.dart';
 import 'package:clair/features/appointments/presentation/screens/appointment_detail_screen.dart';
 import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
@@ -608,17 +609,23 @@ class _PendingBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF131008) : const Color(0xFFFFF4DE);
+    final border = isDark
+        ? const Color(0xFF252008).withValues(alpha: 0.8)
+        : const Color(0xFFE59300).withValues(alpha: 0.3);
+    final fg = isDark ? const Color(0xFF6B5415) : const Color(0xFFB26A00);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF4DE),
+        color: bg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE59300).withValues(alpha: 0.3)),
+        border: Border.all(color: border),
       ),
       child: Row(
         children: [
-          const Icon(Icons.hourglass_top_rounded,
-              size: 16, color: Color(0xFFB26A00)),
+          Icon(Icons.hourglass_top_rounded, size: 16, color: fg),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -628,7 +635,7 @@ class _PendingBanner extends StatelessWidget {
               style: GoogleFonts.nunito(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFFB26A00),
+                color: fg,
               ),
             ),
           ),
@@ -699,7 +706,7 @@ class _FilterChip extends StatelessWidget {
 
 // ── Appointment card ──────────────────────────────────────────────────────────
 
-class _AppointmentCard extends StatelessWidget {
+class _AppointmentCard extends ConsumerStatefulWidget {
   const _AppointmentCard({
     required this.appointment,
     required this.onTap,
@@ -711,6 +718,29 @@ class _AppointmentCard extends StatelessWidget {
   final bool muted;
 
   @override
+  ConsumerState<_AppointmentCard> createState() => _AppointmentCardState();
+}
+
+class _AppointmentCardState extends ConsumerState<_AppointmentCard> {
+  @override
+  void initState() {
+    super.initState();
+    // Lazily peek the DM unread count for confirmed appointments.
+    if (widget.appointment.canStartLawyerChat) {
+      Future.microtask(() {
+        if (mounted) {
+          ref
+              .read(directMessageProvider(widget.appointment.id).notifier)
+              .fetchCountOnly();
+        }
+      });
+    }
+  }
+
+  AppointmentEntity get appointment => widget.appointment;
+  bool get muted => widget.muted;
+
+  @override
   Widget build(BuildContext context) {
     final cl = context.c;
     final l10n = AppLocalizations.of(context)!;
@@ -719,183 +749,212 @@ class _AppointmentCard extends StatelessWidget {
     final time = _to12Hour(appointment.appointmentTime);
     final isNew = appointment.isNew;
 
+    final dmUnread = appointment.canStartLawyerChat
+        ? ref.watch(directMessageProvider(appointment.id)).unreadCount
+        : 0;
+
     return SpringButton(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: cl.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isNew && !muted
-                ? cl.accent.withValues(alpha: 0.35)
-                : cl.border,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: cl.cardShadow,
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: IntrinsicHeight(
-          child: Row(
-            children: [
-              // Colored status strip
-              Container(
-                width: 4,
-                constraints: const BoxConstraints(minHeight: 80),
-                decoration: BoxDecoration(
-                  color: muted
-                      ? statusColor.withValues(alpha: 0.3)
-                      : statusColor,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    bottomLeft: Radius.circular(16),
-                  ),
-                ),
+      onTap: widget.onTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: cl.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isNew && !muted
+                    ? cl.accent.withValues(alpha: 0.35)
+                    : cl.border,
               ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Title row with status + new badge
-                      Row(
+              boxShadow: [
+                BoxShadow(
+                  color: cl.cardShadow,
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                children: [
+                  // Colored status strip
+                  Container(
+                    width: 4,
+                    constraints: const BoxConstraints(minHeight: 80),
+                    decoration: BoxDecoration(
+                      color: muted
+                          ? statusColor.withValues(alpha: 0.3)
+                          : statusColor,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        bottomLeft: Radius.circular(16),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  appointment.displayCaseTitle,
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: muted
-                                        ? cl.textDark.withValues(alpha: 0.45)
-                                        : cl.textDark,
-                                    fontFamily: 'Satoshi',
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  appointment.displayLawyerName,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: muted
-                                        ? cl.textMid.withValues(alpha: 0.55)
-                                        : cl.textMid,
-                                    fontFamily: 'Satoshi',
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _StatusPill(
-                                  appointment: appointment, muted: muted),
-                              if (isNew && !muted) ...[
-                                const SizedBox(height: 4),
-                                _NewBadge(l10n: l10n),
-                              ],
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      appointment.displayCaseTitle,
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: muted
+                                            ? cl.textDark.withValues(alpha: 0.45)
+                                            : cl.textDark,
+                                        fontFamily: 'Satoshi',
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      appointment.displayLawyerName,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: muted
+                                            ? cl.textMid.withValues(alpha: 0.55)
+                                            : cl.textMid,
+                                        fontFamily: 'Satoshi',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  _StatusPill(
+                                      appointment: appointment, muted: muted),
+                                  if (isNew && !muted) ...[
+                                    const SizedBox(height: 4),
+                                    _NewBadge(l10n: l10n),
+                                  ],
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Icon(Icons.calendar_today_outlined,
+                                  size: 12, color: cl.textLight),
+                              const SizedBox(width: 5),
+                              Text(
+                                date,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: muted
+                                      ? cl.textMid.withValues(alpha: 0.55)
+                                      : cl.textMid,
+                                  fontFamily: 'Satoshi',
+                                ),
+                              ),
+                              Container(
+                                margin:
+                                    const EdgeInsets.symmetric(horizontal: 6),
+                                width: 3,
+                                height: 3,
+                                decoration: BoxDecoration(
+                                  color: cl.textLight,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              Icon(Icons.access_time_rounded,
+                                  size: 12, color: cl.textLight),
+                              const SizedBox(width: 5),
+                              Text(
+                                time,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: muted
+                                      ? cl.textMid.withValues(alpha: 0.55)
+                                      : cl.textMid,
+                                  fontFamily: 'Satoshi',
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(
+                                appointment.appointmentType
+                                            .toLowerCase()
+                                            .contains('online') ||
+                                        appointment.appointmentType
+                                            .toLowerCase()
+                                            .contains('video')
+                                    ? Icons.videocam_outlined
+                                    : Icons.place_outlined,
+                                size: 12,
+                                color: cl.textLight,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                appointment.appointmentType,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: muted
+                                      ? cl.textLight.withValues(alpha: 0.55)
+                                      : cl.textLight,
+                                  fontFamily: 'Satoshi',
+                                ),
+                              ),
                             ],
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      // Date / time row
-                      Row(
-                        children: [
-                          Icon(Icons.calendar_today_outlined,
-                              size: 12, color: cl.textLight),
-                          const SizedBox(width: 5),
-                          Text(
-                            date,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: muted
-                                  ? cl.textMid.withValues(alpha: 0.55)
-                                  : cl.textMid,
-                              fontFamily: 'Satoshi',
-                            ),
-                          ),
-                          Container(
-                            margin:
-                                const EdgeInsets.symmetric(horizontal: 6),
-                            width: 3,
-                            height: 3,
-                            decoration: BoxDecoration(
-                              color: cl.textLight,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          Icon(Icons.access_time_rounded,
-                              size: 12, color: cl.textLight),
-                          const SizedBox(width: 5),
-                          Text(
-                            time,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: muted
-                                  ? cl.textMid.withValues(alpha: 0.55)
-                                  : cl.textMid,
-                              fontFamily: 'Satoshi',
-                            ),
-                          ),
-                          const Spacer(),
-                          if (!muted && appointment.canStartLawyerChat)
-                            _ChatBadge(l10n: l10n),
-                        ],
-                      ),
-                      // Appointment type tag
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(
-                            appointment.appointmentType
-                                        .toLowerCase()
-                                        .contains('online') ||
-                                    appointment.appointmentType
-                                        .toLowerCase()
-                                        .contains('video')
-                                ? Icons.videocam_outlined
-                                : Icons.place_outlined,
-                            size: 12,
-                            color: cl.textLight,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            appointment.appointmentType,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: muted
-                                  ? cl.textLight.withValues(alpha: 0.55)
-                                  : cl.textLight,
-                              fontFamily: 'Satoshi',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: Icon(Icons.chevron_right_rounded,
+                        size: 20, color: cl.textLight),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // DM unread count badge — top-right corner of the card.
+          if (dmUnread > 0)
+            Positioned(
+              top: -6,
+              right: -6,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade600,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: cl.bg, width: 1.5),
+                ),
+                child: Text(
+                  dmUnread > 99 ? '99+' : '$dmUnread',
+                  style: GoogleFonts.nunito(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    height: 1.1,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(right: 10),
-                child: Icon(Icons.chevron_right_rounded,
-                    size: 20, color: cl.textLight),
-              ),
-            ],
-          ),
-        ),
+            ),
+        ],
       ),
     );
   }
@@ -947,40 +1006,6 @@ class _NewBadge extends StatelessWidget {
   }
 }
 
-// ── Chat badge ────────────────────────────────────────────────────────────────
-
-class _ChatBadge extends StatelessWidget {
-  const _ChatBadge({required this.l10n});
-  final AppLocalizations l10n;
-
-  @override
-  Widget build(BuildContext context) {
-    final cl = context.c;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: cl.accent.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.chat_bubble_rounded, size: 11, color: cl.accent),
-          const SizedBox(width: 4),
-          Text(
-            l10n.apptCardChat,
-            style: GoogleFonts.nunito(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: cl.accent,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ── Status pill ───────────────────────────────────────────────────────────────
 
 class _StatusPill extends StatelessWidget {
@@ -993,35 +1018,35 @@ class _StatusPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final status = appointment.status;
-    final (Color bg, Color fg, String label) = switch (status) {
-      'pending' => (
-          const Color(0xFFFFF4DE),
-          const Color(0xFFB26A00),
-          l10n.apptStatusPending,
-        ),
-      'confirmed' => (
-          const Color(0xFFE9F9EE),
-          const Color(0xFF1E7E34),
-          l10n.apptStatusAccepted,
-        ),
-      'cancelled' => appointment.isClientCancellation
-          ? (
-              const Color(0xFFFFEAEA),
-              const Color(0xFFB02A37),
-              l10n.apptStatusCancelled,
-            )
-          : (
-              const Color(0xFFFFEAEA),
-              const Color(0xFFB02A37),
-              l10n.apptStatusDeclined,
-            ),
-      _ => (const Color(0xFFF3F4F6), const Color(0xFF6B7280), status),
-    };
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final Color pillBg, pillFg;
+    final String label;
+
+    if (status == 'pending') {
+      pillBg = isDark ? const Color(0xFF181509) : const Color(0xFFFFF4DE);
+      pillFg = isDark ? const Color(0xFF7A621A) : const Color(0xFFB26A00);
+      label = l10n.apptStatusPending;
+    } else if (status == 'confirmed') {
+      pillBg = isDark ? const Color(0xFF0D1A10) : const Color(0xFFE9F9EE);
+      pillFg = isDark ? const Color(0xFF2D7A48) : const Color(0xFF1E7E34);
+      label = l10n.apptStatusAccepted;
+    } else if (status == 'cancelled') {
+      pillBg = isDark ? const Color(0xFF1A0D0E) : const Color(0xFFFFEAEA);
+      pillFg = isDark ? const Color(0xFF8B3040) : const Color(0xFFB02A37);
+      label = appointment.isClientCancellation
+          ? l10n.apptStatusCancelled
+          : l10n.apptStatusDeclined;
+    } else {
+      pillBg = isDark ? const Color(0xFF1E1E2E) : const Color(0xFFF3F4F6);
+      pillFg = const Color(0xFF6B7280);
+      label = status;
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: muted ? bg.withValues(alpha: 0.5) : bg,
+        color: muted ? pillBg.withValues(alpha: 0.5) : pillBg,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -1029,7 +1054,7 @@ class _StatusPill extends StatelessWidget {
         style: GoogleFonts.nunito(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: muted ? fg.withValues(alpha: 0.55) : fg,
+          color: muted ? pillFg.withValues(alpha: 0.55) : pillFg,
         ),
       ),
     );
