@@ -844,7 +844,7 @@ class _AppointmentCardState extends ConsumerState<_AppointmentCard> {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
+                        padding: const EdgeInsets.fromLTRB(14, 13, 36, 13),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -960,14 +960,6 @@ class _AppointmentCardState extends ConsumerState<_AppointmentCard> {
                         ),
                       ),
                     ),
-                    Align(
-                      alignment: Alignment.center,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 10),
-                        child: Icon(Icons.chevron_right_rounded,
-                            size: 20, color: cl.textLight),
-                      ),
-                    ),
                   ],
                 ),
                 Positioned(
@@ -985,6 +977,20 @@ class _AppointmentCardState extends ConsumerState<_AppointmentCard> {
                           topLeft: Radius.circular(16),
                           bottomLeft: Radius.circular(16),
                         ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 8,
+                  top: 0,
+                  bottom: 0,
+                  child: IgnorePointer(
+                    child: Center(
+                      child: Icon(
+                        Icons.chevron_right_rounded,
+                        size: 22,
+                        color: cl.textLight,
                       ),
                     ),
                   ),

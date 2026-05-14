@@ -9,7 +9,6 @@ import 'package:clair/features/chat/presentation/screens/chat_screen.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/library/presentation/screens/library_screen.dart';
 import 'package:clair/features/lawyer/presentation/screens/lawyer_screen.dart';
-import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
 import 'package:clair/features/appointments/presentation/screens/appointment_screen.dart';
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
@@ -145,8 +144,6 @@ class _MainShellState extends ConsumerState<MainShell>
   Widget _buildNav(BuildContext context, int currentIndex, List<String> labels) {
     final cl = context.c;
     final bottom = MediaQuery.of(context).viewPadding.bottom;
-    final pendingApprovals =
-        ref.watch(appointmentProvider.select((s) => s.pendingCount));
 
     return Container(
       padding: EdgeInsets.only(bottom: bottom > 0 ? bottom : 8),
@@ -167,11 +164,9 @@ class _MainShellState extends ConsumerState<MainShell>
           children: List.generate(
             labels.length,
             (i) {
-              // Show pending confirmations on the icon only while browsing other
-              // tabs — on Appointments itself the list + banner already surface it.
-              final badge =
-                  i == 4 && currentIndex != 4 ? pendingApprovals : 0;
-              return _navItem(i, currentIndex, labels, badge);
+              // No tab badge for Appointments: pending bookings are obvious in the
+              // list + banner; a count here reads like "unread" and confuses users.
+              return _navItem(i, currentIndex, labels, 0);
             },
           ),
         ),
