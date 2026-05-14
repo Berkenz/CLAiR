@@ -13,6 +13,7 @@ import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/services/location_service.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
+import 'package:clair/features/chat/domain/entities/rag_source_entity.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
 import 'package:clair/features/chat/presentation/widgets/message_report_sheet.dart';
@@ -711,10 +712,100 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   const SizedBox(height: 12),
                   _SuggestedLawyersList(lawyers: message.suggestedLawyers),
                 ],
+                _buildRagFootnote(message),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRagFootnote(ChatMessageEntity message) {
+    if (message.isUser) return const SizedBox.shrink();
+    final enabled = message.ragEnabled;
+    if (enabled == null) return const SizedBox.shrink();
+    final cl = context.c;
+    if (!enabled) {
+      return Padding(
+        padding: const EdgeInsets.only(left: 42, top: 8),
+        child: Text(
+          'Law library (RAG) not connected on server — answer may use general model knowledge only.',
+          style: GoogleFonts.nunito(fontSize: 11, color: Colors.orange.shade800),
+        ),
+      );
+    }
+    if (message.ragSources.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(left: 42, top: 8),
+        child: Text(
+          'No law excerpts met the relevance threshold for this question.',
+          style: GoogleFonts.nunito(fontSize: 11, color: cl.textMid),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(left: 42, top: 8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: cl.accent.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: cl.accent.withValues(alpha: 0.28)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.library_books_outlined, size: 16, color: cl.accent),
+                const SizedBox(width: 6),
+                Text(
+                  'Retrieved for this answer',
+                  style: GoogleFonts.nunito(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: cl.textDark,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ...message.ragSources.map((RagSourceEntity s) {
+              final pct = (s.similarity * 100).clamp(0, 100).toStringAsFixed(0);
+              final head = s.number?.trim().isNotEmpty == true ? s.number! : 'Source';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$head · $pct% match',
+                      style: GoogleFonts.nunito(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: cl.accentDark,
+                      ),
+                    ),
+                    if (s.title.trim().isNotEmpty)
+                      Text(
+                        s.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.nunito(fontSize: 11, color: cl.textMid),
+                      ),
+                    if (s.category != null && s.category!.trim().isNotEmpty)
+                      Text(
+                        s.category!,
+                        style: GoogleFonts.nunito(fontSize: 10, color: cl.textMid),
+                      ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }

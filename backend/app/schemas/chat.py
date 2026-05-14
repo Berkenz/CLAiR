@@ -31,8 +31,21 @@ class SuggestedLawyer(BaseModel):
     longitude: float | None = None
 
 
+class RagSourceItem(BaseModel):
+    """One retrieved law chunk surfaced to the client for transparency / QA."""
+
+    number: str | None = None
+    title: str = ""
+    category: str | None = None
+    similarity: float = 0.0
+    source_url: str | None = None
+
+
 class ChatResponse(BaseModel):
     reply: str
     conversation_id: uuid.UUID
     conversation_title: str
     suggested_lawyers: list[SuggestedLawyer] = Field(default_factory=list)
+    # RAG transparency: same retrieval as injected into the LLM prompt.
+    rag_enabled: bool = False
+    rag_sources: list[RagSourceItem] = Field(default_factory=list)

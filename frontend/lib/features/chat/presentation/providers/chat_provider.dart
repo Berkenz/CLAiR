@@ -58,6 +58,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
         text: response.reply,
         isUser: false,
         suggestedLawyers: response.suggestedLawyers,
+        ragSources: response.ragSources,
+        ragEnabled: response.ragEnabled,
       );
       state = state.copyWith(
         messages: [...state.messages, aiMessage],

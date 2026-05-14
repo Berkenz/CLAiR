@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
-from app.schemas.chat import ChatRequest, ChatResponse, SuggestedLawyer
+from app.schemas.chat import ChatRequest, ChatResponse, RagSourceItem, SuggestedLawyer
 from app.services.chat_service import generate_conversation_title, get_chat_response
 from app.services.conversation_service import conversation_service
 
@@ -39,13 +39,14 @@ async def send_message(
             )
 
         history = [{"role": m.role, "text": m.text} for m in body.history]
-        reply, nearby = await get_chat_response(
+        reply, nearby, rag_sources_raw, rag_enabled = await get_chat_response(
             message=body.message,
             history=history,
             db=db,
             user_lat=body.user_lat,
             user_lng=body.user_lng,
         )
+        rag_sources = [RagSourceItem(**r) for r in rag_sources_raw]
         suggested_lawyers = [
             SuggestedLawyer(
                 id=str(l["id"]),
@@ -94,6 +95,8 @@ async def send_message(
             conversation_id=conv.id,
             conversation_title=conversation_title,
             suggested_lawyers=suggested_lawyers,
+            rag_enabled=rag_enabled,
+            rag_sources=rag_sources,
         )
 
     except HTTPException:

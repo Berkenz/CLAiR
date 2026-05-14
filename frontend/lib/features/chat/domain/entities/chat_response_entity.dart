@@ -1,3 +1,4 @@
+import 'package:clair/features/chat/domain/entities/rag_source_entity.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 
 class ChatResponseEntity {
@@ -5,11 +6,16 @@ class ChatResponseEntity {
   final String conversationId;
   final String conversationTitle;
   final List<LawyerEntity> suggestedLawyers;
+  /// Whether the server had RAG URLs configured for this turn (`null` if the API did not send the field).
+  final bool? ragEnabled;
+  final List<RagSourceEntity> ragSources;
 
   const ChatResponseEntity({
     required this.reply,
     required this.conversationId,
     required this.conversationTitle,
     this.suggestedLawyers = const [],
+    this.ragEnabled,
+    this.ragSources = const [],
   });
 }

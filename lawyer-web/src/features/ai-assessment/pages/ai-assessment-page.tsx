@@ -17,6 +17,25 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  ragEnabled?: boolean;
+  ragSources?: RagSource[];
+}
+
+interface RagSource {
+  number: string | null;
+  title: string;
+  category: string | null;
+  similarity: number;
+  source_url: string | null;
+}
+
+interface ChatSendResponse {
+  reply: string;
+  conversation_id: string;
+  conversation_title: string;
+  suggested_lawyers?: unknown[];
+  rag_enabled?: boolean;
+  rag_sources?: RagSource[];
 }
 
 interface MessageFeedback {
@@ -24,12 +43,6 @@ interface MessageFeedback {
   type: "commend" | "report";
   issues?: string[];
   comment?: string;
-}
-
-interface ChatSendResponse {
-  reply: string;
-  conversation_id: string;
-  conversation_title: string;
 }
 
 interface LawyerConversationSummary {
@@ -320,6 +333,8 @@ function ChatTab() {
         role: "assistant",
         content: data.reply,
         timestamp: new Date(),
+        ragEnabled: data.rag_enabled,
+        ragSources: data.rag_sources ?? [],
       };
       setMessages((prev) => [...prev, reply]);
       void refreshHistories();
@@ -481,25 +496,66 @@ function ChatTab() {
           ) : (
             <div className="p-5 space-y-5">
               {messages.map((msg) => (
-                <div key={msg.id} className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start")}>
-                  {msg.role === "assistant" && (
-                    <div className="h-8 w-8 rounded-full bg-[#703d57] flex items-center justify-center shrink-0 mt-0.5">
-                      <Bot className="h-4 w-4 text-white" />
-                    </div>
-                  )}
-                  <div
-                    className={cn(
-                      "max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
-                      msg.role === "user"
-                        ? "bg-[#703d57] text-white rounded-tr-sm"
-                        : "bg-[#f7f0f4] text-[#241715] rounded-tl-sm",
+                <div key={msg.id} className={cn("flex flex-col gap-2", msg.role === "user" ? "items-end" : "items-start")}>
+                  <div className={cn("flex gap-3 w-full", msg.role === "user" ? "justify-end" : "justify-start")}>
+                    {msg.role === "assistant" && (
+                      <div className="h-8 w-8 rounded-full bg-[#703d57] flex items-center justify-center shrink-0 mt-0.5">
+                        <Bot className="h-4 w-4 text-white" />
+                      </div>
                     )}
-                  >
-                    {msg.content}
+                    <div
+                      className={cn(
+                        "max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
+                        msg.role === "user"
+                          ? "bg-[#703d57] text-white rounded-tr-sm"
+                          : "bg-[#f7f0f4] text-[#241715] rounded-tl-sm",
+                      )}
+                    >
+                      {msg.content}
+                    </div>
+                    {msg.role === "user" && (
+                      <div className="h-8 w-8 rounded-full bg-[#957186] flex items-center justify-center shrink-0 mt-0.5">
+                        <User className="h-4 w-4 text-white" />
+                      </div>
+                    )}
                   </div>
-                  {msg.role === "user" && (
-                    <div className="h-8 w-8 rounded-full bg-[#957186] flex items-center justify-center shrink-0 mt-0.5">
-                      <User className="h-4 w-4 text-white" />
+                  {msg.role === "assistant" && msg.ragEnabled != null && (
+                    <div className="w-full max-w-[min(100%,28rem)] pl-11">
+                      {!msg.ragEnabled ? (
+                        <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200/80 rounded-lg px-3 py-2">
+                          Law library (RAG) not connected on server — answer may use general model knowledge only.
+                        </p>
+                      ) : !msg.ragSources?.length ? (
+                        <p className="text-[11px] text-[#957186]">
+                          No law excerpts met the relevance threshold for this question.
+                        </p>
+                      ) : (
+                        <div className="rounded-xl border border-[#d9b8c4]/80 bg-[#fdf9fb] px-3 py-2.5 space-y-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-[#5a3046]">
+                            Retrieved for this answer
+                          </p>
+                          <ul className="space-y-2">
+                            {msg.ragSources.map((s, i) => (
+                              <li key={i} className="text-xs text-[#241715] border-l-2 border-[#703d57]/40 pl-2">
+                                <span className="font-semibold text-[#703d57]">
+                                  {(s.number?.trim() || "Source") + ` · ${Math.round(s.similarity * 100)}% match`}
+                                </span>
+                                {s.title ? <div className="text-[#957186] mt-0.5 line-clamp-2">{s.title}</div> : null}
+                                {s.source_url ? (
+                                  <a
+                                    href={s.source_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[10px] text-[#703d57] underline mt-1 inline-block"
+                                  >
+                                    Open source
+                                  </a>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

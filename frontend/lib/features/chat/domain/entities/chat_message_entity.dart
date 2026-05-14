@@ -1,3 +1,4 @@
+import 'package:clair/features/chat/domain/entities/rag_source_entity.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 
 class ChatMessageEntity {
@@ -9,11 +10,19 @@ class ChatMessageEntity {
   /// when the backend returned profile cards alongside the reply.
   final List<LawyerEntity> suggestedLawyers;
 
+  /// Retrieved law excerpts for this assistant turn (RAG), when any.
+  final List<RagSourceEntity> ragSources;
+
+  /// Whether the server had RAG configured for this turn (`null` = e.g. history load).
+  final bool? ragEnabled;
+
   const ChatMessageEntity({
     required this.text,
     required this.isUser,
     this.feedback,
     this.suggestedLawyers = const [],
+    this.ragSources = const [],
+    this.ragEnabled,
   });
 
   String get role => isUser ? 'user' : 'model';
@@ -29,12 +38,17 @@ class ChatMessageEntity {
     String? feedback,
     bool clearFeedback = false,
     List<LawyerEntity>? suggestedLawyers,
+    List<RagSourceEntity>? ragSources,
+    bool? ragEnabled,
+    bool clearRagEnabled = false,
   }) {
     return ChatMessageEntity(
       text: text ?? this.text,
       isUser: isUser ?? this.isUser,
       feedback: clearFeedback ? null : (feedback ?? this.feedback),
       suggestedLawyers: suggestedLawyers ?? this.suggestedLawyers,
+      ragSources: ragSources ?? this.ragSources,
+      ragEnabled: clearRagEnabled ? null : (ragEnabled ?? this.ragEnabled),
     );
   }
 }

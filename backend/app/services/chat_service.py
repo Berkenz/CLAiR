@@ -141,19 +141,45 @@ def _build_messages(
     return messages
 
 
+def _rag_sources_from_chunks(chunks: list[dict]) -> list[dict]:
+    out: list[dict] = []
+    for c in chunks:
+        sim = c.get("similarity")
+        try:
+            sim_f = float(sim) if sim is not None else 0.0
+        except (TypeError, ValueError):
+            sim_f = 0.0
+        out.append(
+            {
+                "number": c.get("number"),
+                "title": (c.get("title") or "")[:400],
+                "category": c.get("category"),
+                "similarity": round(sim_f, 4),
+                "source_url": c.get("source_url"),
+            }
+        )
+    return out
+
+
 async def get_chat_response(
     message: str,
     history: list[dict[str, str]],
     db: AsyncSession | None = None,
     user_lat: float | None = None,
     user_lng: float | None = None,
-) -> tuple[str, list[dict]]:
-    """Returns (reply_text, suggested_lawyers).
+) -> tuple[str, list[dict], list[dict], bool]:
+    """Returns (reply_text, suggested_lawyers, rag_sources, rag_enabled).
 
     suggested_lawyers is non-empty only when the model included the
     [[SUGGEST_LAWYERS]] marker in its reply and nearby lawyers exist.
+
+    rag_sources lists retrieved law chunks (same as injected into the prompt).
+    rag_enabled is True when SUPABASE_DB_URL and EMBED_SERVICE_URL are set
+    (retrieval was attempted; rag_sources may still be empty).
     """
+    rag_enabled = bool(settings.SUPABASE_DB_URL and settings.EMBED_SERVICE_URL)
     chunks = await get_relevant_chunks(message)
+    rag_sources = _rag_sources_from_chunks(chunks)
     rag_context = format_rag_context(chunks)
 
     nearby_lawyers: list[dict] = []
@@ -183,7 +209,7 @@ async def get_chat_response(
         content = content.replace(_SUGGEST_MARKER, "").strip()
         suggested = nearby_lawyers
 
-    return content, suggested
+    return content, suggested, rag_sources, rag_enabled
 
 
 _TITLE_SYSTEM = (

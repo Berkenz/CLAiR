@@ -215,7 +215,7 @@ async def ingest(
             title = law.get("title", "")
 
             # Prefix each chunk so the model sees the source in context
-            prefix = f"[{number} — {title}]\n"
+            prefix = f"[{number} - {title}]\n"
 
             chunks = chunk_text(full_text)
 

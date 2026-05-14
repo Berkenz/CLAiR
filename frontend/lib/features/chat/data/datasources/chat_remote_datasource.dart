@@ -4,6 +4,7 @@ import 'package:clair/core/constants/app_constants.dart';
 import 'package:clair/core/network/api_endpoints.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/chat/domain/entities/chat_response_entity.dart';
+import 'package:clair/features/chat/domain/entities/rag_source_entity.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 
 class ChatRemoteDataSource {
@@ -62,11 +63,22 @@ class ChatRemoteDataSource {
           .map(LawyerEntity.fromJson)
           .toList();
 
+      final bool? ragEnabled = body.containsKey('rag_enabled')
+          ? body['rag_enabled'] == true
+          : null;
+      final rawRag = body['rag_sources'] as List<dynamic>? ?? [];
+      final ragSources = rawRag
+          .whereType<Map<String, dynamic>>()
+          .map(RagSourceEntity.fromJson)
+          .toList();
+
       return ChatResponseEntity(
         reply: replyText,
         conversationId: convId,
         conversationTitle: (body['conversation_title'] as String?)?.trim() ?? '',
         suggestedLawyers: suggestedLawyers,
+        ragEnabled: ragEnabled,
+        ragSources: ragSources,
       );
     } on DioException catch (e) {
       final data = e.response?.data;
