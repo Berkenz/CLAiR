@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 
 // ─── Preference keys ──────────────────────────────────────────────────────────
@@ -89,7 +90,7 @@ class _EmailScreenState extends ConsumerState<EmailScreen> {
       setState(() => _resentDone = true);
       _snack('Verification email sent. Check your inbox.');
     } catch (e) {
-      _snack(e.toString(), isError: true);
+      _snack(friendlyErrorMessage(e), isError: true);
     } finally {
       if (mounted) setState(() => _resending = false);
     }
@@ -134,7 +135,7 @@ class _EmailScreenState extends ConsumerState<EmailScreen> {
       _pwCtrl.clear();
       _snack('Verification link sent to $newEmail');
     } catch (e) {
-      _snack(e.toString(), isError: true);
+      _snack(friendlyErrorMessage(e), isError: true);
     } finally {
       if (mounted) setState(() => _changingEmail = false);
     }

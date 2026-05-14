@@ -1,10 +1,10 @@
 import 'dart:ui';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/l10n/app_localizations.dart';
 
@@ -53,8 +53,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) context.go('/home');
     } catch (e) {
       if (mounted) {
-        final detail = _extractErrorDetail(e);
-        if (detail.contains('verify your email')) {
+        final detail = friendlyErrorMessage(e);
+        if (detail.toLowerCase().contains('verify your email')) {
           context.go('/verify-email', extra: {'email': email});
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -72,14 +72,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  String _extractErrorDetail(Object e) {
-    if (e is DioException && e.response?.data is Map) {
-      final detail = (e.response!.data as Map)['detail'];
-      if (detail is String) return detail;
-    }
-    return e.toString();
   }
 
   Future<void> _signInWithGoogle() async {
@@ -100,7 +92,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text(friendlyErrorMessage(e)),
             backgroundColor: cl.crimson,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -126,7 +118,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text(friendlyErrorMessage(e)),
             backgroundColor: cl.crimson,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(

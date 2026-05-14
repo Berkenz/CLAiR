@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/notifications/data/datasources/notification_remote_datasource.dart';
 import 'package:clair/features/notifications/domain/entities/in_app_notification_entity.dart';
 import 'package:clair/shared/providers/shared_providers.dart';
@@ -58,7 +59,7 @@ class NotificationInboxNotifier extends StateNotifier<NotificationInboxState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
     }
   }

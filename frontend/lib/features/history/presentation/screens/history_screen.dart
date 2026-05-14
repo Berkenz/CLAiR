@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/history/domain/entities/conversation_entity.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
@@ -472,7 +473,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(l10n.histDownloadFailed(e.toString())),
+          content: Text(l10n.histDownloadFailed(friendlyErrorMessage(e))),
           backgroundColor: Colors.red.shade700,
         ),
       );

@@ -34,6 +34,7 @@
   "privacyPolicy": "Polisiya sa Privacy",
   "resetAllToDefault": "Ibalik sa default",
   "logOut": "Log out",
+  "exitGuestSession": "Biyaan ang Guest Session",
   "deleteAccount": "Tangtangon ang account",
   "settingsResetDialogTitle": "I-reset tanang setting?",
   "settingsResetDialogBody": "Ang tema, accent, ug gidak-on sa font mobalik sa default.",
@@ -441,5 +442,26 @@
   "helpSecPrivacy": "Privacy ug Seguridad",
   "helpSecAccount": "Account ug Settings",
   "helpSecReporting": "Pag-report ug Feedback",
-  "helpFaqEnglishNotice": "Ang mga detalyadong tubag sa FAQ sa ubos anaa sa English aron legal nga tarong."
+  "helpFaqEnglishNotice": "Ang mga detalyadong tubag sa FAQ sa ubos anaa sa English aron legal nga tarong.",
+
+  "tutorialSkip": "Laktawi",
+  "tutorialNext": "Sunod",
+  "tutorialBack": "Balik",
+  "tutorialDone": "Sugdi Na",
+  "tutorialStepOf": "{current} sa {total}",
+
+  "tutorialWelcomeTitle": "Welcome sa CLAiR",
+  "tutorialWelcomeBody": "Ang imong AI-powered nga legal assistant. Giyahan ka namo sa mga nag-unang feature.",
+
+  "tutorialChatTitle": "Makig-chat sa AI",
+  "tutorialChatBody": "Pangutan-a si CLAiR bisan unsang legal nga pangutana. Makakuha og dayon nga giya base sa balaod sa Pilipinas.",
+
+  "tutorialLawyersTitle": "Pangitag Abogado",
+  "tutorialLawyersBody": "Pag-browse sa mga verified nga abogado duol nimo, tan-awa ang ilang profile, ug mag-book og konsultasyon.",
+
+  "tutorialLibraryTitle": "Chat Library",
+  "tutorialLibraryBody": "Tanan nimong mga nangaging panagsultihanay na-save dinhi. I-pin, pangitaa, o i-download isip PDF.",
+
+  "tutorialAppointmentsTitle": "Mga Appointment",
+  "tutorialAppointmentsBody": "I-track ang imong mga naka-book nga konsultasyon, makig-chat sa imong abogado, ug dumala sa imong iskedyul."
 }

@@ -34,6 +34,7 @@
   "privacyPolicy": "Privacy Policy",
   "resetAllToDefault": "Reset All to Default",
   "logOut": "Log Out",
+  "exitGuestSession": "Exit Guest Session",
   "deleteAccount": "Delete Account",
   "settingsResetDialogTitle": "Reset all settings?",
   "settingsResetDialogBody": "Appearance options (theme, accent, and font size) will return to their defaults.",
@@ -441,5 +442,26 @@
   "helpSecPrivacy": "Privacy & Security",
   "helpSecAccount": "Account & Settings",
   "helpSecReporting": "Reporting & Feedback",
-  "helpFaqEnglishNotice": "Detailed FAQ answers below are in English for legal accuracy."
+  "helpFaqEnglishNotice": "Detailed FAQ answers below are in English for legal accuracy.",
+
+  "tutorialSkip": "Skip",
+  "tutorialNext": "Next",
+  "tutorialBack": "Back",
+  "tutorialDone": "Get Started",
+  "tutorialStepOf": "{current} of {total}",
+
+  "tutorialWelcomeTitle": "Welcome to CLAiR",
+  "tutorialWelcomeBody": "Your AI-powered legal assistant. Let us give you a quick tour of the main features.",
+
+  "tutorialChatTitle": "Chat with AI",
+  "tutorialChatBody": "Ask CLAiR any legal question. Get instant, AI-powered guidance based on Philippine law.",
+
+  "tutorialLawyersTitle": "Find a Lawyer",
+  "tutorialLawyersBody": "Browse verified lawyers near you, view their profiles, and book consultations.",
+
+  "tutorialLibraryTitle": "Chat Library",
+  "tutorialLibraryBody": "All your past conversations are saved here. Pin, search, or download them as PDFs.",
+
+  "tutorialAppointmentsTitle": "Appointments",
+  "tutorialAppointmentsBody": "Track your booked consultations, chat with your lawyer, and manage your schedule."
 }

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
 
@@ -85,7 +86,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       ref.read(currentUserProvider.notifier).state = updatedUser;
       _showSnackBar('Profile updated');
     } catch (e) {
-      _showSnackBar(e.toString(), isError: true);
+      _showSnackBar(friendlyErrorMessage(e), isError: true);
     } finally {
       if (mounted) setState(() => _saving = false);
     }

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/appointments/data/datasources/direct_message_datasource.dart';
 import 'package:clair/features/appointments/domain/entities/direct_message_entity.dart';
 import 'package:clair/shared/providers/shared_providers.dart';
@@ -104,7 +105,7 @@ class DirectMessageNotifier extends StateNotifier<DirectMessageState> {
       await _dataSource.markRead(_appointmentId);
     } catch (e) {
       if (!mounted) return;
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: friendlyErrorMessage(e));
     }
   }
 
@@ -123,7 +124,7 @@ class DirectMessageNotifier extends StateNotifier<DirectMessageState> {
       return true;
     } catch (e) {
       if (!mounted) return false;
-      state = state.copyWith(isSending: false, error: e.toString());
+      state = state.copyWith(isSending: false, error: friendlyErrorMessage(e));
       return false;
     }
   }
@@ -154,7 +155,7 @@ class DirectMessageNotifier extends StateNotifier<DirectMessageState> {
       return true;
     } catch (e) {
       if (!mounted) return false;
-      state = state.copyWith(isSending: false, error: e.toString());
+      state = state.copyWith(isSending: false, error: friendlyErrorMessage(e));
       return false;
     }
   }

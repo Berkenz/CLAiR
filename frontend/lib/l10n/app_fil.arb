@@ -34,6 +34,7 @@
   "privacyPolicy": "Patakaran sa Privacy",
   "resetAllToDefault": "Ibalik sa default",
   "logOut": "Mag-log out",
+  "exitGuestSession": "Lumabas sa Guest Session",
   "deleteAccount": "Burahin ang account",
   "settingsResetDialogTitle": "I-reset ang lahat ng setting?",
   "settingsResetDialogBody": "Ang tema, accent, at laki ng font ay babalik sa default.",
@@ -441,5 +442,26 @@
   "helpSecPrivacy": "Privacy & Seguridad",
   "helpSecAccount": "Account & Settings",
   "helpSecReporting": "Pag-report & Feedback",
-  "helpFaqEnglishNotice": "Ang mga detalyadong sagot sa FAQ sa ibaba ay sa Ingles para sa legal na katumpakan."
+  "helpFaqEnglishNotice": "Ang mga detalyadong sagot sa FAQ sa ibaba ay sa Ingles para sa legal na katumpakan.",
+
+  "tutorialSkip": "Laktawan",
+  "tutorialNext": "Susunod",
+  "tutorialBack": "Bumalik",
+  "tutorialDone": "Simulan Na",
+  "tutorialStepOf": "{current} ng {total}",
+
+  "tutorialWelcomeTitle": "Maligayang pagdating sa CLAiR",
+  "tutorialWelcomeBody": "Ang iyong AI-powered na legal assistant. Gabayan ka namin sa mga pangunahing feature.",
+
+  "tutorialChatTitle": "Makipag-chat sa AI",
+  "tutorialChatBody": "Magtanong kay CLAiR ng kahit anong legal na katanungan. Makakuha ng agarang gabay batay sa batas ng Pilipinas.",
+
+  "tutorialLawyersTitle": "Maghanap ng Abogado",
+  "tutorialLawyersBody": "Mag-browse ng mga verified na abogado malapit sa iyo, tingnan ang kanilang profile, at mag-book ng konsultasyon.",
+
+  "tutorialLibraryTitle": "Chat Library",
+  "tutorialLibraryBody": "Lahat ng iyong mga nakaraang usapan ay naka-save dito. I-pin, maghanap, o i-download bilang PDF.",
+
+  "tutorialAppointmentsTitle": "Mga Appointment",
+  "tutorialAppointmentsBody": "I-track ang mga naka-book na konsultasyon, makipag-chat sa iyong abogado, at pamahalaan ang iyong iskedyul."
 }

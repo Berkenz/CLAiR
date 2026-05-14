@@ -111,6 +111,9 @@ class AppLocalizationsCeb extends AppLocalizations {
   String get logOut => 'Log out';
 
   @override
+  String get exitGuestSession => 'Biyaan ang Guest Session';
+
+  @override
   String get deleteAccount => 'Tangtangon ang account';
 
   @override
@@ -1123,4 +1126,56 @@ class AppLocalizationsCeb extends AppLocalizations {
   @override
   String get helpFaqEnglishNotice =>
       'Ang mga detalyadong tubag sa FAQ sa ubos anaa sa English aron legal nga tarong.';
+
+  @override
+  String get tutorialSkip => 'Laktawi';
+
+  @override
+  String get tutorialNext => 'Sunod';
+
+  @override
+  String get tutorialBack => 'Balik';
+
+  @override
+  String get tutorialDone => 'Sugdi Na';
+
+  @override
+  String tutorialStepOf(Object current, Object total) {
+    return '$current sa $total';
+  }
+
+  @override
+  String get tutorialWelcomeTitle => 'Welcome sa CLAiR';
+
+  @override
+  String get tutorialWelcomeBody =>
+      'Ang imong AI-powered nga legal assistant. Giyahan ka namo sa mga nag-unang feature.';
+
+  @override
+  String get tutorialChatTitle => 'Makig-chat sa AI';
+
+  @override
+  String get tutorialChatBody =>
+      'Pangutan-a si CLAiR bisan unsang legal nga pangutana. Makakuha og dayon nga giya base sa balaod sa Pilipinas.';
+
+  @override
+  String get tutorialLawyersTitle => 'Pangitag Abogado';
+
+  @override
+  String get tutorialLawyersBody =>
+      'Pag-browse sa mga verified nga abogado duol nimo, tan-awa ang ilang profile, ug mag-book og konsultasyon.';
+
+  @override
+  String get tutorialLibraryTitle => 'Chat Library';
+
+  @override
+  String get tutorialLibraryBody =>
+      'Tanan nimong mga nangaging panagsultihanay na-save dinhi. I-pin, pangitaa, o i-download isip PDF.';
+
+  @override
+  String get tutorialAppointmentsTitle => 'Mga Appointment';
+
+  @override
+  String get tutorialAppointmentsBody =>
+      'I-track ang imong mga naka-book nga konsultasyon, makig-chat sa imong abogado, ug dumala sa imong iskedyul.';
 }
