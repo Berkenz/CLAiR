@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
-import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/appointments/domain/entities/appointment_entity.dart';
 import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
@@ -27,8 +26,6 @@ class AppointmentTabScreen extends ConsumerStatefulWidget {
 }
 
 class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
-  static const int _tabIndex = 4;
-
   _AppointmentListFilter _filter = _AppointmentListFilter.all;
   _AppointmentListSort _sort = _AppointmentListSort.dateNewest;
 
@@ -36,7 +33,9 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
   void initState() {
     super.initState();
     Future.microtask(() async {
-      await ref.read(appointmentProvider.notifier).loadAppointments();
+      await ref
+          .read(appointmentProvider.notifier)
+          .loadAppointments(force: true);
       if (!mounted) return;
       _processPendingNotificationRoutes(ref.read(appointmentProvider));
     });
@@ -44,30 +43,31 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
 
   /// Opens chat or appointment detail when user tapped a matching inbox notification.
   void _processPendingNotificationRoutes(AppointmentState next) {
-    if (next.isLoading) return;
-
-    final chatPending = ref.read(pendingLawyerChatAppointmentIdProvider);
-    if (chatPending != null) {
+    final chatPendingRaw = ref.read(pendingLawyerChatAppointmentIdProvider);
+    final chatPending = chatPendingRaw?.trim();
+    if (chatPending != null && chatPending.isNotEmpty) {
       AppointmentEntity? foundChat;
       for (final a in next.appointments) {
-        if (a.id == chatPending) {
+        if (a.id.trim() == chatPending) {
           foundChat = a;
           break;
         }
       }
-      ref.read(pendingLawyerChatAppointmentIdProvider.notifier).state = null;
+
       if (foundChat != null) {
+        ref.read(pendingLawyerChatAppointmentIdProvider.notifier).state = null;
         final appt = foundChat;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
+          final nav = Navigator.of(context, rootNavigator: true);
           if (appt.canStartLawyerChat) {
-            Navigator.of(context).push<void>(
+            nav.push<void>(
               MaterialPageRoute(
                 builder: (_) => LawyerChatScreen(appointment: appt),
               ),
             );
           } else {
-            Navigator.of(context)
+            nav
                 .push<bool>(
               MaterialPageRoute(
                 builder: (_) => AppointmentDetailScreen(appointment: appt),
@@ -82,26 +82,34 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
             });
           }
         });
-      } else {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(AppLocalizations.of(context)!.apptNotFoundSnackbar),
-              backgroundColor: Colors.red.shade700,
-            ),
-          );
-        });
+        return;
       }
+
+      // Still fetching — keep pending until we have a full list.
+      if (next.isLoading) return;
+
+      ref.read(pendingLawyerChatAppointmentIdProvider.notifier).state = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.apptNotFoundSnackbar),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      });
       return;
     }
 
-    final pending = ref.read(pendingAppointmentDetailIdProvider);
-    if (pending == null) return;
+    if (next.isLoading) return;
+
+    final pendingRaw = ref.read(pendingAppointmentDetailIdProvider);
+    final pending = pendingRaw?.trim();
+    if (pending == null || pending.isEmpty) return;
 
     AppointmentEntity? found;
     for (final a in next.appointments) {
-      if (a.id == pending) {
+      if (a.id.trim() == pending) {
         found = a;
         break;
       }
@@ -110,7 +118,7 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
     if (found != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        Navigator.of(context)
+        Navigator.of(context, rootNavigator: true)
             .push<bool>(
           MaterialPageRoute(
             builder: (_) => AppointmentDetailScreen(appointment: found!),
@@ -137,9 +145,21 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<int>(mainShellTabProvider, (prev, next) {
-      if (next == _tabIndex) {
-        ref.read(appointmentProvider.notifier).loadAppointments();
+    ref.listen<String?>(pendingLawyerChatAppointmentIdProvider, (prev, next) {
+      if (next != null && next.trim().isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _processPendingNotificationRoutes(ref.read(appointmentProvider));
+        });
+      }
+    });
+
+    ref.listen<String?>(pendingAppointmentDetailIdProvider, (prev, next) {
+      if (next != null && next.trim().isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _processPendingNotificationRoutes(ref.read(appointmentProvider));
+        });
       }
     });
 
@@ -779,16 +799,25 @@ class _AppointmentCard extends ConsumerStatefulWidget {
 }
 
 class _AppointmentCardState extends ConsumerState<_AppointmentCard> {
+  int _dmUnread = 0;
+
   @override
   void initState() {
     super.initState();
-    // Lazily peek the DM unread count for confirmed appointments.
     if (widget.appointment.canStartLawyerChat) {
+      final id = widget.appointment.id;
+      _dmUnread = ref.read(directMessageProvider(id)).unreadCount;
+      ref.listenManual<DirectMessageState>(
+        directMessageProvider(id),
+        (prev, next) {
+          if (!mounted) return;
+          final u = next.unreadCount;
+          if (u != _dmUnread) setState(() => _dmUnread = u);
+        },
+      );
       Future.microtask(() {
         if (mounted) {
-          ref
-              .read(directMessageProvider(widget.appointment.id).notifier)
-              .fetchCountOnly();
+          ref.read(directMessageProvider(id).notifier).fetchCountOnly();
         }
       });
     }
@@ -808,9 +837,8 @@ class _AppointmentCardState extends ConsumerState<_AppointmentCard> {
     final bookedLine = l10n.apptCardBookedAt(bookedDate, bookedTime);
     final isNew = appointment.isNew;
 
-    final dmUnread = appointment.canStartLawyerChat
-        ? ref.watch(directMessageProvider(appointment.id)).unreadCount
-        : 0;
+    final dmUnread =
+        appointment.canStartLawyerChat ? _dmUnread : 0;
 
     return SpringButton(
       onTap: widget.onTap,

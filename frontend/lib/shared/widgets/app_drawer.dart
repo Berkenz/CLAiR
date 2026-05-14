@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
-import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
@@ -117,16 +116,10 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 Navigator.pop(context);
                 ref.read(mainShellTabProvider.notifier).state = 3;
               }),
-              _itemWithBadge(
-                context,
-                Icons.event_note_outlined,
-                l10n.drawerAppointments,
-                badge: ref.watch(appointmentProvider).pendingCount,
-                onTap: () {
-                  Navigator.pop(context);
-                  ref.read(mainShellTabProvider.notifier).state = 4;
-                },
-              ),
+              _item(context, Icons.event_note_outlined, l10n.drawerAppointments, false, () {
+                Navigator.pop(context);
+                ref.read(mainShellTabProvider.notifier).state = 4;
+              }),
               _itemWithBadge(
                 context,
                 Icons.notifications_none_rounded,

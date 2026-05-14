@@ -144,6 +144,14 @@ class _MainShellState extends ConsumerState<MainShell>
   Widget _buildNav(BuildContext context, int currentIndex, List<String> labels) {
     final cl = context.c;
     final bottom = MediaQuery.of(context).viewPadding.bottom;
+    final inbox = ref.watch(notificationInboxProvider);
+    final lawyerChatUnread = inbox.notifications
+        .where(
+          (n) =>
+              !n.isRead &&
+              n.notificationType == 'new_direct_message',
+        )
+        .length;
 
     return Container(
       padding: EdgeInsets.only(bottom: bottom > 0 ? bottom : 8),
@@ -164,8 +172,15 @@ class _MainShellState extends ConsumerState<MainShell>
           children: List.generate(
             labels.length,
             (i) {
-              // No tab badge for Appointments: pending bookings are obvious in the
-              // list + banner; a count here reads like "unread" and confuses users.
+              if (i == 4) {
+                return _navItem(
+                  i,
+                  currentIndex,
+                  labels,
+                  lawyerChatUnread,
+                  badgeDotOnly: true,
+                );
+              }
               return _navItem(i, currentIndex, labels, 0);
             },
           ),
@@ -174,7 +189,13 @@ class _MainShellState extends ConsumerState<MainShell>
     );
   }
 
-  Widget _navItem(int i, int currentIndex, List<String> labels, int badgeCount) {
+  Widget _navItem(
+    int i,
+    int currentIndex,
+    List<String> labels,
+    int badgeCount, {
+    bool badgeDotOnly = false,
+  }) {
     final cl = context.c;
     final active = currentIndex == i;
 
@@ -184,7 +205,27 @@ class _MainShellState extends ConsumerState<MainShell>
       color: active ? cl.accent : cl.textLight,
     );
 
-    if (badgeCount > 0) {
+    if (badgeDotOnly && badgeCount > 0) {
+      iconWidget = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          iconWidget,
+          Positioned(
+            right: -4,
+            top: -4,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: Colors.red.shade600,
+                shape: BoxShape.circle,
+                border: Border.all(color: cl.surface, width: 1.5),
+              ),
+            ),
+          ),
+        ],
+      );
+    } else if (!badgeDotOnly && badgeCount > 0) {
       iconWidget = Stack(
         clipBehavior: Clip.none,
         children: [
@@ -318,7 +359,7 @@ class _QuickActionsFab extends StatelessWidget {
                 turns: open ? 0.125 : 0.0,
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeInOut,
-                child: Icon(
+                child: const Icon(
                   Icons.add_rounded,
                   size: 28,
                   color: Colors.white,

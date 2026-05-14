@@ -175,8 +175,10 @@ class _NotificationBody extends ConsumerWidget {
       ref.read(mainShellTabProvider.notifier).state = 4;
       await ref.read(appointmentProvider.notifier).loadAppointments(force: true);
       if (!context.mounted) return;
-      ref.read(pendingLawyerChatAppointmentIdProvider.notifier).state = apptId;
       Navigator.of(context).pop();
+      // Set after pop + load so appointments tab already has data and listeners run
+      // on a stable navigator stack (avoids missed routing when tab was already mounted).
+      ref.read(pendingLawyerChatAppointmentIdProvider.notifier).state = apptId.trim();
       return;
     }
     if (apptId != null &&
@@ -185,8 +187,8 @@ class _NotificationBody extends ConsumerWidget {
       ref.read(mainShellTabProvider.notifier).state = 4;
       await ref.read(appointmentProvider.notifier).loadAppointments(force: true);
       if (!context.mounted) return;
-      ref.read(pendingAppointmentDetailIdProvider.notifier).state = apptId;
       Navigator.of(context).pop();
+      ref.read(pendingAppointmentDetailIdProvider.notifier).state = apptId.trim();
     } else {
       Navigator.of(context).pop();
     }

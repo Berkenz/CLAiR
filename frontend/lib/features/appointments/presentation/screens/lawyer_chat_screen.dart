@@ -9,6 +9,7 @@ import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/appointments/domain/entities/appointment_entity.dart';
 import 'package:clair/features/appointments/domain/entities/direct_message_entity.dart';
 import 'package:clair/features/appointments/presentation/providers/direct_message_provider.dart';
+import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
 
 class LawyerChatScreen extends ConsumerStatefulWidget {
   const LawyerChatScreen({super.key, required this.appointment});
@@ -37,8 +38,24 @@ class _LawyerChatScreenState extends ConsumerState<LawyerChatScreen> {
   @override
   void initState() {
     super.initState();
+    ref.listenManual<DirectMessageState>(
+      directMessageProvider(appt.id),
+      (prev, next) {
+        if (!mounted) return;
+        if ((prev?.messages.length ?? 0) < next.messages.length) {
+          _scrollToBottom();
+        }
+      },
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ref.read(directMessageProvider(appt.id).notifier).startPolling();
+      // Inbox refresh rebuilds the shell; defer one frame so DM listeners finish
+      // attaching before markRead mutates notification state.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(notificationInboxProvider.notifier).markReadForAppointment(appt.id);
+      });
     });
   }
 
@@ -118,13 +135,6 @@ class _LawyerChatScreenState extends ConsumerState<LawyerChatScreen> {
   Widget build(BuildContext context) {
     final cl = context.c;
     final chatState = ref.watch(directMessageProvider(appt.id));
-
-    // Scroll to bottom when new messages arrive
-    ref.listen(directMessageProvider(appt.id), (prev, next) {
-      if ((prev?.messages.length ?? 0) < next.messages.length) {
-        _scrollToBottom();
-      }
-    });
 
     return Scaffold(
       backgroundColor: cl.bg,
