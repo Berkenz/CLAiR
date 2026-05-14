@@ -129,13 +129,15 @@ class _MainShellState extends ConsumerState<MainShell>
           ),
         ),
       ),
-      floatingActionButton: _QuickActionsFab(
-        open: _fabOpen,
-        anim: _fabAnim,
-        onToggle: _toggleFab,
-        onNewChat: _fabNewChat,
-        onFindLawyer: _fabFindLawyer,
-      ),
+      floatingActionButton: currentIndex == 1
+          ? null
+          : _QuickActionsFab(
+              open: _fabOpen,
+              anim: _fabAnim,
+              onToggle: _toggleFab,
+              onNewChat: _fabNewChat,
+              onFindLawyer: _fabFindLawyer,
+            ),
       bottomNavigationBar: _buildNav(context, currentIndex, navLabels),
     );
   }
