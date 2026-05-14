@@ -12,6 +12,7 @@ final notificationRemoteDataSourceProvider =
 });
 
 const _errorUnset = Object();
+const _bannerUnset = Object();
 
 class NotificationInboxState {
   const NotificationInboxState({
@@ -19,6 +20,7 @@ class NotificationInboxState {
     this.unreadCount = 0,
     this.isLoading = false,
     this.error,
+    this.pendingRealtimeBanner,
   });
 
   final List<InAppNotificationEntity> notifications;
@@ -26,17 +28,24 @@ class NotificationInboxState {
   final bool isLoading;
   final String? error;
 
+  /// Newest unread item detected since the last inbox snapshot (for banner UI).
+  final InAppNotificationEntity? pendingRealtimeBanner;
+
   NotificationInboxState copyWith({
     List<InAppNotificationEntity>? notifications,
     int? unreadCount,
     bool? isLoading,
     Object? error = _errorUnset,
+    Object? pendingRealtimeBanner = _bannerUnset,
   }) {
     return NotificationInboxState(
       notifications: notifications ?? this.notifications,
       unreadCount: unreadCount ?? this.unreadCount,
       isLoading: isLoading ?? this.isLoading,
       error: identical(error, _errorUnset) ? this.error : error as String?,
+      pendingRealtimeBanner: identical(pendingRealtimeBanner, _bannerUnset)
+          ? this.pendingRealtimeBanner
+          : pendingRealtimeBanner as InAppNotificationEntity?,
     );
   }
 }
@@ -46,15 +55,83 @@ class NotificationInboxNotifier extends StateNotifier<NotificationInboxState> {
 
   final NotificationRemoteDataSource _remote;
 
+  final Set<String> _bannerBaselineIds = {};
+  DateTime? _inboxMaxCreatedAtWatermark;
+  bool _bannerPrimed = false;
+  bool _silentPollInFlight = false;
+
+  InAppNotificationEntity? _computeBannerAfterFetch(
+    List<InAppNotificationEntity> notifications,
+  ) {
+    DateTime? maxCreatedThis;
+    for (final n in notifications) {
+      if (maxCreatedThis == null || n.createdAt.isAfter(maxCreatedThis)) {
+        maxCreatedThis = n.createdAt;
+      }
+    }
+
+    final prevIds = Set<String>.from(_bannerBaselineIds);
+    final prevWatermark = _inboxMaxCreatedAtWatermark;
+
+    final ids = notifications.map((n) => n.id).where((id) => id.isNotEmpty).toSet();
+    _bannerBaselineIds
+      ..clear()
+      ..addAll(ids);
+
+    if (maxCreatedThis != null) {
+      final wm = _inboxMaxCreatedAtWatermark;
+      if (wm == null || maxCreatedThis.isAfter(wm)) {
+        _inboxMaxCreatedAtWatermark = maxCreatedThis;
+      }
+    }
+
+    if (!_bannerPrimed) {
+      _bannerPrimed = true;
+      return null;
+    }
+
+    final newcomers = <InAppNotificationEntity>[];
+    final seen = <String>{};
+    for (final n in notifications) {
+      if (n.isRead || n.id.isEmpty) continue;
+      final idNew = !prevIds.contains(n.id);
+      final timeNew =
+          prevWatermark != null && n.createdAt.isAfter(prevWatermark);
+      if (idNew || timeNew) {
+        if (seen.add(n.id)) newcomers.add(n);
+      }
+    }
+
+    if (newcomers.isNotEmpty) {
+      newcomers.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return newcomers.first;
+    }
+
+    final cur = state.pendingRealtimeBanner;
+    if (cur != null) {
+      InAppNotificationEntity? match;
+      for (final n in notifications) {
+        if (n.id == cur.id) {
+          match = n;
+          break;
+        }
+      }
+      return (match != null && !match.isRead) ? cur : null;
+    }
+    return null;
+  }
+
   Future<void> refresh() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final result = await _remote.fetchInbox();
+      final banner = _computeBannerAfterFetch(result.notifications);
       state = state.copyWith(
         notifications: result.notifications,
         unreadCount: result.unreadCount,
         isLoading: false,
         error: null,
+        pendingRealtimeBanner: banner,
       );
     } catch (e) {
       state = state.copyWith(
@@ -64,6 +141,29 @@ class NotificationInboxNotifier extends StateNotifier<NotificationInboxState> {
     }
   }
 
+  /// Lightweight poll while the main shell is visible (no loading spinner).
+  Future<void> pollSilently() async {
+    if (_silentPollInFlight || state.isLoading) return;
+    _silentPollInFlight = true;
+    try {
+      final result = await _remote.fetchInbox();
+      final banner = _computeBannerAfterFetch(result.notifications);
+      state = state.copyWith(
+        notifications: result.notifications,
+        unreadCount: result.unreadCount,
+        pendingRealtimeBanner: banner,
+      );
+    } catch (_) {
+      // Ignore transient failures for background polls.
+    } finally {
+      _silentPollInFlight = false;
+    }
+  }
+
+  void dismissPendingBanner() {
+    state = state.copyWith(pendingRealtimeBanner: null);
+  }
+
   Future<void> markRead(String notificationId) async {
     await _remote.markRead(notificationId);
     await refresh();
@@ -71,6 +171,18 @@ class NotificationInboxNotifier extends StateNotifier<NotificationInboxState> {
 
   Future<void> markAllRead() async {
     await _remote.markAllRead();
+    await refresh();
+  }
+
+  Future<void> deleteNotification(String notificationId) async {
+    final id = notificationId.trim();
+    if (id.isEmpty) return;
+    await _remote.deleteNotification(id);
+    await refresh();
+  }
+
+  Future<void> clearAllNotifications() async {
+    await _remote.deleteAllNotifications();
     await refresh();
   }
 

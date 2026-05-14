@@ -31,6 +31,8 @@ class ApiEndpoints {
   static const String notifications = '/notifications';
   static String notificationMarkRead(String id) => '/notifications/$id/read';
   static const String notificationsReadAll = '/notifications/read-all';
+  static String notificationDelete(String id) => '/notifications/$id';
+  static const String notificationsDeleteAll = '/notifications/all';
 
   static const String conversations = '/conversations';
   static String conversationDetail(String id) => '/conversations/$id';

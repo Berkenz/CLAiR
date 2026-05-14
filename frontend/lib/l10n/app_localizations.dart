@@ -1054,6 +1054,48 @@ abstract class AppLocalizations {
   /// **'No notifications yet'**
   String get notifEmpty;
 
+  /// No description provided for @notifBannerDismissTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get notifBannerDismissTooltip;
+
+  /// No description provided for @notifClearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all'**
+  String get notifClearAll;
+
+  /// No description provided for @notifClearAllConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all notifications?'**
+  String get notifClearAllConfirmTitle;
+
+  /// No description provided for @notifClearAllConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This permanently removes every notification. You cannot undo this.'**
+  String get notifClearAllConfirmBody;
+
+  /// No description provided for @notifDeleteTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get notifDeleteTooltip;
+
+  /// No description provided for @notifDeleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this notification?'**
+  String get notifDeleteConfirmTitle;
+
+  /// No description provided for @notifDeleteConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This cannot be undone.'**
+  String get notifDeleteConfirmBody;
+
   /// No description provided for @libScreenTitle.
   ///
   /// In en, this message translates to:

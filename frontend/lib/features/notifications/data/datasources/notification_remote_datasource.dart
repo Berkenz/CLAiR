@@ -54,6 +54,24 @@ class NotificationRemoteDataSource {
     }
   }
 
+  Future<void> deleteNotification(String notificationId) async {
+    try {
+      await _dio.delete<void>(
+        ApiEndpoints.notificationDelete(notificationId),
+      );
+    } on DioException catch (e) {
+      throw NotificationApiException(_extractError(e));
+    }
+  }
+
+  Future<void> deleteAllNotifications() async {
+    try {
+      await _dio.delete<void>(ApiEndpoints.notificationsDeleteAll);
+    } on DioException catch (e) {
+      throw NotificationApiException(_extractError(e));
+    }
+  }
+
   String _extractError(DioException e) {
     final data = e.response?.data;
     if (data is Map<String, dynamic>) {

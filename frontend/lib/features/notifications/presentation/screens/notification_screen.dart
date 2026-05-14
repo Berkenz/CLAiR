@@ -3,12 +3,110 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
-import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
-import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
 import 'package:clair/features/notifications/domain/entities/in_app_notification_entity.dart';
 import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
+import 'package:clair/features/notifications/presentation/utils/notification_navigation.dart';
 import 'package:clair/l10n/app_localizations.dart';
+
+Future<void> _confirmDeleteNotification(
+  BuildContext context,
+  WidgetRef ref,
+  InAppNotificationEntity n,
+) async {
+  final l10n = AppLocalizations.of(context)!;
+  final cl = context.c;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(
+        l10n.notifDeleteConfirmTitle,
+        style: GoogleFonts.nunito(
+          fontWeight: FontWeight.w800,
+          color: cl.textDark,
+        ),
+      ),
+      content: Text(
+        l10n.notifDeleteConfirmBody,
+        style: GoogleFonts.nunito(fontSize: 14, color: cl.textMid, height: 1.4),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: Text(
+            l10n.commonCancel,
+            style: GoogleFonts.nunito(
+              fontWeight: FontWeight.w700,
+              color: cl.textMid,
+            ),
+          ),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: Text(
+            l10n.commonDelete,
+            style: GoogleFonts.nunito(
+              fontWeight: FontWeight.w800,
+              color: Colors.red.shade700,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+  if (ok == true && context.mounted) {
+    await ref.read(notificationInboxProvider.notifier).deleteNotification(n.id);
+  }
+}
+
+Future<void> _confirmClearAllNotifications(
+  BuildContext context,
+  WidgetRef ref,
+) async {
+  final l10n = AppLocalizations.of(context)!;
+  final cl = context.c;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(
+        l10n.notifClearAllConfirmTitle,
+        style: GoogleFonts.nunito(
+          fontWeight: FontWeight.w800,
+          color: cl.textDark,
+        ),
+      ),
+      content: Text(
+        l10n.notifClearAllConfirmBody,
+        style: GoogleFonts.nunito(fontSize: 14, color: cl.textMid, height: 1.4),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: Text(
+            l10n.commonCancel,
+            style: GoogleFonts.nunito(
+              fontWeight: FontWeight.w700,
+              color: cl.textMid,
+            ),
+          ),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: Text(
+            l10n.notifClearAll,
+            style: GoogleFonts.nunito(
+              fontWeight: FontWeight.w800,
+              color: Colors.red.shade700,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+  if (ok == true && context.mounted) {
+    await ref.read(notificationInboxProvider.notifier).clearAllNotifications();
+  }
+}
 
 /// Standalone page with back button (for /notifications route)
 class NotificationFullScreen extends ConsumerStatefulWidget {
@@ -111,6 +209,28 @@ class _NotificationBody extends ConsumerWidget {
                       ),
                     ),
                   ),
+                if (inbox.notifications.isNotEmpty)
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.more_vert_rounded, color: cl.textDark),
+                    enabled: !inbox.isLoading,
+                    onSelected: (value) {
+                      if (value == 'clear') {
+                        _confirmClearAllNotifications(context, ref);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem<String>(
+                        value: 'clear',
+                        child: Text(
+                          l10n.notifClearAll,
+                          style: GoogleFonts.nunito(
+                            fontWeight: FontWeight.w700,
+                            color: Colors.red.shade700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -151,7 +271,15 @@ class _NotificationBody extends ConsumerWidget {
                               final n = inbox.notifications[i];
                               return _NotificationTile(
                                 notification: n,
-                                onTap: () => _onTapNotification(context, ref, n),
+                                onTap: () => handleInAppNotificationTap(
+                                  context,
+                                  ref,
+                                  n,
+                                  fromNotificationScreen: true,
+                                ),
+                                onDelete: () =>
+                                    _confirmDeleteNotification(context, ref, n),
+                                deleteTooltip: l10n.notifDeleteTooltip,
                               );
                             },
                           ),
@@ -162,47 +290,20 @@ class _NotificationBody extends ConsumerWidget {
     );
   }
 
-  Future<void> _onTapNotification(
-    BuildContext context,
-    WidgetRef ref,
-    InAppNotificationEntity n,
-  ) async {
-    await ref.read(notificationInboxProvider.notifier).markRead(n.id);
-    if (!context.mounted) return;
-
-    final apptId = n.appointmentId;
-    if (apptId != null && n.notificationType == 'new_direct_message') {
-      ref.read(mainShellTabProvider.notifier).state = 4;
-      await ref.read(appointmentProvider.notifier).loadAppointments(force: true);
-      if (!context.mounted) return;
-      Navigator.of(context).pop();
-      // Set after pop + load so appointments tab already has data and listeners run
-      // on a stable navigator stack (avoids missed routing when tab was already mounted).
-      ref.read(pendingLawyerChatAppointmentIdProvider.notifier).state = apptId.trim();
-      return;
-    }
-    if (apptId != null &&
-        (n.notificationType == 'appointment_accepted' ||
-            n.notificationType == 'appointment_rejected')) {
-      ref.read(mainShellTabProvider.notifier).state = 4;
-      await ref.read(appointmentProvider.notifier).loadAppointments(force: true);
-      if (!context.mounted) return;
-      Navigator.of(context).pop();
-      ref.read(pendingAppointmentDetailIdProvider.notifier).state = apptId.trim();
-    } else {
-      Navigator.of(context).pop();
-    }
-  }
 }
 
 class _NotificationTile extends StatelessWidget {
   const _NotificationTile({
     required this.notification,
     required this.onTap,
+    required this.onDelete,
+    required this.deleteTooltip,
   });
 
   final InAppNotificationEntity notification;
   final VoidCallback onTap;
+  final VoidCallback onDelete;
+  final String deleteTooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -215,132 +316,152 @@ class _NotificationTile extends StatelessWidget {
       _ => Icons.notifications_none_rounded,
     };
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
+    return Container(
+      decoration: BoxDecoration(
+        color: unread ? cl.surface : cl.fieldBg,
         borderRadius: BorderRadius.circular(16),
-        child: Ink(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: unread ? cl.surface : cl.fieldBg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: unread
-                  ? cl.accent.withValues(alpha: 0.22)
-                  : cl.border,
-            ),
-            boxShadow: unread
-                ? [
-                    BoxShadow(
-                      color: cl.cardShadow,
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : [],
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: unread
-                      ? cl.accent.withValues(alpha: 0.1)
-                      : cl.border.withValues(alpha: 0.45),
-                  borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: unread
+              ? cl.accent.withValues(alpha: 0.22)
+              : cl.border,
+        ),
+        boxShadow: unread
+            ? [
+                BoxShadow(
+                  color: cl.cardShadow,
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
-                child: Icon(
-                  icon,
-                  size: 20,
-                  color: unread ? cl.accent : cl.textMid,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              ]
+            : [],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onTap,
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            notification.title,
-                            style: GoogleFonts.nunito(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: cl.textDark,
-                            ),
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: unread
+                                ? cl.accent.withValues(alpha: 0.1)
+                                : cl.border.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            icon,
+                            size: 20,
+                            color: unread ? cl.accent : cl.textMid,
                           ),
                         ),
-                        if (unread)
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade600,
-                              shape: BoxShape.circle,
-                            ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      notification.title,
+                                      style: GoogleFonts.nunito(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: cl.textDark,
+                                      ),
+                                    ),
+                                  ),
+                                  if (unread)
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.shade600,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              if (notification.body != null &&
+                                  notification.body!.trim().isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  notification.body!.trim(),
+                                  style: GoogleFonts.nunito(
+                                    fontSize: 12.5,
+                                    color: cl.textMid,
+                                    height: 1.4,
+                                  ),
+                                  maxLines: 4,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                              const SizedBox(height: 4),
+                              Text(
+                                _formatTime(notification.createdAt),
+                                style: GoogleFonts.nunito(
+                                  fontSize: 11,
+                                  color: cl.textLight,
+                                ),
+                              ),
+                              if (notification.appointmentId != null &&
+                                  (notification.notificationType ==
+                                          'appointment_accepted' ||
+                                      notification.notificationType ==
+                                          'appointment_rejected')) ...[
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Tap to view appointment',
+                                  style: GoogleFonts.nunito(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: cl.accent,
+                                  ),
+                                ),
+                              ],
+                              if (notification.appointmentId != null &&
+                                  notification.notificationType ==
+                                      'new_direct_message') ...[
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Tap to open chat',
+                                  style: GoogleFonts.nunito(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: cl.accent,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
+                        ),
                       ],
                     ),
-                    if (notification.body != null &&
-                        notification.body!.trim().isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        notification.body!.trim(),
-                        style: GoogleFonts.nunito(
-                          fontSize: 12.5,
-                          color: cl.textMid,
-                          height: 1.4,
-                        ),
-                        maxLines: 4,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: 4),
-                    Text(
-                      _formatTime(notification.createdAt),
-                      style: GoogleFonts.nunito(
-                        fontSize: 11,
-                        color: cl.textLight,
-                      ),
-                    ),
-                    if (notification.appointmentId != null &&
-                        (notification.notificationType ==
-                                'appointment_accepted' ||
-                            notification.notificationType ==
-                                'appointment_rejected')) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        'Tap to view appointment',
-                        style: GoogleFonts.nunito(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: cl.accent,
-                        ),
-                      ),
-                    ],
-                    if (notification.appointmentId != null &&
-                        notification.notificationType ==
-                            'new_direct_message') ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        'Tap to open chat',
-                        style: GoogleFonts.nunito(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: cl.accent,
-                        ),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+            IconButton(
+              tooltip: deleteTooltip,
+              onPressed: onDelete,
+              icon: Icon(
+                Icons.delete_outline_rounded,
+                color: cl.textLight,
+                size: 22,
+              ),
+            ),
+          ],
         ),
       ),
     );

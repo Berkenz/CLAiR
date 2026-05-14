@@ -517,6 +517,28 @@ class AppLocalizationsFil extends AppLocalizations {
   String get notifEmpty => 'Walang notification pa';
 
   @override
+  String get notifBannerDismissTooltip => 'Isara';
+
+  @override
+  String get notifClearAll => 'I-clear lahat';
+
+  @override
+  String get notifClearAllConfirmTitle => 'I-clear ang lahat ng notification?';
+
+  @override
+  String get notifClearAllConfirmBody =>
+      'Permanenteng tatanggalin ang lahat ng notification. Hindi na ito maa-undo.';
+
+  @override
+  String get notifDeleteTooltip => 'Tanggalin';
+
+  @override
+  String get notifDeleteConfirmTitle => 'Tanggalin ang notification na ito?';
+
+  @override
+  String get notifDeleteConfirmBody => 'Hindi na ito maa-undo.';
+
+  @override
   String get libScreenTitle => 'Library';
 
   @override

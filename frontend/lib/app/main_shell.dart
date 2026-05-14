@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,6 +14,7 @@ import 'package:clair/features/lawyer/presentation/screens/lawyer_screen.dart';
 import 'package:clair/features/appointments/presentation/screens/appointment_screen.dart';
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
+import 'package:clair/features/notifications/presentation/widgets/realtime_notification_banner.dart';
 import 'package:clair/core/tutorial/tutorial_overlay.dart';
 import 'package:clair/core/tutorial/tutorial_provider.dart';
 import 'package:clair/shared/widgets/app_drawer.dart';
@@ -23,7 +26,7 @@ class MainShell extends ConsumerStatefulWidget {
 }
 
 class _MainShellState extends ConsumerState<MainShell>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   static const _icons = [
     Icons.home_outlined,
     Icons.chat_bubble_outline_rounded,
@@ -41,6 +44,7 @@ class _MainShellState extends ConsumerState<MainShell>
 
   bool _fabOpen = false;
   late final AnimationController _fabAnim;
+  Timer? _notificationPollTimer;
 
   // Keys for each bottom-nav item so the tutorial can spotlight them.
   final _navKeys = List.generate(5, (_) => GlobalKey());
@@ -48,6 +52,7 @@ class _MainShellState extends ConsumerState<MainShell>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _fabAnim = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 220),
@@ -55,10 +60,26 @@ class _MainShellState extends ConsumerState<MainShell>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(notificationInboxProvider.notifier).refresh();
     });
+    _notificationPollTimer = Timer.periodic(
+      const Duration(seconds: 8),
+      (_) {
+        if (!mounted) return;
+        ref.read(notificationInboxProvider.notifier).pollSilently();
+      },
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      ref.read(notificationInboxProvider.notifier).pollSilently();
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _notificationPollTimer?.cancel();
     _fabAnim.dispose();
     super.dispose();
   }
@@ -149,6 +170,18 @@ class _MainShellState extends ConsumerState<MainShell>
         ),
         if (tutorialActive)
           TutorialOverlay(navItemKeys: _navKeys),
+        const Positioned(
+          left: 12,
+          right: 12,
+          top: 0,
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: RealtimeNotificationBanner(),
+            ),
+          ),
+        ),
       ],
     );
   }

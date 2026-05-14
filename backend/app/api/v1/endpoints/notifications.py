@@ -46,3 +46,24 @@ async def mark_all_notifications_read(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     await notification_service.mark_all_read(db, user_id=current_user.id)
+
+
+@router.delete("/all", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_all_notifications(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    await notification_service.delete_all_notifications(db, user_id=current_user.id)
+
+
+@router.delete("/{notification_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_notification(
+    notification_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    ok = await notification_service.delete_notification(
+        db, user_id=current_user.id, notification_id=notification_id
+    )
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found")

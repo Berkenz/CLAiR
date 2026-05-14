@@ -517,6 +517,28 @@ class AppLocalizationsCeb extends AppLocalizations {
   String get notifEmpty => 'Walay notification pa';
 
   @override
+  String get notifBannerDismissTooltip => 'I-dismiss';
+
+  @override
+  String get notifClearAll => 'I-clear tanan';
+
+  @override
+  String get notifClearAllConfirmTitle => 'I-clear tanan nga notification?';
+
+  @override
+  String get notifClearAllConfirmBody =>
+      'Permanenteng tangtangon ang tanan nga notification. Dili na ma-undo.';
+
+  @override
+  String get notifDeleteTooltip => 'Tangtangon';
+
+  @override
+  String get notifDeleteConfirmTitle => 'Tangtangon kini nga notification?';
+
+  @override
+  String get notifDeleteConfirmBody => 'Dili na ma-undo.';
+
+  @override
   String get libScreenTitle => 'Library';
 
   @override

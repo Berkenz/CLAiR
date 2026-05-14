@@ -516,6 +516,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notifEmpty => 'No notifications yet';
 
   @override
+  String get notifBannerDismissTooltip => 'Dismiss';
+
+  @override
+  String get notifClearAll => 'Clear all';
+
+  @override
+  String get notifClearAllConfirmTitle => 'Clear all notifications?';
+
+  @override
+  String get notifClearAllConfirmBody =>
+      'This permanently removes every notification. You cannot undo this.';
+
+  @override
+  String get notifDeleteTooltip => 'Delete';
+
+  @override
+  String get notifDeleteConfirmTitle => 'Delete this notification?';
+
+  @override
+  String get notifDeleteConfirmBody => 'This cannot be undone.';
+
+  @override
   String get libScreenTitle => 'Library';
 
   @override
