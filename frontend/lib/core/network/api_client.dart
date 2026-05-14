@@ -80,17 +80,36 @@ class _AuthInterceptor extends Interceptor {
     RequestInterceptorHandler handler,
   ) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      try {
-        final token = await user.getIdToken();
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
-      } catch (_) {
-        // Token refresh failed, continue without auth
-      }
+    if (user == null) {
+      handler.next(options);
+      return;
     }
-    handler.next(options);
+
+    String? token;
+    try {
+      token = await user.getIdToken();
+    } catch (_) {
+      try {
+        token = await user.getIdToken(true);
+      } catch (_) {}
+    }
+
+    if (token != null && token.isNotEmpty) {
+      options.headers['Authorization'] = 'Bearer $token';
+      handler.next(options);
+      return;
+    }
+
+    // Signed-in user but no token — do not send a bare request (directory → 401).
+    handler.reject(
+      DioException(
+        requestOptions: options,
+        type: DioExceptionType.unknown,
+        error: 'Firebase ID token unavailable',
+        message:
+            'Could not refresh your sign-in. Check your connection and try again.',
+      ),
+    );
   }
 }
 

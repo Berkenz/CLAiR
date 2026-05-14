@@ -290,7 +290,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           'save',
         ),
         _popupItem(cl, Icons.share_outlined, 'Share', 'share'),
-        _popupItem(cl, Icons.download_rounded, 'Download', 'download'),
+        _popupItem(cl, Icons.download_rounded, 'Download as PDF', 'download'),
         _popupItem(cl, Icons.flag_outlined, 'Report', 'report'),
         _popupItem(
             cl, Icons.balance_rounded, 'Share to Lawyer', 'lawyer'),

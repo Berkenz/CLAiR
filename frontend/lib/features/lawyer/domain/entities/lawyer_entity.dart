@@ -95,27 +95,66 @@ class LawyerEntity {
   // ── Parsing ────────────────────────────────────────────────────────────────
 
   factory LawyerEntity.fromJson(Map<String, dynamic> json) {
-    final rawHours = json['office_hours'] as Map<String, dynamic>?;
+    final id = '${json['id'] ?? ''}'.trim();
+    if (id.isEmpty) {
+      throw const FormatException('Lawyer directory item missing id');
+    }
+
+    final rawHours = _parseOfficeHoursMap(json['office_hours']);
+    String? hoursText;
+    if (rawHours != null) {
+      try {
+        hoursText = _formatOfficeHours(rawHours);
+      } catch (_) {
+        hoursText = null;
+      }
+    }
+
     return LawyerEntity(
-      id: json['id'] as String,
+      id: id,
       displayName: json['display_name'] as String?,
       designation: json['designation'] as String?,
-      practiceAreas: (json['practice_areas'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          [],
+      practiceAreas: _parsePracticeAreas(json['practice_areas']),
       firstName: json['first_name'] as String?,
       lastName: json['last_name'] as String?,
       bio: json['bio'] as String?,
       officeLocation: json['office_address'] as String?,
-      officeHours: rawHours != null ? _formatOfficeHours(rawHours) : null,
+      officeHours: hoursText,
       officeHoursData: rawHours,
       officePhone: json['office_phone'] as String?,
       mobilePhone: json['mobile_phone'] as String?,
       officeEmail: json['office_email'] as String?,
-      latitude: (json['latitude'] as num?)?.toDouble(),
-      longitude: (json['longitude'] as num?)?.toDouble(),
+      latitude: _parseDouble(json['latitude']),
+      longitude: _parseDouble(json['longitude']),
     );
+  }
+
+  static Map<String, dynamic>? _parseOfficeHoursMap(Object? value) {
+    if (value == null) return null;
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return null;
+  }
+
+  static List<String> _parsePracticeAreas(Object? value) {
+    if (value is! List) return [];
+    final out = <String>[];
+    for (final e in value) {
+      if (e is String && e.trim().isNotEmpty) {
+        out.add(e.trim());
+      } else if (e != null) {
+        final s = e.toString().trim();
+        if (s.isNotEmpty) out.add(s);
+      }
+    }
+    return out;
+  }
+
+  static double? _parseDouble(Object? value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value.trim());
+    return null;
   }
 
   /// Converts the JSONB schedule map into a compact human-readable string.
@@ -132,15 +171,18 @@ class LawyerEntity {
     };
     final lines = <String>[];
     for (final day in dayOrder) {
-      final dayData = raw[day] as Map<String, dynamic>?;
-      if (dayData == null) continue;
+      final dayVal = raw[day];
+      if (dayVal is! Map) continue;
+      final dayData = Map<String, dynamic>.from(dayVal);
       final enabled = dayData['enabled'] as bool? ?? false;
       if (!enabled) continue;
-      final ranges = dayData['ranges'] as List<dynamic>?;
-      if (ranges == null || ranges.isEmpty) continue;
-      final range = ranges.first as Map<String, dynamic>;
-      final start = range['start'] as String? ?? '';
-      final end = range['end'] as String? ?? '';
+      final rangesRaw = dayData['ranges'];
+      if (rangesRaw is! List || rangesRaw.isEmpty) continue;
+      final first = rangesRaw.first;
+      if (first is! Map) continue;
+      final range = Map<String, dynamic>.from(first);
+      final start = '${range['start'] ?? ''}'.trim();
+      final end = '${range['end'] ?? ''}'.trim();
       if (start.isNotEmpty && end.isNotEmpty) {
         lines.add('${dayLabels[day] ?? day}: $start – $end');
       }

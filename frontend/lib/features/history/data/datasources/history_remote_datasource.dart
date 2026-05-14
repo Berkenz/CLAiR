@@ -74,6 +74,20 @@ class HistoryRemoteDataSource {
     }
   }
 
+  /// Server-side Gemini summary for lawyer appointment booking description.
+  Future<String> summarizeConversationForAppointment(String conversationId) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.conversationAppointmentSummary(conversationId),
+      );
+      final raw = response.data?['summary'];
+      if (raw is! String) return '';
+      return raw.trim();
+    } on DioException catch (e) {
+      throw HistoryException(_extractError(e));
+    }
+  }
+
   Future<Uint8List> downloadPdf(String conversationId) async {
     try {
       final response = await _dio.get<List<int>>(

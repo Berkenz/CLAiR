@@ -6,6 +6,7 @@ import 'package:clair/features/history/domain/entities/conversation_entity.dart'
 abstract class HistoryRepository {
   Future<List<ConversationEntity>> getConversations();
   Future<List<ChatMessageEntity>> getConversationMessages(String conversationId);
+  Future<String> summarizeConversationForAppointment(String conversationId);
   Future<ConversationEntity> updateConversation(
     String conversationId, {
     String? title,

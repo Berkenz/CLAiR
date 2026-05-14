@@ -7,7 +7,6 @@ import { ChangePasswordPage } from "@/features/auth/pages/change-password-page";
 import { ProfileSetupPage } from "@/features/profile-setup/pages/profile-setup-page";
 import { DashboardPage } from "@/features/dashboard/pages/dashboard-page";
 import { CasesPage } from "@/features/cases/pages/cases-page";
-import { AppointmentsPage } from "@/features/appointments/pages/appointments-page";
 import { AvailabilityCalendarPage } from "@/features/availability/pages/availability-calendar-page";
 import { ConversationsPage } from "@/features/conversations/pages/conversations-page";
 import { DocumentsPage } from "@/features/documents/pages/documents-page";
@@ -78,7 +77,7 @@ export function App() {
       <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
         <Route path="/"               element={<DashboardPage />} />
         <Route path="/cases"          element={<CasesPage />} />
-        <Route path="/appointments"   element={<AppointmentsPage />} />
+        <Route path="/appointments"   element={<Navigate to="/cases" replace />} />
         <Route path="/availability"   element={<AvailabilityCalendarPage />} />
         <Route path="/conversations"  element={<ConversationsPage />} />
         <Route path="/documents"      element={<DocumentsPage />} />

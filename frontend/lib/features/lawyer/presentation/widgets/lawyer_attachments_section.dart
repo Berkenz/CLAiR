@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
+import 'package:clair/features/history/data/datasources/history_remote_datasource.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
 
 /// Attachment section for lawyer booking forms.
@@ -158,24 +159,41 @@ class _LawyerAttachmentsSectionState
   Future<void> _summarise() async {
     setState(() => _summarising = true);
     try {
-      List<ChatMessageEntity> messages;
-      String title;
+      final chatState = ref.read(chatProvider);
+      final effectiveId = _selectedConvId ?? chatState.conversationId;
 
-      if (_selectedConvId != null) {
+      final title = _selectedConvTitle ??
+          chatState.conversationTitle ??
+          'Conversation';
+
+      final String summaryText;
+      if (effectiveId != null && effectiveId.trim().isNotEmpty) {
         final repo = ref.read(historyRepositoryProvider);
-        messages = await repo.getConversationMessages(_selectedConvId!);
-        title = _selectedConvTitle ?? 'Conversation';
+        summaryText =
+            await repo.summarizeConversationForAppointment(effectiveId.trim());
+        if (summaryText.isEmpty) {
+          throw HistoryException('Summary came back empty. Please try again.');
+        }
       } else {
-        final chat = ref.read(chatProvider);
-        messages = chat.messages;
-        title = _selectedConvTitle ??
-            chat.conversationTitle ??
-            'Current chat';
+        // Edge case: messages in memory but no server id yet.
+        summaryText = _buildSummary(chatState.messages, title);
       }
 
-      widget.onSummaryGenerated?.call(_buildSummary(messages, title));
-    } catch (_) {
-      // silently fail — user can type manually
+      widget.onSummaryGenerated?.call(summaryText);
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e is HistoryException
+          ? e.message
+          : 'Could not generate a summary. You can type the description manually.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            msg,
+            style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _summarising = false);
     }
@@ -610,35 +628,4 @@ class _HistoryPickerSheet extends ConsumerWidget {
       ),
     );
   }
-}
-
-// ── Utility ───────────────────────────────────────────────────────────────────
-
-/// Appends conversation title and file references to the appointment description.
-String appendAttachmentsToDescription(
-  String userDescription,
-  List<PlatformFile> files, {
-  String? conversationTitle,
-  int? conversationMessageCount,
-}) {
-  final buf = StringBuffer(userDescription.trim());
-
-  if (conversationTitle != null) {
-    buf.writeln();
-    buf.writeln('---');
-    buf.write('CLAiR conversation: "$conversationTitle"');
-    if (conversationMessageCount != null) {
-      buf.write(' ($conversationMessageCount messages)');
-    }
-    buf.writeln();
-  }
-
-  if (files.isNotEmpty) {
-    buf.writeln();
-    buf.writeln('---');
-    buf.writeln('Attached files:');
-    for (final f in files) { buf.writeln('• ${f.name}'); }
-  }
-
-  return buf.toString().trimRight();
 }

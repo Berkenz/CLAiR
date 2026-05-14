@@ -22,4 +22,6 @@ class ApiEndpoints {
   static String conversationDetail(String id) => '/conversations/$id';
   static String conversationUpdate(String id) => '/conversations/$id';
   static String conversationPdf(String id) => '/conversations/$id/pdf';
+  static String conversationAppointmentSummary(String id) =>
+      '/conversations/$id/appointment-summary';
 }

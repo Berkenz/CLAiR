@@ -22,6 +22,10 @@ class HistoryRepositoryImpl implements HistoryRepository {
       _remote.getConversationMessages(conversationId);
 
   @override
+  Future<String> summarizeConversationForAppointment(String conversationId) =>
+      _remote.summarizeConversationForAppointment(conversationId);
+
+  @override
   Future<ConversationEntity> updateConversation(
     String conversationId, {
     String? title,

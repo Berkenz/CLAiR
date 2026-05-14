@@ -225,7 +225,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
                 // Lawyer list
                 if (state.error != null)
                   SliverFillRemaining(
-                      child: _buildError(cl))
+                      child: _buildError(cl, state.error!))
                 else if (!state.isLoading && state.lawyers.isEmpty)
                   SliverFillRemaining(
                       child: _buildEmpty(cl))
@@ -539,35 +539,59 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
 
   // ── State views ────────────────────────────────────────────────────────────
 
-  Widget _buildError(AppColorTheme cl) {
+  Widget _buildError(AppColorTheme cl, String detail) {
+    final detailMaxHeight = MediaQuery.sizeOf(context).height * 0.32;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.wifi_off_rounded, size: 48, color: cl.textLight),
-          const SizedBox(height: 16),
-          Text('Couldn\'t load lawyers.',
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.wifi_off_rounded, size: 48, color: cl.textLight),
+            const SizedBox(height: 16),
+            Text(
+              'Couldn\'t load lawyers.',
               textAlign: TextAlign.center,
-              style:
-                  GoogleFonts.nunito(fontSize: 14, color: cl.textMid)),
-          const SizedBox(height: 16),
-          SpringButton(
-            onTap: () =>
-                ref.read(lawyerProvider.notifier).loadLawyers(),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 24, vertical: 12),
-              decoration: BoxDecoration(
-                  color: cl.accent,
-                  borderRadius: BorderRadius.circular(12)),
-              child: Text('Retry',
-                  style: GoogleFonts.nunito(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white)),
+              style: GoogleFonts.nunito(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: cl.textMid,
+              ),
             ),
-          ),
-        ]),
+            const SizedBox(height: 10),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: detailMaxHeight),
+              child: SingleChildScrollView(
+                child: SelectableText(
+                  detail.trim().isEmpty ? 'Unknown error.' : detail.trim(),
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.nunito(
+                    fontSize: 12.5,
+                    height: 1.35,
+                    color: cl.textLight,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SpringButton(
+              onTap: () =>
+                  ref.read(lawyerProvider.notifier).loadLawyers(),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 12),
+                decoration: BoxDecoration(
+                    color: cl.accent,
+                    borderRadius: BorderRadius.circular(12)),
+                child: Text('Retry',
+                    style: GoogleFonts.nunito(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

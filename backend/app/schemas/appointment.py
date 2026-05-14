@@ -19,13 +19,31 @@ APPOINTMENT_STATUSES: list[str] = ["pending", "confirmed", "cancelled"]
 
 # --- Mobile client: book an appointment ---
 
+
+class AppointmentAttachmentItem(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    filename: str
+    url: str | None = None
+    content_type: str | None = None
+
+
 class AppointmentBookRequest(BaseModel):
     lawyer_profile_id: uuid.UUID
     appointment_date: date
     appointment_time: str   # "HH:MM"
     appointment_type: str
+    case_title: str | None = None
     description: str | None = None
     attached_conversation_id: uuid.UUID | None = None
+
+    @field_validator("case_title")
+    @classmethod
+    def strip_title(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        s = v.strip()
+        return s or None
 
     @field_validator("appointment_time")
     @classmethod
@@ -53,7 +71,16 @@ class AppointmentCreateRequest(BaseModel):
     appointment_date: date
     appointment_time: str
     appointment_type: str
+    case_title: str | None = None
     description: str | None = None
+
+    @field_validator("case_title")
+    @classmethod
+    def strip_title_create(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        s = v.strip()
+        return s or None
 
     @field_validator("client_name")
     @classmethod
@@ -86,8 +113,17 @@ class AppointmentUpdateRequest(BaseModel):
     appointment_date: date | None = None
     appointment_time: str | None = None
     appointment_type: str | None = None
+    case_title: str | None = None
     description: str | None = None
     status: str | None = None
+
+    @field_validator("case_title")
+    @classmethod
+    def strip_title_update(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        s = v.strip()
+        return s or None
 
     @field_validator("appointment_time")
     @classmethod
@@ -134,11 +170,33 @@ class AppointmentResponse(BaseModel):
     appointment_date: date
     appointment_time: str
     appointment_type: str
+    case_title: str | None = None
     description: str | None
+    attachments: list[AppointmentAttachmentItem] = []
     status: str
     rejection_reason: str | None
     created_at: datetime
     updated_at: datetime | None
+
+    @field_validator("attachments", mode="before")
+    @classmethod
+    def normalize_attachments(cls, v: object) -> list:
+        if v is None:
+            return []
+        if not isinstance(v, list):
+            return []
+        out: list[dict] = []
+        for item in v:
+            if isinstance(item, dict):
+                fn = item.get("filename") or item.get("name") or "Attachment"
+                out.append(
+                    {
+                        "filename": str(fn),
+                        "url": item.get("url"),
+                        "content_type": item.get("content_type"),
+                    }
+                )
+        return out
 
 
 class AppointmentListResponse(BaseModel):

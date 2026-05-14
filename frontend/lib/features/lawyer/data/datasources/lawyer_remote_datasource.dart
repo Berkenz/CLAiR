@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
 
 import 'package:clair/core/network/api_endpoints.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
@@ -19,12 +20,20 @@ class LawyerRemoteDataSource {
       final data = response.data;
       if (data == null || data['lawyers'] == null) return [];
 
-      final list = data['lawyers'] as List;
-      return list
-          .map((l) => LawyerEntity.fromJson(l as Map<String, dynamic>))
-          .toList();
+      final list = data['lawyers'] as List<dynamic>;
+      return list.map((l) {
+        final m = Map<String, dynamic>.from(l as Map);
+        return LawyerEntity.fromJson(m);
+      }).toList();
+    } on LawyerException {
+      rethrow;
     } on DioException catch (e) {
       throw LawyerException(_extractError(e));
+    } catch (e) {
+      throw LawyerException(
+        'Server returned data the app could not read. '
+        'Try updating the app or contact support. ($e)',
+      );
     }
   }
 
@@ -33,24 +42,49 @@ class LawyerRemoteDataSource {
     String? appointmentDate,
     String? appointmentTime,
     String? appointmentType,
+    required String caseTitle,
     String? description,
     String? attachedConversationId,
+    List<PlatformFile> files = const [],
   }) async {
     try {
       final trimmedLawyerId = lawyerProfileId.trim();
       final trimmedAttach = attachedConversationId?.trim();
+
+      final formData = FormData.fromMap({
+        'lawyer_profile_id': trimmedLawyerId,
+        if (appointmentDate != null) 'appointment_date': appointmentDate,
+        if (appointmentTime != null) 'appointment_time': appointmentTime,
+        if (appointmentType != null) 'appointment_type': appointmentType,
+        'case_title': caseTitle.trim(),
+        if (description != null && description.isNotEmpty)
+          'description': description,
+        if (trimmedAttach != null && trimmedAttach.isNotEmpty)
+          'attached_conversation_id': trimmedAttach,
+      });
+
+      for (final f in files) {
+        final path = f.path;
+        if (path != null && path.isNotEmpty) {
+          formData.files.add(
+            MapEntry(
+              'files',
+              await MultipartFile.fromFile(path, filename: f.name),
+            ),
+          );
+        } else if (f.bytes != null) {
+          formData.files.add(
+            MapEntry(
+              'files',
+              MultipartFile.fromBytes(f.bytes!, filename: f.name),
+            ),
+          );
+        }
+      }
+
       await _dio.post<void>(
         ApiEndpoints.appointments,
-        data: {
-          'lawyer_profile_id': trimmedLawyerId,
-          if (appointmentDate != null) 'appointment_date': appointmentDate,
-          if (appointmentTime != null) 'appointment_time': appointmentTime,
-          if (appointmentType != null) 'appointment_type': appointmentType,
-          if (description != null && description.isNotEmpty)
-            'description': description,
-          if (trimmedAttach != null && trimmedAttach.isNotEmpty)
-            'attached_conversation_id': trimmedAttach,
-        },
+        data: formData,
       );
     } on DioException catch (e) {
       throw LawyerException(_extractError(e));

@@ -14,9 +14,20 @@ from app.schemas.appointment import (
     AppointmentCreateRequest,
     AppointmentUpdateRequest,
 )
+from app.services.appointment_legacy import migrate_legacy_appointment_if_needed
+from app.services.storage_service import delete_storage_object
 
 
 class AppointmentService:
+    async def _persist_legacy_split_if_needed(
+        self, db: AsyncSession, appt: Appointment | None
+    ) -> None:
+        if appt is None:
+            return
+        if migrate_legacy_appointment_if_needed(appt):
+            await db.flush()
+            await db.refresh(appt)
+
     async def book_appointment(
         self,
         db: AsyncSession,
@@ -40,6 +51,8 @@ class AppointmentService:
                     detail="Invalid conversation or you do not own this conversation.",
                 )
 
+        title = (data.case_title or "").strip() or "Consultation request"
+
         appt = Appointment(
             lawyer_profile_id=data.lawyer_profile_id,
             client_user_id=client_user.id,
@@ -47,7 +60,9 @@ class AppointmentService:
             appointment_date=data.appointment_date,
             appointment_time=data.appointment_time,
             appointment_type=data.appointment_type,
+            case_title=title[:500],
             description=data.description,
+            attachments=[],
             attached_conversation_id=attached_id,
             status="pending",
         )
@@ -72,7 +87,10 @@ class AppointmentService:
             Appointment.appointment_date, Appointment.appointment_time
         )
         result = await db.execute(query)
-        return list(result.scalars().all())
+        rows = list(result.scalars().all())
+        for appt in rows:
+            await self._persist_legacy_split_if_needed(db, appt)
+        return rows
 
     async def get_appointment_by_id(
         self, db: AsyncSession, appointment_id: uuid.UUID
@@ -89,6 +107,7 @@ class AppointmentService:
         data: AppointmentCreateRequest,
     ) -> Appointment:
         """Lawyer creates an appointment directly from the web portal."""
+        title = (data.case_title or "").strip() or "Consultation request"
         appt = Appointment(
             lawyer_profile_id=lawyer_profile_id,
             client_user_id=None,
@@ -96,7 +115,9 @@ class AppointmentService:
             appointment_date=data.appointment_date,
             appointment_time=data.appointment_time,
             appointment_type=data.appointment_type,
+            case_title=title[:500],
             description=data.description,
+            attachments=[],
             status="confirmed",
         )
         db.add(appt)
@@ -118,6 +139,9 @@ class AppointmentService:
             appt.appointment_time = data.appointment_time
         if data.appointment_type is not None:
             appt.appointment_type = data.appointment_type
+        if data.case_title is not None:
+            t = data.case_title.strip()
+            appt.case_title = t[:500] if t else None
         if data.description is not None:
             appt.description = data.description
         if data.status is not None:
@@ -133,6 +157,7 @@ class AppointmentService:
         appt.rejection_reason = None
         await db.flush()
         await db.refresh(appt)
+        await self._persist_legacy_split_if_needed(db, appt)
         return appt
 
     async def reject_appointment(
@@ -142,11 +167,14 @@ class AppointmentService:
         appt.rejection_reason = reason
         await db.flush()
         await db.refresh(appt)
+        await self._persist_legacy_split_if_needed(db, appt)
         return appt
 
     async def delete_appointment(
         self, db: AsyncSession, appt: Appointment
     ) -> None:
+        if appt.consultation_summary_pdf_path:
+            delete_storage_object(appt.consultation_summary_pdf_path)
         await db.delete(appt)
         await db.flush()
 

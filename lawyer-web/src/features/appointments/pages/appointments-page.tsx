@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Check, X, RefreshCw, Loader2, Smartphone, CalendarDays, Clock,
-  FileText, ChevronDown, ChevronUp, WifiOff,
+  FileText, ChevronDown, ChevronUp, WifiOff, Download,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { getApiErrorMessage, isApiNetworkError } from "@/lib/api-error";
@@ -16,6 +16,7 @@ interface Appointment {
   description: string | null;
   status: string;
   rejection_reason: string | null;
+  attached_conversation_id: string | null;
   created_at: string;
 }
 
@@ -319,11 +320,35 @@ export function AppointmentsPage() {
 }
 
 function AppointmentCard({ appt, actions }: { appt: Appointment; actions?: React.ReactNode }) {
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
   const statusStyle: Record<string, string> = {
     pending:   "bg-amber-50 text-amber-700 border-amber-200",
     confirmed: "bg-emerald-50 text-emerald-700 border-emerald-200",
     cancelled: "bg-red-50 text-red-600 border-red-200",
   };
+
+  async function handleDownloadPdf() {
+    setPdfLoading(true);
+    setPdfError(null);
+    try {
+      const response = await api.get(`/lawyer/appointments/${appt.id}/pdf`, {
+        responseType: "blob",
+      });
+      const blob = new Blob([response.data as BlobPart], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `CLAiR_Consultation_${appt.client_name.replace(/\s+/g, "_")}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      setPdfError(getApiErrorMessage(err, "Could not generate PDF."));
+    } finally {
+      setPdfLoading(false);
+    }
+  }
 
   return (
     <div className="rounded-2xl border border-[#d9b8c4]/40 bg-white shadow-sm p-5">
@@ -355,11 +380,33 @@ function AppointmentCard({ appt, actions }: { appt: Appointment; actions?: React
           </span>
         </div>
       </div>
+
       {appt.description && (
         <p className="mt-3 text-xs text-gray-500 leading-relaxed border-t border-gray-100 pt-3">
           <FileText className="h-3 w-3 inline mr-1 text-gray-400" />{appt.description}
         </p>
       )}
+
+      {/* CLAiR consultation PDF — only when a conversation was attached */}
+      {appt.attached_conversation_id && (
+        <div className="mt-3 border-t border-gray-100 pt-3">
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={pdfLoading}
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#703d57] hover:text-[#5a3046] hover:underline disabled:opacity-50 transition-colors"
+          >
+            {pdfLoading
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              : <Download className="h-3.5 w-3.5" />}
+            {pdfLoading ? "Generating PDF…" : "Download CLAiR consultation PDF"}
+          </button>
+          {pdfError && (
+            <p className="mt-1 text-xs text-red-500">{pdfError}</p>
+          )}
+        </div>
+      )}
+
       {appt.status === "cancelled" && appt.rejection_reason && (
         <div className="mt-3 border-t border-gray-100 pt-3">
           <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">

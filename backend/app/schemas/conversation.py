@@ -41,3 +41,9 @@ class ConversationDetail(BaseModel):
 
 class ConversationListResponse(BaseModel):
     conversations: list[ConversationSummary]
+
+
+class AppointmentSummaryResponse(BaseModel):
+    """AI-generated text for booking forms (mobile app)."""
+
+    summary: str

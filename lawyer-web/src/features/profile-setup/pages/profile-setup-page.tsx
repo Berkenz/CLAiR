@@ -5,6 +5,7 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { markProfileComplete } from "@/features/auth/onboarding-storage";
 import { useAuth, type LawyerState } from "@/features/auth/auth-provider";
 import { buildLawyerProfileUpdateBody } from "@/features/lawyer/profile-update-body";
+import { LocationPicker } from "@/features/profile/components/LocationPicker";
 import { useNavigate } from "react-router-dom";
 import { Scale, ChevronRight, ChevronLeft, Check } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -27,7 +28,43 @@ const FALLBACK_DESIGNATIONS = [
   "Other",
 ];
 
-type Step = "personal" | "credentials" | "practice";
+const DAYS = [
+  { key: "sun", label: "Sunday",    short: "S" },
+  { key: "mon", label: "Monday",    short: "M" },
+  { key: "tue", label: "Tuesday",   short: "T" },
+  { key: "wed", label: "Wednesday", short: "W" },
+  { key: "thu", label: "Thursday",  short: "T" },
+  { key: "fri", label: "Friday",    short: "F" },
+  { key: "sat", label: "Saturday",  short: "S" },
+];
+
+const HALF_HOURS = Array.from({ length: 48 }, (_, i) => {
+  const h = Math.floor(i / 2);
+  const m = i % 2 === 0 ? "00" : "30";
+  const ampm = h < 12 ? "AM" : "PM";
+  const hour = h % 12 === 0 ? 12 : h % 12;
+  return `${String(hour).padStart(2, "0")}:${m} ${ampm}`;
+});
+
+interface TimeRange { id: string; start: string; end: string; }
+interface DaySchedule { enabled: boolean; ranges: TimeRange[]; }
+type Schedule = Record<string, DaySchedule>;
+
+function defaultRange(): TimeRange {
+  return { id: Date.now().toString() + Math.random(), start: "08:00 AM", end: "05:00 PM" };
+}
+
+const STANDARD_SCHEDULE: Schedule = {
+  sun: { enabled: false, ranges: [defaultRange()] },
+  mon: { enabled: true,  ranges: [defaultRange()] },
+  tue: { enabled: true,  ranges: [defaultRange()] },
+  wed: { enabled: true,  ranges: [defaultRange()] },
+  thu: { enabled: true,  ranges: [defaultRange()] },
+  fri: { enabled: true,  ranges: [defaultRange()] },
+  sat: { enabled: false, ranges: [defaultRange()] },
+};
+
+type Step = "personal" | "credentials" | "practice" | "details";
 
 export function ProfileSetupPage() {
   const navigate = useNavigate();
@@ -57,6 +94,12 @@ export function ProfileSetupPage() {
   const [officeEmail, setOfficeEmail] = useState("");
   const [officeAddress, setOfficeAddress] = useState("");
 
+  // Step 4 — Office Details
+  const [bio, setBio] = useState("");
+  const [schedule, setSchedule] = useState<Schedule>(JSON.parse(JSON.stringify(STANDARD_SCHEDULE)));
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -81,6 +124,39 @@ export function ProfileSetupPage() {
     setPracticeAreas((prev) =>
       prev.includes(area) ? prev.filter((a) => a !== area) : [...prev, area]
     );
+  }
+
+  function toggleDay(day: string) {
+    setSchedule((prev) => {
+      const next: Schedule = JSON.parse(JSON.stringify(prev));
+      next[day].enabled = !next[day].enabled;
+      if (next[day].enabled && next[day].ranges.length === 0) next[day].ranges.push(defaultRange());
+      return next;
+    });
+  }
+
+  function updateRange(day: string, id: string, field: "start" | "end", value: string) {
+    setSchedule((prev) => {
+      const next: Schedule = JSON.parse(JSON.stringify(prev));
+      const r = next[day].ranges.find((r: TimeRange) => r.id === id);
+      if (r) r[field] = value;
+      return next;
+    });
+  }
+
+  function applyAll(day: string) {
+    const source = schedule[day].ranges[0];
+    if (!source) return;
+    setSchedule((prev) => {
+      const next: Schedule = JSON.parse(JSON.stringify(prev));
+      DAYS.forEach(({ key }) => {
+        if (next[key].enabled && next[key].ranges.length > 0) {
+          next[key].ranges[0].start = source.start;
+          next[key].ranges[0].end = source.end;
+        }
+      });
+      return next;
+    });
   }
 
   function canProceedPersonal() {
@@ -125,6 +201,10 @@ export function ProfileSetupPage() {
         mobile,
         officeEmail,
         officeAddress,
+        bio,
+        officeHours: schedule,
+        latitude,
+        longitude,
       });
       const { data } = await api.put<LawyerState>("/lawyer/profile", body);
       setLawyerState(data);
@@ -147,7 +227,11 @@ export function ProfileSetupPage() {
     { key: "personal", label: "Personal" },
     { key: "credentials", label: "Bar Credentials" },
     { key: "practice", label: "Practice Areas" },
+    { key: "details", label: "Office Details" },
   ];
+
+  const enabledDays = DAYS.filter(({ key }) => schedule[key].enabled);
+  const selectCls = "rounded-lg border border-[#d9b8c4] bg-[#fdf9fb] px-2.5 py-1.5 text-xs text-[#241715] outline-none focus:border-[#703d57] focus:bg-white transition appearance-none";
 
   const currentIndex = steps.findIndex((s) => s.key === step);
   const inputCls = "w-full rounded-xl border border-[#d9b8c4] bg-[#fdf9fb] px-3.5 py-2.5 text-sm text-[#241715] placeholder-[#c490aa] outline-none focus:border-[#703d57] focus:bg-white transition";
@@ -382,6 +466,129 @@ export function ProfileSetupPage() {
             </div>
           )}
 
+          {/* ── STEP 4: Office Details ── */}
+          {step === "details" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-bold text-[#241715]">Office Details</h2>
+                <p className="text-sm text-[#957186] mt-1">Add your bio, office hours, and pin your location. These are visible to clients in the CLAiR app.</p>
+              </div>
+
+              {/* Bio */}
+              <div className="bg-white rounded-2xl border border-[#d9b8c4]/40 p-6 space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-[#241715]">Bio / About</h3>
+                  <p className="text-xs text-[#957186] mt-0.5">A short introduction clients will see on your public profile.</p>
+                </div>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  rows={4}
+                  placeholder="e.g. With over 10 years of experience in family and civil law, I help clients navigate complex legal matters with clarity and care."
+                  className={inputCls + " resize-none"}
+                />
+              </div>
+
+              {/* Office Hours */}
+              <div className="bg-white rounded-2xl border border-[#d9b8c4]/40 p-6 space-y-5">
+                <div>
+                  <h3 className="text-sm font-semibold text-[#241715]">Office Hours</h3>
+                  <p className="text-xs text-[#957186] mt-0.5">Toggle days and set your working hours. You can update these anytime from your profile.</p>
+                </div>
+
+                {/* Day pills */}
+                <div>
+                  <p className="text-xs text-[#957186] mb-3">Toggle days on/off</p>
+                  <div className="flex gap-2">
+                    {DAYS.map(({ key, short }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => toggleDay(key)}
+                        className={cn(
+                          "h-9 w-9 rounded-lg text-sm font-bold transition-all",
+                          schedule[key].enabled
+                            ? "bg-[#703d57] text-white shadow-sm"
+                            : "bg-[#f7f0f4] text-[#957186] hover:bg-[#eedde8]"
+                        )}
+                      >
+                        {short}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Time ranges */}
+                <div className="pt-2 border-t border-[#d9b8c4]/30">
+                  <h4 className="text-xs font-semibold text-[#5a3046] uppercase tracking-wide mb-4">Working Hours</h4>
+                  {enabledDays.length === 0 ? (
+                    <p className="text-sm text-[#957186] text-center py-6">No days selected.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      {enabledDays.map(({ key, label }) => (
+                        <div key={key} className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-bold text-[#241715] w-24">{label}</span>
+                            <button
+                              type="button"
+                              onClick={() => applyAll(key)}
+                              className="text-xs text-[#957186] hover:text-[#703d57] hover:underline transition-colors"
+                            >
+                              Apply All
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            {schedule[key].ranges.map((range: TimeRange) => (
+                              <div key={range.id} className="flex items-center gap-2">
+                                <select
+                                  value={range.start}
+                                  onChange={(e) => updateRange(key, range.id, "start", e.target.value)}
+                                  className={selectCls}
+                                >
+                                  {HALF_HOURS.map((t) => <option key={t}>{t}</option>)}
+                                </select>
+                                <span className="text-xs text-[#957186]">–</span>
+                                <select
+                                  value={range.end}
+                                  onChange={(e) => updateRange(key, range.id, "end", e.target.value)}
+                                  className={selectCls}
+                                >
+                                  {HALF_HOURS.map((t) => <option key={t}>{t}</option>)}
+                                </select>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Office Location */}
+              <div className="bg-white rounded-2xl border border-[#d9b8c4]/40 p-6 space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-[#241715]">Office Location</h3>
+                  <p className="text-xs text-[#957186] mt-0.5">
+                    Pin your office so clients can find you on the map in the CLAiR app.
+                    Search an address or use "My location", then click or drag the pin to fine-tune.
+                  </p>
+                </div>
+                <LocationPicker
+                  lat={latitude}
+                  lng={longitude}
+                  onChange={(lat, lng) => { setLatitude(lat); setLongitude(lng); }}
+                />
+              </div>
+
+              {error && (
+                <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Navigation */}
           <div className="flex items-center justify-between mt-8">
             <button
@@ -389,6 +596,7 @@ export function ProfileSetupPage() {
               onClick={() => {
                 if (step === "credentials") setStep("personal");
                 else if (step === "practice") setStep("credentials");
+                else if (step === "details") setStep("practice");
               }}
               className={cn(
                 "flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[#d9b8c4] bg-white text-sm font-medium text-[#957186] transition hover:bg-[#f7f0f4]",
@@ -399,13 +607,14 @@ export function ProfileSetupPage() {
               Back
             </button>
 
-            {step !== "practice" ? (
+            {step !== "details" ? (
               <button
                 type="button"
                 onClick={() => {
                   setError("");
                   if (step === "personal" && canProceedPersonal()) setStep("credentials");
                   else if (step === "credentials" && canProceedCredentials()) setStep("practice");
+                  else if (step === "practice" && practiceAreas.length > 0) setStep("details");
                   else setError("Please fill in the required fields.");
                 }}
                 disabled={

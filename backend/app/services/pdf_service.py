@@ -9,7 +9,7 @@ from app.models.conversation import Conversation, Message
 from app.models.user import User
 from app.services.chat_service import _get_client
 
-from google.genai import types
+_SUMMARY_MODEL = "llama-3.1-8b-instant"
 
 
 _SUMMARY_SYSTEM = (
@@ -31,6 +31,62 @@ _SUMMARY_SYSTEM = (
 
 _SUMMARY_MAX_CHARS = 12000
 
+# ── Short appointment-description summary ─────────────────────────────────────
+
+_SHORT_SUMMARY_SYSTEM = (
+    "You write the text for the 'Description' field when a client books a legal "
+    "consultation with a lawyer (Philippines). The lawyer will read this on the "
+    "appointment request.\n\n"
+    "Voice and tone:\n"
+    "- Write in the first person as the client (I would like…, I need help with…, "
+    "I’m hoping to discuss…).\n"
+    "- It must read like a short, natural booking note — not a case summary, memo, "
+    "or recap of 'what was discussed'.\n"
+    "- Do NOT use analytical or third-person wording such as: 'The main legal topic', "
+    "'The client', 'discussed was', 'raised a question', 'seeking clarification', "
+    "'the specific circumstances surrounding', or similar.\n"
+    "- 2–3 sentences maximum. Plain sentences only. No lists, headings, or markdown.\n"
+    "- Stay factual; only include details supported by the conversation. Do not invent facts."
+)
+
+
+async def _generate_short_summary(messages: list[Message]) -> str:
+    """2–3 sentence overview for an appointment booking description."""
+    transcript_parts: list[str] = []
+    for msg in messages:
+        label = "Client" if msg.role == "user" else "CLAiR"
+        transcript_parts.append(f"{label}: {msg.text}")
+    transcript = "\n\n".join(transcript_parts)
+    if len(transcript) > _SUMMARY_MAX_CHARS:
+        transcript = transcript[:_SUMMARY_MAX_CHARS] + "\n...(truncated)"
+
+    prompt = (
+        "Below is my prior chat with CLAiR (AI legal assistant). Write 2–3 sentences "
+        "I could paste into the appointment description when booking a lawyer — "
+        "first person, polite, and focused on what I want from the consultation.\n\n"
+        f"--- CONVERSATION ---\n{transcript}\n--- END ---\n\n"
+        "Appointment description (first person, as if I wrote it for the booking form):"
+    )
+
+    try:
+        client = _get_client()
+        response = await client.chat.completions.create(
+            model=_SUMMARY_MODEL,
+            messages=[
+                {"role": "system", "content": _SHORT_SUMMARY_SYSTEM},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=220,
+            temperature=0.35,
+        )
+        text = (response.choices[0].message.content or "").strip()
+        if text:
+            return text
+    except Exception:
+        pass
+
+    return ""
+
 
 async def _generate_summary(messages: list[Message]) -> str:
     transcript_parts: list[str] = []
@@ -49,16 +105,16 @@ async def _generate_summary(messages: list[Message]) -> str:
 
     try:
         client = _get_client()
-        response = await client.aio.models.generate_content(
-            model="gemini-3.1-flash-lite-preview",
-            contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
-            config=types.GenerateContentConfig(
-                system_instruction=_SUMMARY_SYSTEM,
-                temperature=0.3,
-                max_output_tokens=1500,
-            ),
+        response = await client.chat.completions.create(
+            model=_SUMMARY_MODEL,
+            messages=[
+                {"role": "system", "content": _SUMMARY_SYSTEM},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=1500,
+            temperature=0.0,
         )
-        text = (response.text or "").strip()
+        text = (response.choices[0].message.content or "").strip()
         if text:
             return text
     except Exception:
@@ -154,6 +210,19 @@ def _build_pdf(
     buffer = io.BytesIO()
     pdf.output(buffer)
     return buffer.getvalue()
+
+
+async def generate_appointment_description_summary(messages: list[Message]) -> str:
+    """Short 2–3 sentence overview for the appointment booking description field."""
+    if not messages:
+        return ""
+    short = await _generate_short_summary(messages)
+    if short:
+        return short
+    # Fallback: trim the detailed summary to its first paragraph
+    detailed = await _generate_summary(messages)
+    first_para = detailed.split("\n\n")[0].strip()
+    return first_para or detailed
 
 
 async def generate_consultation_pdf(

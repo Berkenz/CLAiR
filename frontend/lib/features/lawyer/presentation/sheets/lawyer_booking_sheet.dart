@@ -178,6 +178,10 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
         widget.preAttachedConversationId != null) {
       _attachConversation = true;
     }
+    if (_explicitAttachConversationTitle?.trim().isNotEmpty == true &&
+        _titleCtrl.text.isEmpty) {
+      _titleCtrl.text = _explicitAttachConversationTitle!.trim();
+    }
   }
 
   @override
@@ -202,24 +206,11 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
     });
 
     final chatState = ref.read(chatProvider);
-    final convTitle = _attachConversation
-        ? (_explicitAttachConversationTitle ??
-            chatState.conversationTitle ??
-            'Current conversation')
-        : null;
-
     final attachedConversationId = _attachConversation
         ? (_explicitAttachConversationId ?? chatState.conversationId)
         : null;
 
-    // Prepend title to description for the backend.
-    final descriptionBody = appendAttachmentsToDescription(
-      'Subject: $title\n\n${_descCtrl.text.trim()}',
-      _pickedFiles,
-      conversationTitle: convTitle,
-      conversationMessageCount:
-          _attachConversation ? chatState.messages.length : null,
-    );
+    final descTrim = _descCtrl.text.trim();
 
     final now = DateTime.now();
     final bookingDate =
@@ -231,8 +222,10 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
         appointmentDate: bookingDate,
         appointmentTime: '09:00',
         appointmentType: 'Other',
-        description: descriptionBody.isEmpty ? null : descriptionBody,
+        caseTitle: title,
+        description: descTrim.isEmpty ? null : descTrim,
         attachedConversationId: attachedConversationId,
+        files: _pickedFiles,
       );
 
       if (mounted) {
@@ -408,8 +401,12 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
                   _explicitAttachConversationId = id;
                   _explicitAttachConversationTitle = title;
                 }),
-                onSummaryGenerated: (text) =>
-                    setState(() => _descCtrl.text = text),
+                onSummaryGenerated: (text) => setState(() {
+                  _descCtrl.value = TextEditingValue(
+                    text: text,
+                    selection: TextSelection.collapsed(offset: text.length),
+                  );
+                }),
               ),
 
               if (_error != null) ...[

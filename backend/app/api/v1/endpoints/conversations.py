@@ -9,13 +9,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
 from app.schemas.conversation import (
+    AppointmentSummaryResponse,
     ConversationDetail,
     ConversationListResponse,
     ConversationSummary,
     ConversationUpdate,
 )
 from app.services.conversation_service import conversation_service
-from app.services.pdf_service import generate_consultation_pdf
+from app.services.pdf_service import (
+    generate_appointment_description_summary,
+    generate_consultation_pdf,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +125,48 @@ async def generate_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.post(
+    "/{conversation_id}/appointment-summary",
+    response_model=AppointmentSummaryResponse,
+)
+async def summarize_conversation_for_appointment(
+    conversation_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Generate an AI summary of a saved CLAiR conversation for a lawyer booking description."""
+    if current_user.is_anonymous:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sign in to use AI summarization.",
+        )
+
+    conv = await conversation_service.get_conversation(
+        db, conversation_id, current_user.id
+    )
+    if not conv:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found",
+        )
+    if not conv.messages:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot summarize an empty conversation.",
+        )
+
+    try:
+        summary = await generate_appointment_description_summary(conv.messages)
+    except Exception:
+        logger.exception("Appointment summary generation failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not generate a summary. Please try again.",
+        )
+
+    return AppointmentSummaryResponse(summary=summary)
 
 
 @router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
