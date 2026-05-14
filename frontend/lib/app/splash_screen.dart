@@ -22,14 +22,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late Animation<double> _fade;
 
   bool _navigated = false;
-  bool _fadingOut = false;
 
-  // Fade-out starts this far before the video ends — enough time for the
-  // animation to finish before the last frame freezes.
-  static const _fadeOutDuration = Duration(milliseconds: 250);
-  static const _fadeOutTrigger = Duration(milliseconds: 900);
-  // Hard ceiling: start fade-out at 5.5 s even if the video is still playing.
-  static const _maxDuration = Duration(milliseconds: 5500);
+  // Trigger navigation this far before the video ends so the login screen's
+  // fade-in covers the last frames — no black flash.
+  static const _navTrigger = Duration(milliseconds: 700);
+  // Hard ceiling: navigate at 5 s even if the video is still playing.
+  static const _maxDuration = Duration(milliseconds: 5000);
 
   // Always-dark background — splash is its own world, no theme adaptation.
   static const _bg = Color(0xFF0A0A0F);
@@ -48,7 +46,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _fadeCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 350),
-      reverseDuration: _fadeOutDuration,
     );
     _fade = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeInOut);
 
@@ -63,27 +60,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         _controller.addListener(_onProgress);
       });
 
-    Future.delayed(_maxDuration - _fadeOutTrigger, _startFadeOut);
+    Future.delayed(_maxDuration, _navigate);
   }
 
   void _onProgress() {
-    if (!_controller.value.isInitialized || _fadingOut) return;
+    if (!_controller.value.isInitialized) return;
     final pos = _controller.value.position;
     final dur = _controller.value.duration;
     if (dur.inMilliseconds <= 0) return;
-    if (dur - pos <= _fadeOutTrigger) _startFadeOut();
-  }
-
-  void _startFadeOut() {
-    if (_fadingOut || !mounted) return;
-    _fadingOut = true;
-    _fadeCtrl.reverse().then((_) => _navigate());
+    if (dur - pos <= _navTrigger) _navigate();
   }
 
   void _navigate() {
     if (_navigated || !mounted) return;
     _navigated = true;
-    // Restore normal system UI before handing off to the app.
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
