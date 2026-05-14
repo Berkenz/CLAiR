@@ -1273,13 +1273,13 @@ abstract class AppLocalizations {
   /// No description provided for @apptSortNewestFirst.
   ///
   /// In en, this message translates to:
-  /// **'Date · Newest first'**
+  /// **'Booked · Newest first'**
   String get apptSortNewestFirst;
 
   /// No description provided for @apptSortOldestFirst.
   ///
   /// In en, this message translates to:
-  /// **'Date · Oldest first'**
+  /// **'Booked · Oldest first'**
   String get apptSortOldestFirst;
 
   /// No description provided for @apptSortChipNewest.
@@ -1342,6 +1342,36 @@ abstract class AppLocalizations {
   /// **'Chat'**
   String get apptCardChat;
 
+  /// No description provided for @apptCardBookedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Booked {date} · {time}'**
+  String apptCardBookedAt(String date, String time);
+
+  /// No description provided for @bookingAppointmentTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Appointment type'**
+  String get bookingAppointmentTypeLabel;
+
+  /// No description provided for @bookingAppointmentTypeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What kind of consultation?'**
+  String get bookingAppointmentTypeHint;
+
+  /// No description provided for @bookingAppointmentTypeLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load types. Tap to retry.'**
+  String get bookingAppointmentTypeLoadError;
+
+  /// No description provided for @bookingAppointmentTypeRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select an appointment type.'**
+  String get bookingAppointmentTypeRequired;
+
   /// No description provided for @apptStatusPending.
   ///
   /// In en, this message translates to:
@@ -1371,18 +1401,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Type'**
   String get apptDetailLabelType;
-
-  /// No description provided for @apptDetailLabelDate.
-  ///
-  /// In en, this message translates to:
-  /// **'Date'**
-  String get apptDetailLabelDate;
-
-  /// No description provided for @apptDetailLabelTime.
-  ///
-  /// In en, this message translates to:
-  /// **'Time'**
-  String get apptDetailLabelTime;
 
   /// No description provided for @apptDetailLabelLawyer.
   ///

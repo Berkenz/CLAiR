@@ -121,14 +121,12 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
   }
 
   void _applySort(List<AppointmentEntity> list) {
-    int dateTimeCmp(AppointmentEntity a, AppointmentEntity b) {
-      final d = a.appointmentDate.compareTo(b.appointmentDate);
-      if (d != 0) return d;
-      return a.appointmentTime.compareTo(b.appointmentTime);
+    int bookedCmp(AppointmentEntity a, AppointmentEntity b) {
+      return a.createdAt.compareTo(b.createdAt);
     }
 
     list.sort((a, b) {
-      final c = dateTimeCmp(a, b);
+      final c = bookedCmp(a, b);
       return _sort == _AppointmentListSort.dateOldest ? c : -c;
     });
   }
@@ -556,8 +554,10 @@ class _AppointmentCard extends StatelessWidget {
     final cl = context.c;
     final l10n = AppLocalizations.of(context)!;
     final statusColor = _statusColor(appointment.status);
-    final date = DateFormat('MMM d, y').format(appointment.appointmentDate);
-    final time = _to12Hour(appointment.appointmentTime);
+    final bookedLocal = appointment.createdAt.toLocal();
+    final bookedDate = DateFormat('MMM d, y').format(bookedLocal);
+    final bookedTime = DateFormat('h:mm a').format(bookedLocal);
+    final bookedLine = l10n.apptCardBookedAt(bookedDate, bookedTime);
 
     return SpringButton(
       onTap: onTap,
@@ -640,13 +640,13 @@ class _AppointmentCard extends StatelessWidget {
                     Row(
                       children: [
                         Icon(
-                          Icons.calendar_today_outlined,
+                          Icons.schedule_outlined,
                           size: 12,
                           color: cl.textLight,
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '$date  •  $time',
+                          bookedLine,
                           style: TextStyle(
                             fontSize: 12,
                             color: cl.textMid,
@@ -712,15 +712,6 @@ class _AppointmentCard extends StatelessWidget {
       'cancelled' => const Color(0xFFD63031),
       _ => const Color(0xFF6B7280),
     };
-  }
-
-  static String _to12Hour(String value) {
-    try {
-      final parsed = DateFormat('HH:mm').parse(value);
-      return DateFormat('h:mm a').format(parsed);
-    } catch (_) {
-      return value;
-    }
   }
 }
 

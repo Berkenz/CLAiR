@@ -639,10 +639,10 @@ class AppLocalizationsFil extends AppLocalizations {
   String get apptFilterCancelled => 'Cancelled';
 
   @override
-  String get apptSortNewestFirst => 'Petsa · Pinakabago muna';
+  String get apptSortNewestFirst => 'Nakabook · Pinakabago muna';
 
   @override
-  String get apptSortOldestFirst => 'Petsa · Pinakaluma muna';
+  String get apptSortOldestFirst => 'Nakabook · Pinakaluma muna';
 
   @override
   String get apptSortChipNewest => 'Ayos: pinakabago muna';
@@ -677,6 +677,24 @@ class AppLocalizationsFil extends AppLocalizations {
   String get apptCardChat => 'Chat';
 
   @override
+  String apptCardBookedAt(String date, String time) {
+    return 'Nakabook $date · $time';
+  }
+
+  @override
+  String get bookingAppointmentTypeLabel => 'Uri ng appointment';
+
+  @override
+  String get bookingAppointmentTypeHint => 'Anong uri ng konsultasyon?';
+
+  @override
+  String get bookingAppointmentTypeLoadError =>
+      'Hindi ma-load ang mga uri. I-tap para subukan muli.';
+
+  @override
+  String get bookingAppointmentTypeRequired => 'Pumili ng uri ng appointment.';
+
+  @override
   String get apptStatusPending => 'Pending';
 
   @override
@@ -690,12 +708,6 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get apptDetailLabelType => 'Uri';
-
-  @override
-  String get apptDetailLabelDate => 'Petsa';
-
-  @override
-  String get apptDetailLabelTime => 'Oras';
 
   @override
   String get apptDetailLabelLawyer => 'Abogado';

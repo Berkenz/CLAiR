@@ -64,19 +64,6 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                       ),
                       _divider(cl),
                       _InfoRow(
-                        icon: Icons.calendar_today_outlined,
-                        label: l10n.apptDetailLabelDate,
-                        value: DateFormat('EEEE, MMMM d, y')
-                            .format(appointment.appointmentDate),
-                      ),
-                      _divider(cl),
-                      _InfoRow(
-                        icon: Icons.access_time_rounded,
-                        label: l10n.apptDetailLabelTime,
-                        value: _to12Hour(appointment.appointmentTime),
-                      ),
-                      _divider(cl),
-                      _InfoRow(
                         icon: Icons.person_outline_rounded,
                         label: l10n.apptDetailLabelLawyer,
                         value: appointment.displayLawyerName,
@@ -292,15 +279,6 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
       margin: const EdgeInsets.symmetric(vertical: 2),
       color: cl.border,
     );
-  }
-
-  static String _to12Hour(String value) {
-    try {
-      final parsed = DateFormat('HH:mm').parse(value);
-      return DateFormat('h:mm a').format(parsed);
-    } catch (_) {
-      return value;
-    }
   }
 
   static bool _hasAttachedConversation(AppointmentEntity a) {

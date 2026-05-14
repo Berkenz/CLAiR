@@ -638,10 +638,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apptFilterCancelled => 'Cancelled';
 
   @override
-  String get apptSortNewestFirst => 'Date · Newest first';
+  String get apptSortNewestFirst => 'Booked · Newest first';
 
   @override
-  String get apptSortOldestFirst => 'Date · Oldest first';
+  String get apptSortOldestFirst => 'Booked · Oldest first';
 
   @override
   String get apptSortChipNewest => 'Sort: newest first';
@@ -675,6 +675,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apptCardChat => 'Chat';
 
   @override
+  String apptCardBookedAt(String date, String time) {
+    return 'Booked $date · $time';
+  }
+
+  @override
+  String get bookingAppointmentTypeLabel => 'Appointment type';
+
+  @override
+  String get bookingAppointmentTypeHint => 'What kind of consultation?';
+
+  @override
+  String get bookingAppointmentTypeLoadError =>
+      'Could not load types. Tap to retry.';
+
+  @override
+  String get bookingAppointmentTypeRequired =>
+      'Please select an appointment type.';
+
+  @override
   String get apptStatusPending => 'Pending';
 
   @override
@@ -688,12 +707,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get apptDetailLabelType => 'Type';
-
-  @override
-  String get apptDetailLabelDate => 'Date';
-
-  @override
-  String get apptDetailLabelTime => 'Time';
 
   @override
   String get apptDetailLabelLawyer => 'Lawyer';

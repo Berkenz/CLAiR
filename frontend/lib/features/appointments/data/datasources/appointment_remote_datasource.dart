@@ -46,6 +46,22 @@ class AppointmentRemoteDataSource {
     }
   }
 
+  Future<List<String>> getAppointmentTypes() async {
+    try {
+      final response = await _dio.get<List<dynamic>>(
+        ApiEndpoints.appointmentTypes,
+      );
+      final raw = response.data;
+      if (raw == null) return [];
+      return raw
+          .map((e) => '$e'.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+    } on DioException catch (e) {
+      throw AppointmentException(_extractError(e));
+    }
+  }
+
   Future<List<AppointmentEntity>> getMyAppointments({String? date}) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(

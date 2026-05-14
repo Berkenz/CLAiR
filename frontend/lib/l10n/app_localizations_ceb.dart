@@ -639,10 +639,10 @@ class AppLocalizationsCeb extends AppLocalizations {
   String get apptFilterCancelled => 'Cancelled';
 
   @override
-  String get apptSortNewestFirst => 'Petsa · Pinaka bag-o una';
+  String get apptSortNewestFirst => 'Gi-book · Pinaka bag-o una';
 
   @override
-  String get apptSortOldestFirst => 'Petsa · Pinaka karaan una';
+  String get apptSortOldestFirst => 'Gi-book · Pinaka karaan una';
 
   @override
   String get apptSortChipNewest => 'Ayos: pinaka bag-o una';
@@ -677,6 +677,25 @@ class AppLocalizationsCeb extends AppLocalizations {
   String get apptCardChat => 'Chat';
 
   @override
+  String apptCardBookedAt(String date, String time) {
+    return 'Gi-book $date · $time';
+  }
+
+  @override
+  String get bookingAppointmentTypeLabel => 'Matang sa appointment';
+
+  @override
+  String get bookingAppointmentTypeHint => 'Unsa nga matang sa konsultasyon?';
+
+  @override
+  String get bookingAppointmentTypeLoadError =>
+      'Dili ma-load ang mga matang. I-tap aron sulayan pag-usab.';
+
+  @override
+  String get bookingAppointmentTypeRequired =>
+      'Palihug pagpili og matang sa appointment.';
+
+  @override
   String get apptStatusPending => 'Pending';
 
   @override
@@ -690,12 +709,6 @@ class AppLocalizationsCeb extends AppLocalizations {
 
   @override
   String get apptDetailLabelType => 'Matang';
-
-  @override
-  String get apptDetailLabelDate => 'Petsa';
-
-  @override
-  String get apptDetailLabelTime => 'Oras';
 
   @override
   String get apptDetailLabelLawyer => 'Abogado';

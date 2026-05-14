@@ -6,11 +6,14 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
+import 'package:clair/features/appointments/data/datasources/appointment_remote_datasource.dart';
+import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/lawyer/data/datasources/lawyer_remote_datasource.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 import 'package:clair/features/lawyer/presentation/providers/lawyer_provider.dart';
 import 'package:clair/features/lawyer/presentation/widgets/lawyer_attachments_section.dart';
+import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
 
 /// Shows a prompt asking the guest to log in or sign up before booking.
@@ -168,6 +171,11 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
   bool _loading = false;
   String? _error;
 
+  List<String> _appointmentTypes = const [];
+  bool _typesLoading = true;
+  String? _typesLoadError;
+  String? _selectedAppointmentType;
+
   @override
   void initState() {
     super.initState();
@@ -182,6 +190,41 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
         _titleCtrl.text.isEmpty) {
       _titleCtrl.text = _explicitAttachConversationTitle!.trim();
     }
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _loadAppointmentTypes());
+  }
+
+  Future<void> _loadAppointmentTypes() async {
+    final ds = ref.read(appointmentDataSourceProvider);
+    if (mounted) {
+      setState(() {
+        _typesLoading = true;
+        _typesLoadError = null;
+      });
+    }
+    try {
+      final types = await ds.getAppointmentTypes();
+      if (!mounted) return;
+      setState(() {
+        _appointmentTypes = types;
+        _typesLoading = false;
+        _typesLoadError = null;
+        _selectedAppointmentType =
+            types.isNotEmpty ? types.first : null;
+      });
+    } on AppointmentException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _typesLoading = false;
+        _typesLoadError = e.message;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _typesLoading = false;
+        _typesLoadError = e.toString();
+      });
+    }
   }
 
   @override
@@ -194,9 +237,16 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
   // ── Submit ─────────────────────────────────────────────────────────────────
 
   Future<void> _submit(LawyerRemoteDataSource ds) async {
+    final l10n = AppLocalizations.of(context)!;
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) {
       setState(() => _error = 'Please enter a title for your appointment.');
+      return;
+    }
+
+    final type = _selectedAppointmentType?.trim();
+    if (type == null || type.isEmpty) {
+      setState(() => _error = l10n.bookingAppointmentTypeRequired);
       return;
     }
 
@@ -220,8 +270,8 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
       await ds.bookAppointment(
         lawyerProfileId: widget.lawyer.id.trim(),
         appointmentDate: bookingDate,
-        appointmentTime: '09:00',
-        appointmentType: 'Other',
+        appointmentTime: '00:00',
+        appointmentType: type,
         caseTitle: title,
         description: descTrim.isEmpty ? null : descTrim,
         attachedConversationId: attachedConversationId,
@@ -260,6 +310,7 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     final ds = ref.watch(lawyerDataSourceProvider);
 
     return Padding(
@@ -366,6 +417,83 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
                   )),
               const SizedBox(height: 14),
 
+              // Appointment type
+              _fieldLabel(
+                cl,
+                l10n.bookingAppointmentTypeLabel,
+                Icons.category_outlined,
+                child: _typesLoading
+                    ? Container(
+                        padding: const EdgeInsets.all(14),
+                        alignment: Alignment.centerLeft,
+                        decoration: _inputDeco(cl),
+                        child: SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: cl.accent,
+                          ),
+                        ),
+                      )
+                    : _typesLoadError != null
+                        ? GestureDetector(
+                            onTap: _loadAppointmentTypes,
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(14),
+                              decoration: _inputDeco(cl),
+                              child: Text(
+                                l10n.bookingAppointmentTypeLoadError,
+                                style: GoogleFonts.nunito(
+                                  fontSize: 12,
+                                  color: Colors.red.shade700,
+                                ),
+                              ),
+                            ),
+                          )
+                        : Container(
+                            decoration: _inputDeco(cl),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _selectedAppointmentType != null &&
+                                        _appointmentTypes
+                                            .contains(_selectedAppointmentType)
+                                    ? _selectedAppointmentType
+                                    : null,
+                                isExpanded: true,
+                                hint: Text(
+                                  l10n.bookingAppointmentTypeHint,
+                                  style: GoogleFonts.nunito(
+                                    fontSize: 13,
+                                    color: cl.textLight,
+                                  ),
+                                ),
+                                items: _appointmentTypes
+                                    .map(
+                                      (t) => DropdownMenuItem<String>(
+                                        value: t,
+                                        child: Text(
+                                          t,
+                                          style: GoogleFonts.nunito(
+                                            fontSize: 13,
+                                            color: cl.textDark,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (v) => setState(
+                                  () => _selectedAppointmentType = v,
+                                ),
+                              ),
+                            ),
+                          ),
+              ),
+              const SizedBox(height: 14),
+
               // Description
               _fieldLabel(cl, 'Description', Icons.notes_rounded,
                   child: Container(
@@ -427,12 +555,12 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
 
               // Submit
               SpringButton(
-                onTap: _loading ? null : () => _submit(ds),
+                onTap: (_loading || _typesLoading) ? null : () => _submit(ds),
                 child: Container(
                   width: double.infinity,
                   height: 52,
                   decoration: BoxDecoration(
-                    color: _loading
+                    color: (_loading || _typesLoading)
                         ? cl.accent.withValues(alpha: 0.6)
                         : cl.accent,
                     borderRadius: BorderRadius.circular(16),
@@ -444,7 +572,7 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
                     ],
                   ),
                   child: Center(
-                    child: _loading
+                    child: (_loading || _typesLoading)
                         ? const SizedBox(
                             width: 20,
                             height: 20,

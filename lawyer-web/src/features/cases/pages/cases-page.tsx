@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Check, X, RefreshCw, Loader2, Smartphone, CalendarDays, Clock,
+  Check, X, RefreshCw, Loader2, Smartphone, CalendarClock,
   FileText, ChevronDown, ChevronUp, WifiOff, Download, Bot, User,
   ThumbsUp, Flag, AlertTriangle, Send, MessageCircle, Info,
   MessageSquare, Search, Pencil, Paperclip, ExternalLink,
@@ -91,15 +91,15 @@ const REPORT_ISSUES = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmtDate(iso: string) {
-  const [y, m, d] = iso.split("-").map(Number);
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return `${months[m - 1]} ${d}, ${y}`;
-}
-
-function fmtTime(t: string) {
-  const [h, min] = t.split(":").map(Number);
-  return `${h % 12 || 12}:${String(min).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
+/** When the appointment request was created (date + local time). */
+function fmtBookedAt(iso: string | null) {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    const date = d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    return `${date} · ${time}`;
+  } catch { return "—"; }
 }
 
 function fmtIso(iso: string | null) {
@@ -320,7 +320,7 @@ export function CasesPage() {
                     <div className="min-w-0 flex-1">
                       <p className="text-[15px] font-bold text-[#241715] truncate leading-snug">{displayCaseTitle(a)}</p>
                       <p className="text-xs text-[#957186] truncate mt-0.5">{a.client_name}</p>
-                      <p className="text-[11px] text-[#957186]/90 mt-0.5">{fmtDate(a.appointment_date)}</p>
+                      <p className="text-[11px] text-[#957186]/90 mt-0.5">Booked {fmtBookedAt(a.created_at)}</p>
                     </div>
                     <span className="text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full shrink-0">pending</span>
                   </div>
@@ -380,7 +380,7 @@ export function CasesPage() {
                   <div className="min-w-0 flex-1">
                     <p className="text-[15px] font-bold text-[#241715] truncate leading-snug">{displayCaseTitle(a)}</p>
                     <p className="text-xs text-[#957186] truncate mt-0.5">{a.client_name}</p>
-                    <p className="text-[11px] text-[#957186]/90 mt-0.5">{fmtDate(a.appointment_date)} · {fmtTime(a.appointment_time)}</p>
+                    <p className="text-[11px] text-[#957186]/90 mt-0.5">Booked {fmtBookedAt(a.created_at)}</p>
                   </div>
                 </div>
                 <p className="text-[11px] text-gray-400 mt-1 truncate pl-10">{a.appointment_type}</p>
@@ -459,7 +459,7 @@ export function CasesPage() {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h2 className="font-bold text-[#241715] text-lg">Reject Appointment</h2>
-                <p className="text-sm text-[#957186] mt-0.5">{rejectTarget.client_name} · {fmtDate(rejectTarget.appointment_date)}</p>
+                <p className="text-sm text-[#957186] mt-0.5">{rejectTarget.client_name} · Booked {fmtBookedAt(rejectTarget.created_at)}</p>
               </div>
               <button onClick={() => setRejectTarget(null)} className="p-1 rounded-lg text-gray-400 hover:text-gray-700">
                 <X className="h-5 w-5" />
@@ -523,10 +523,8 @@ function CaseDetail({ appt, onAccept, accepting, onReject, onApptUpdated }: {
               <p className="text-sm text-[#703d57] font-medium truncate mt-0.5">{appt.client_name}</p>
               <div className="flex items-center gap-3 mt-1 flex-wrap">
                 <span className="flex items-center gap-1 text-xs text-[#957186]">
-                  <CalendarDays className="h-3 w-3" />{fmtDate(appt.appointment_date)}
-                </span>
-                <span className="flex items-center gap-1 text-xs text-[#957186]">
-                  <Clock className="h-3 w-3" />{fmtTime(appt.appointment_time)}
+                  <CalendarClock className="h-3 w-3 shrink-0" />
+                  <span>Booked {fmtBookedAt(appt.created_at)}</span>
                 </span>
                 {appt.client_user_id && (
                   <span className="flex items-center gap-1 text-xs text-[#957186]">
@@ -676,9 +674,7 @@ function OverviewTab({ appt, onApptUpdated }: { appt: Appointment; onApptUpdated
       <div className="grid grid-cols-2 gap-4">
         <InfoBlock label="Appointment Type"  value={appt.appointment_type} />
         <InfoBlock label="Status"             value={appt.status.charAt(0).toUpperCase() + appt.status.slice(1)} />
-        <InfoBlock label="Date"               value={fmtDate(appt.appointment_date)} />
-        <InfoBlock label="Time"               value={fmtTime(appt.appointment_time)} />
-        <InfoBlock label="Booked"             value={fmtIso(appt.created_at)} />
+        <InfoBlock label="Booked"             value={fmtBookedAt(appt.created_at)} />
         <InfoBlock label="Client"             value={appt.client_name} />
       </div>
 
