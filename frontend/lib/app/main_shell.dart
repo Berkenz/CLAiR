@@ -7,6 +7,7 @@ import 'package:clair/features/home/presentation/screens/home_screen.dart';
 import 'package:clair/features/chat/presentation/screens/chat_screen.dart';
 import 'package:clair/features/library/presentation/screens/library_screen.dart';
 import 'package:clair/features/lawyer/presentation/screens/lawyer_screen.dart';
+import 'package:clair/features/appointments/presentation/screens/appointment_screen.dart';
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/shared/widgets/app_drawer.dart';
 
@@ -17,18 +18,20 @@ class MainShell extends ConsumerStatefulWidget {
 }
 
 class _MainShellState extends ConsumerState<MainShell> {
-  static const _labels = ['Home', 'Chat', 'Library', 'Lawyers'];
+  static const _labels = ['Home', 'Chat', 'Library', 'Lawyers', 'Appointments'];
   static const _icons = [
     Icons.home_outlined,
     Icons.chat_bubble_outline_rounded,
     Icons.library_books_outlined,
     Icons.balance_outlined,
+    Icons.event_note_outlined,
   ];
   static const _activeIcons = [
     Icons.home_rounded,
     Icons.chat_bubble_rounded,
     Icons.library_books_rounded,
     Icons.balance_rounded,
+    Icons.event_note_rounded,
   ];
 
   @override
@@ -50,6 +53,7 @@ class _MainShellState extends ConsumerState<MainShell> {
               const ChatScreen(),
               const LibraryScreen(),
               const LawyerTabScreen(),
+              const AppointmentTabScreen(),
             ][currentIndex],
           ),
         ),
@@ -77,7 +81,8 @@ class _MainShellState extends ConsumerState<MainShell> {
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: List.generate(4, (i) => _navItem(i, currentIndex)),
+          children:
+              List.generate(_labels.length, (i) => _navItem(i, currentIndex)),
         ),
       ),
     );

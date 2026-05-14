@@ -4,6 +4,7 @@ from datetime import date
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.appointment import Appointment
 from app.models.conversation import Conversation
@@ -85,6 +86,29 @@ class AppointmentService:
             query = query.where(Appointment.appointment_date == filter_date)
         query = query.order_by(
             Appointment.appointment_date, Appointment.appointment_time
+        )
+        result = await db.execute(query)
+        rows = list(result.scalars().all())
+        for appt in rows:
+            await self._persist_legacy_split_if_needed(db, appt)
+        return rows
+
+    async def get_client_appointments(
+        self,
+        db: AsyncSession,
+        client_user_id: uuid.UUID,
+        filter_date: date | None = None,
+    ) -> list[Appointment]:
+        """Return all appointments for a mobile client, optionally filtered by date."""
+        query = (
+            select(Appointment)
+            .where(Appointment.client_user_id == client_user_id)
+            .options(selectinload(Appointment.lawyer_profile))
+        )
+        if filter_date is not None:
+            query = query.where(Appointment.appointment_date == filter_date)
+        query = query.order_by(
+            Appointment.appointment_date.desc(), Appointment.appointment_time.desc()
         )
         result = await db.execute(query)
         rows = list(result.scalars().all())

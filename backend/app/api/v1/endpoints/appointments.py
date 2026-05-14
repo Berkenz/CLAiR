@@ -1,6 +1,7 @@
 """
 Appointment endpoints:
   - POST   /appointments            → mobile user books an appointment
+  - GET    /appointments            → mobile user sees their own appointments
   - GET    /lawyer/appointments     → lawyer sees their own appointments
   - POST   /lawyer/appointments     → lawyer manually creates an appointment
   - PUT    /lawyer/appointments/{id}→ lawyer edits an appointment
@@ -114,6 +115,17 @@ async def book_appointment(
 
     await appointment_service._persist_legacy_split_if_needed(db, appt)
     return appt
+
+
+@mobile_router.get("", response_model=AppointmentListResponse)
+async def list_my_appointments(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    date: Annotated[date | None, Query(alias="date")] = None,
+):
+    """Return the current mobile user's appointments, optionally filtered by date."""
+    appts = await appointment_service.get_client_appointments(db, current_user.id, date)
+    return AppointmentListResponse(appointments=appts)
 
 
 @mobile_router.get("/types", response_model=list[str])

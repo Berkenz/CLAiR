@@ -79,3 +79,12 @@ class Appointment(Base):
         "Conversation",
         foreign_keys=[attached_conversation_id],
     )
+
+    @property
+    def lawyer_display_name(self) -> str | None:
+        profile = self.lawyer_profile
+        if profile is None:
+            return None
+        if profile.display_name and profile.display_name.strip():
+            return profile.display_name.strip()
+        return None
