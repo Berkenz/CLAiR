@@ -188,6 +188,11 @@
     }
   },
   "chatDisclaimerDismiss": "Dismiss",
+  "chatTermsDisclaimerBody": "By chatting with CLAiR, an AI chatbot, you agree to our",
+  "chatTermsDisclaimerTerms": "Terms of Use",
+  "chatTermsDisclaimerAnd": "and",
+  "chatTermsDisclaimerPrivacy": "Privacy Policy",
+  "chatTermsDisclaimerPeriod": ".",
   "chatTitleNewChat": "New Chat",
   "chatTitleCurrentConversation": "Current conversation",
   "chatRagDisconnectedBanner": "Law library (RAG) not connected on server — answer may use general model knowledge only.",

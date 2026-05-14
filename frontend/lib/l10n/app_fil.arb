@@ -188,6 +188,11 @@
     }
   },
   "chatDisclaimerDismiss": "Isara",
+  "chatTermsDisclaimerBody": "Sa pag-chat sa CLAiR, isang AI chatbot, sumasang-ayon ka sa aming",
+  "chatTermsDisclaimerTerms": "Mga Tuntunin ng Paggamit",
+  "chatTermsDisclaimerAnd": "at",
+  "chatTermsDisclaimerPrivacy": "Patakaran sa Privacy",
+  "chatTermsDisclaimerPeriod": ".",
   "chatTitleNewChat": "Bagong chat",
   "chatTitleCurrentConversation": "Kasalukuyang usapan",
   "chatRagDisconnectedBanner": "Hindi nakakonekta ang law library (RAG) sa server — maaaring gumamit ng pangkalahatang kaalaman ang sagot.",

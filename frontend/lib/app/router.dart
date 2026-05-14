@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -19,12 +20,16 @@ import 'package:clair/features/history/presentation/screens/history_screen.dart'
 import 'package:clair/features/lawyer/presentation/screens/lawyer_screen.dart';
 import 'package:clair/features/notifications/presentation/screens/notification_screen.dart';
 import 'package:clair/app/main_shell.dart';
+import 'package:clair/app/splash_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/splash',
     debugLogDiagnostics: true,
     redirect: (context, state) {
+      // Never redirect away from the splash screen — let it handle navigation.
+      if (state.matchedLocation.startsWith('/splash')) return null;
+
       final user = ref.read(currentUserProvider);
       final isOnAuthPage = state.matchedLocation == '/' ||
           state.matchedLocation.startsWith('/login') ||
@@ -44,13 +49,30 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
         path: '/',
         redirect: (_, __) => '/login',
         builder: (context, state) => const LoginScreen(),
       ),
       GoRoute(
         path: '/login',
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const LoginScreen(),
+          transitionDuration: const Duration(milliseconds: 400),
+          reverseTransitionDuration: const Duration(milliseconds: 200),
+          transitionsBuilder: (context, animation, _, child) =>
+              FadeTransition(
+                opacity: CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeIn,
+                ),
+                child: child,
+              ),
+        ),
       ),
       GoRoute(
         path: '/forgot-password',

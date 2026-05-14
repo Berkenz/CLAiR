@@ -441,6 +441,22 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatDisclaimerDismiss => 'Isara';
 
   @override
+  String get chatTermsDisclaimerBody =>
+      'Sa pag-chat sa CLAiR, isang AI chatbot, sumasang-ayon ka sa aming';
+
+  @override
+  String get chatTermsDisclaimerTerms => 'Mga Tuntunin ng Paggamit';
+
+  @override
+  String get chatTermsDisclaimerAnd => 'at';
+
+  @override
+  String get chatTermsDisclaimerPrivacy => 'Patakaran sa Privacy';
+
+  @override
+  String get chatTermsDisclaimerPeriod => '.';
+
+  @override
   String get chatTitleNewChat => 'Bagong chat';
 
   @override

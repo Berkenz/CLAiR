@@ -188,6 +188,11 @@
     }
   },
   "chatDisclaimerDismiss": "Sirhi",
+  "chatTermsDisclaimerBody": "Pinaagi sa pag-chat sa CLAiR, usa ka AI chatbot, mouyon ka sa among",
+  "chatTermsDisclaimerTerms": "Mga Termino sa Paggamit",
+  "chatTermsDisclaimerAnd": "ug",
+  "chatTermsDisclaimerPrivacy": "Patakaran sa Privacy",
+  "chatTermsDisclaimerPeriod": ".",
   "chatTitleNewChat": "Bag-ong chat",
   "chatTitleCurrentConversation": "Karon nga panag-istorya",
   "chatRagDisconnectedBanner": "Dili nakakonekta ang law library (RAG) sa server — mahimong gumamit og kinatibuk-ang kahibalo ang tubag.",

@@ -237,12 +237,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           gradient: LinearGradient(
                             colors: [
                               cl.crimson,
-                              cl.darkBrown,
+                              // In dark mode cl.darkBrown == cl.textDark ≈ white.
+                              // accentLight in dark mode is L=0.25 — a deep dark
+                              // version of the accent, giving a rich gradient.
+                              Theme.of(context).brightness == Brightness.dark
+                                  ? cl.accentLight
+                                  : cl.darkBrown,
                             ],
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: cl.crimson.withOpacity(0.4),
+                              color: cl.crimson.withOpacity(
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? 0.2
+                                    : 0.4,
+                              ),
                               blurRadius: 15,
                               offset: const Offset(0, 8),
                             ),

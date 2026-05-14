@@ -8,6 +8,7 @@ import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/appointments/domain/entities/appointment_entity.dart';
 import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
+import 'package:clair/features/appointments/presentation/providers/direct_message_provider.dart';
 import 'package:clair/features/appointments/presentation/screens/lawyer_chat_screen.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 
@@ -29,32 +30,48 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
     final appointment = widget.appointment;
     final cl = context.c;
     final l10n = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final statusColor = _statusColor(appointment.status);
+
+    final dmUnread = appointment.canStartLawyerChat
+        ? ref.watch(directMessageProvider(appointment.id)).unreadCount
+        : 0;
 
     return Scaffold(
       backgroundColor: cl.bg,
       body: CustomScrollView(
         slivers: [
-          _buildAppBar(context, cl, statusColor, appointment),
+          _buildAppBar(context, cl, l10n, statusColor, appointment),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Status banner
+                  // ── 1. Status banner ──────────────────────────────────────
                   _StatusBanner(appointment: appointment),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
 
-                  // Attached CLAiR conversation (from booking)
+                  // ── 2. Date / time hero ───────────────────────────────────
+                  _DateTimeHeroCard(appointment: appointment),
+                  const SizedBox(height: 14),
+
+                  // ── 3. PRIMARY ACTION ─────────────────────────────────────
+                  if (appointment.canStartLawyerChat)
+                    _ChatButton(appointment: appointment, unreadCount: dmUnread)
+                  else
+                    _ChatLockedBanner(appointment: appointment),
+                  const SizedBox(height: 14),
+
+                  // ── 4. Attached CLAiR conversation ────────────────────────
                   if (_hasAttachedConversation(appointment)) ...[
                     _AttachedConversationCard(
                       onOpen: () => _openAttachedConversation(appointment),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                   ],
 
-                  // Info card
+                  // ── 5. Info card (type + lawyer) ──────────────────────────
                   _InfoCard(
                     children: [
                       _InfoRow(
@@ -67,11 +84,28 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                         icon: Icons.person_outline_rounded,
                         label: l10n.apptDetailLabelLawyer,
                         value: appointment.displayLawyerName,
+                        valueWidget: Row(
+                          children: [
+                            _LawyerAvatar(name: appointment.displayLawyerName, cl: cl),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                appointment.displayLawyerName,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: cl.textDark,
+                                  fontFamily: 'Satoshi',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
 
-                  // Description
+                  // ── 6. Description ────────────────────────────────────────
                   if (appointment.description?.trim().isNotEmpty ?? false) ...[
                     const SizedBox(height: 20),
                     _SectionLabel(label: l10n.apptDetailSectionDescription),
@@ -96,29 +130,32 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                     ),
                   ],
 
-                  // Rejection reason
+                  // ── 7. Rejection / cancellation reason ────────────────────
                   if (appointment.status == 'cancelled' &&
-                      (appointment.rejectionReason?.trim().isNotEmpty ??
-                          false)) ...[
+                      (appointment.rejectionReason?.trim().isNotEmpty ?? false)) ...[
                     const SizedBox(height: 20),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFF0F0),
+                        color: isDark
+                            ? const Color(0xFF1A0D10)
+                            : const Color(0xFFFFF0F0),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: const Color(0xFFFFCDD2),
+                          color: isDark
+                              ? const Color(0xFF3D1520)
+                              : const Color(0xFFFFCDD2),
                         ),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.info_outline_rounded,
-                            size: 18,
-                            color: Colors.red.shade700,
-                          ),
+                          Icon(Icons.info_outline_rounded,
+                              size: 18,
+                              color: isDark
+                                  ? const Color(0xFF8B3040)
+                                  : Colors.red.shade700),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Column(
@@ -131,7 +168,9 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                                   style: GoogleFonts.nunito(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
-                                    color: Colors.red.shade700,
+                                    color: isDark
+                                        ? const Color(0xFF8B3040)
+                                        : Colors.red.shade700,
                                   ),
                                 ),
                                 const SizedBox(height: 3),
@@ -139,7 +178,9 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                                   appointment.rejectionReason!.trim(),
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: Colors.red.shade900,
+                                    color: isDark
+                                        ? const Color(0xFF6B3040)
+                                        : Colors.red.shade900,
                                     fontFamily: 'Satoshi',
                                     height: 1.45,
                                   ),
@@ -152,7 +193,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                     ),
                   ],
 
-                  // Timestamps
+                  // ── 8. Timestamps ─────────────────────────────────────────
                   const SizedBox(height: 20),
                   _InfoCard(
                     children: [
@@ -176,48 +217,52 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                     ],
                   ),
 
-                  // Cancel (client)
+                  // ── 9. Cancel ─────────────────────────────────────────────
                   if (_canClientCancel(appointment)) ...[
                     const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed:
-                            _cancelling ? null : () => _onCancelAppointment(appointment),
+                        onPressed: _cancelling
+                            ? null
+                            : () => _onCancelAppointment(appointment),
                         icon: _cancelling
                             ? SizedBox(
                                 width: 18,
                                 height: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.red.shade700,
+                                  color: isDark
+                                      ? const Color(0xFF8B3040)
+                                      : Colors.red.shade700,
                                 ),
                               )
                             : Icon(
                                 Icons.event_busy_outlined,
-                                color: Colors.red.shade700,
+                                color: isDark
+                                    ? const Color(0xFF8B3040)
+                                    : Colors.red.shade700,
                               ),
                         label: Text(
                           l10n.apptDetailCancelAppointment,
                           style: GoogleFonts.nunito(
                             fontWeight: FontWeight.w700,
-                            color: Colors.red.shade700,
+                            color: isDark
+                                ? const Color(0xFF8B3040)
+                                : Colors.red.shade700,
                           ),
                         ),
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: Colors.red.shade200),
+                          side: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF3D1520)
+                                : Colors.red.shade200,
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                       ),
                     ),
                   ],
-
-                  // Chat CTA
-                  const SizedBox(height: 28),
-                  if (appointment.canStartLawyerChat)
-                    _ChatButton(appointment: appointment)
-                  else
-                    _ChatLockedBanner(appointment: appointment),
                 ],
               ),
             ),
@@ -230,9 +275,11 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
   SliverAppBar _buildAppBar(
     BuildContext context,
     AppColorTheme cl,
+    AppLocalizations l10n,
     Color statusColor,
     AppointmentEntity appointment,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SliverAppBar(
       backgroundColor: cl.surface,
       foregroundColor: cl.textDark,
@@ -257,9 +304,32 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 14),
+          child: _StatusChip(
+            status: appointment.status,
+            statusColor: statusColor,
+            isDark: isDark,
+            l10n: l10n,
+            appointment: appointment,
+          ),
+        ),
+      ],
+      // Status-colored accent line below the app bar title.
       bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Container(height: 1, color: cl.border),
+        preferredSize: const Size.fromHeight(3),
+        child: Container(
+          height: 3,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                statusColor.withValues(alpha: isDark ? 0.5 : 0.7),
+                statusColor.withValues(alpha: 0.0),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -311,10 +381,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            e.toString(),
-            style: const TextStyle(fontFamily: 'Satoshi'),
-          ),
+          content: Text(e.toString(), style: const TextStyle(fontFamily: 'Satoshi')),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -364,10 +431,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            e.toString(),
-            style: const TextStyle(fontFamily: 'Satoshi'),
-          ),
+          content: Text(e.toString(), style: const TextStyle(fontFamily: 'Satoshi')),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -376,6 +440,288 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
     }
   }
 }
+
+// ── Status chip (app bar action) ──────────────────────────────────────────────
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({
+    required this.status,
+    required this.statusColor,
+    required this.isDark,
+    required this.l10n,
+    required this.appointment,
+  });
+
+  final String status;
+  final Color statusColor;
+  final bool isDark;
+  final AppLocalizations l10n;
+  final AppointmentEntity appointment;
+
+  @override
+  Widget build(BuildContext context) {
+    final String label;
+    if (status == 'confirmed') {
+      label = l10n.apptStatusAccepted;
+    } else if (status == 'pending') {
+      label = l10n.apptStatusPending;
+    } else if (status == 'cancelled') {
+      label = appointment.isClientCancellation
+          ? l10n.apptStatusCancelled
+          : l10n.apptStatusDeclined;
+    } else {
+      label = status;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: statusColor.withValues(alpha: isDark ? 0.15 : 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: statusColor.withValues(alpha: isDark ? 0.3 : 0.25),
+        ),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.nunito(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: isDark
+              ? statusColor.withValues(alpha: 0.85)
+              : statusColor,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Date / time hero card ─────────────────────────────────────────────────────
+
+class _DateTimeHeroCard extends StatelessWidget {
+  const _DateTimeHeroCard({required this.appointment});
+
+  final AppointmentEntity appointment;
+
+  static String _to12Hour(String value) {
+    try {
+      return DateFormat('h:mm a').format(DateFormat('HH:mm').parse(value));
+    } catch (_) {
+      return value;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cl = context.c;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final date = appointment.appointmentDate;
+    final dayName = DateFormat('EEEE').format(date);
+    final monthDay = DateFormat('MMMM d, y').format(date);
+    final time = _to12Hour(appointment.appointmentTime);
+
+    final isOnline = appointment.appointmentType.toLowerCase().contains('online') ||
+        appointment.appointmentType.toLowerCase().contains('video');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        color: cl.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cl.border),
+        boxShadow: [
+          BoxShadow(
+            color: cl.cardShadow,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Calendar icon block
+          Container(
+            width: 52,
+            decoration: BoxDecoration(
+              color: cl.accent.withValues(alpha: isDark ? 0.12 : 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: cl.accent.withValues(alpha: isDark ? 0.2 : 0.15),
+              ),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  decoration: BoxDecoration(
+                    color: cl.accent,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(11),
+                    ),
+                  ),
+                  child: Text(
+                    DateFormat('MMM').format(date).toUpperCase(),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.nunito(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Text(
+                    DateFormat('d').format(date),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.nunito(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: cl.textDark,
+                      height: 1,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  dayName,
+                  style: GoogleFonts.nunito(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: cl.textDark,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  monthDay,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: cl.textMid,
+                    fontFamily: 'Satoshi',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: cl.accent.withValues(
+                            alpha: isDark ? 0.15 : 0.09),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.access_time_rounded,
+                              size: 12, color: cl.accent),
+                          const SizedBox(width: 4),
+                          Text(
+                            time,
+                            style: GoogleFonts.nunito(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: cl.accent,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: cl.fieldBg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: cl.border),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isOnline
+                                ? Icons.videocam_outlined
+                                : Icons.place_outlined,
+                            size: 12,
+                            color: cl.textMid,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            appointment.appointmentType,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: cl.textMid,
+                              fontFamily: 'Satoshi',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Lawyer avatar (initials) ──────────────────────────────────────────────────
+
+class _LawyerAvatar extends StatelessWidget {
+  const _LawyerAvatar({required this.name, required this.cl});
+
+  final String name;
+  final AppColorTheme cl;
+
+  String get _initials {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    }
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        color: cl.accent.withValues(alpha: 0.12),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: cl.accent.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Center(
+        child: Text(
+          _initials,
+          style: GoogleFonts.nunito(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: cl.accent,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Attached conversation card ────────────────────────────────────────────────
 
 class _AttachedConversationCard extends StatelessWidget {
   const _AttachedConversationCard({required this.onOpen});
@@ -473,35 +819,36 @@ class _StatusBanner extends StatelessWidget {
     final cl = context.c;
     final l10n = AppLocalizations.of(context)!;
     final s = appointment.status;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     late final Color bg, fg, iconBg;
     late final IconData icon;
     late final String title, subtitle;
 
     if (s == 'cancelled' && appointment.isClientCancellation) {
-      bg = const Color(0xFFFFF1F2);
-      fg = const Color(0xFF881337);
+      bg = isDark ? const Color(0xFF1A0D0E) : const Color(0xFFFFF1F2);
+      fg = isDark ? const Color(0xFF8B3040) : const Color(0xFF881337);
       iconBg = const Color(0xFFD63031);
       icon = Icons.event_busy_rounded;
       title = l10n.apptDetailBannerCancelledByClientTitle;
       subtitle = l10n.apptDetailBannerCancelledByClientSubtitle;
     } else if (s == 'confirmed') {
-      bg = const Color(0xFFECFDF5);
-      fg = const Color(0xFF065F46);
+      bg = isDark ? const Color(0xFF0D1A10) : const Color(0xFFECFDF5);
+      fg = isDark ? const Color(0xFF2D7A48) : const Color(0xFF065F46);
       iconBg = const Color(0xFF22A64A);
       icon = Icons.check_circle_rounded;
       title = l10n.apptDetailBannerConfirmedTitle;
       subtitle = l10n.apptDetailBannerConfirmedSubtitle;
     } else if (s == 'pending') {
-      bg = const Color(0xFFFFFBEB);
-      fg = const Color(0xFF78350F);
-      iconBg = const Color(0xFFE59300);
+      bg = isDark ? const Color(0xFF131008) : const Color(0xFFFFFBEB);
+      fg = isDark ? const Color(0xFF6D5615) : const Color(0xFF78350F);
+      iconBg = isDark ? const Color(0xFF9A7820) : const Color(0xFFE59300);
       icon = Icons.hourglass_empty_rounded;
       title = l10n.apptDetailBannerPendingTitle;
       subtitle = l10n.apptDetailBannerPendingSubtitle;
     } else if (s == 'cancelled') {
-      bg = const Color(0xFFFFF1F2);
-      fg = const Color(0xFF881337);
+      bg = isDark ? const Color(0xFF1A0D0E) : const Color(0xFFFFF1F2);
+      fg = isDark ? const Color(0xFF8B3040) : const Color(0xFF881337);
       iconBg = const Color(0xFFD63031);
       icon = Icons.cancel_rounded;
       title = l10n.apptDetailBannerDeclinedTitle;
@@ -606,9 +953,7 @@ class _InfoCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        children: children,
-      ),
+      child: Column(children: children),
     );
   }
 }
@@ -619,12 +964,14 @@ class _InfoRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.small = false,
+    this.valueWidget,
   });
 
   final IconData icon;
   final String label;
   final String value;
   final bool small;
+  final Widget? valueWidget;
 
   @override
   Widget build(BuildContext context) {
@@ -643,29 +990,32 @@ class _InfoRow extends StatelessWidget {
             child: Icon(icon, size: 16, color: cl.textMid),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: GoogleFonts.nunito(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: cl.textLight,
-                  letterSpacing: 0.3,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.nunito(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: cl.textLight,
+                    letterSpacing: 0.3,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 1),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: small ? 13 : 14,
-                  fontWeight: FontWeight.w600,
-                  color: cl.textDark,
-                  fontFamily: 'Satoshi',
-                ),
-              ),
-            ],
+                const SizedBox(height: 2),
+                valueWidget ??
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: small ? 13 : 14,
+                        fontWeight: FontWeight.w600,
+                        color: cl.textDark,
+                        fontFamily: 'Satoshi',
+                      ),
+                    ),
+              ],
+            ),
           ),
         ],
       ),
@@ -674,13 +1024,20 @@ class _InfoRow extends StatelessWidget {
 }
 
 class _ChatButton extends StatelessWidget {
-  const _ChatButton({required this.appointment});
+  const _ChatButton({
+    required this.appointment,
+    this.unreadCount = 0,
+  });
+
   final AppointmentEntity appointment;
+  final int unreadCount;
 
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
     final l10n = AppLocalizations.of(context)!;
+    final hasUnread = unreadCount > 0;
+
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
@@ -689,32 +1046,83 @@ class _ChatButton extends StatelessWidget {
       ),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
         decoration: BoxDecoration(
           color: cl.accent,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: cl.accent.withValues(alpha: 0.28),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: cl.accent.withValues(alpha: 0.25),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.chat_bubble_rounded,
-                size: 20, color: Colors.white),
-            const SizedBox(width: 10),
-            Text(
-              l10n.apptDetailChatWithLawyer(appointment.displayLawyerName),
-              style: GoogleFonts.nunito(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.chat_bubble_rounded,
+                    size: 22, color: Colors.white),
+                if (hasUnread)
+                  Positioned(
+                    top: -5,
+                    right: -7,
+                    child: Container(
+                      constraints: const BoxConstraints(minWidth: 16),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade500,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: cl.accent, width: 1.5),
+                      ),
+                      child: Text(
+                        unreadCount > 99 ? '99+' : '$unreadCount',
+                        style: const TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          height: 1.1,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                l10n.apptDetailChatWithLawyer(appointment.displayLawyerName),
+                style: GoogleFonts.nunito(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+            if (hasUnread) ...[
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$unreadCount new',
+                  style: GoogleFonts.nunito(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -752,11 +1160,7 @@ class _ChatLockedBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.lock_outline_rounded,
-            size: 18,
-            color: cl.textLight,
-          ),
+          Icon(Icons.lock_outline_rounded, size: 18, color: cl.textLight),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -815,9 +1219,7 @@ class _CancelAppointmentReasonSheetState
     if (id == 'other') {
       final t = _other.text.trim();
       if (t.isEmpty) {
-        setState(
-          () => _error = l10n.apptDetailCancelErrorOtherDetails,
-        );
+        setState(() => _error = l10n.apptDetailCancelErrorOtherDetails);
         return;
       }
       Navigator.of(context).pop(

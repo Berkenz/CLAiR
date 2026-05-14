@@ -6,6 +6,7 @@ import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/features/home/presentation/screens/home_screen.dart';
 import 'package:clair/features/chat/presentation/screens/chat_screen.dart';
+import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/library/presentation/screens/library_screen.dart';
 import 'package:clair/features/lawyer/presentation/screens/lawyer_screen.dart';
 import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
@@ -20,7 +21,8 @@ class MainShell extends ConsumerStatefulWidget {
   ConsumerState<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends ConsumerState<MainShell> {
+class _MainShellState extends ConsumerState<MainShell>
+    with SingleTickerProviderStateMixin {
   static const _icons = [
     Icons.home_outlined,
     Icons.chat_bubble_outline_rounded,
@@ -36,12 +38,51 @@ class _MainShellState extends ConsumerState<MainShell> {
     Icons.event_note_rounded,
   ];
 
+  bool _fabOpen = false;
+  late final AnimationController _fabAnim;
+
   @override
   void initState() {
     super.initState();
+    _fabAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(notificationInboxProvider.notifier).refresh();
     });
+  }
+
+  @override
+  void dispose() {
+    _fabAnim.dispose();
+    super.dispose();
+  }
+
+  void _toggleFab() {
+    setState(() => _fabOpen = !_fabOpen);
+    if (_fabOpen) {
+      _fabAnim.forward();
+    } else {
+      _fabAnim.reverse();
+    }
+  }
+
+  void _closeFab() {
+    if (!_fabOpen) return;
+    setState(() => _fabOpen = false);
+    _fabAnim.reverse();
+  }
+
+  void _fabNewChat() {
+    _closeFab();
+    ref.read(chatProvider.notifier).reset();
+    ref.read(mainShellTabProvider.notifier).state = 1;
+  }
+
+  void _fabFindLawyer() {
+    _closeFab();
+    ref.read(mainShellTabProvider.notifier).state = 3;
   }
 
   @override
@@ -58,6 +99,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     final currentIndex = ref.watch(mainShellTabProvider);
 
     ref.listen<int>(mainShellTabProvider, (prev, next) {
+      _closeFab();
       if (next == 4 && prev != next) {
         ref.read(notificationInboxProvider.notifier).refresh();
       }
@@ -66,22 +108,36 @@ class _MainShellState extends ConsumerState<MainShell> {
     return Scaffold(
       backgroundColor: cl.bg,
       drawer: const AppDrawer(),
-      body: SafeArea(
-        bottom: false,
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 250),
-          child: KeyedSubtree(
-            key: ValueKey(currentIndex),
-            child: [
-              const HomeScreen(),
-              const ChatScreen(),
-              const LibraryScreen(),
-              const LawyerTabScreen(),
-              const AppointmentTabScreen(),
-            ][currentIndex],
+      body: GestureDetector(
+        // Tap anywhere in the body to close the FAB when open.
+        onTap: _fabOpen ? _closeFab : null,
+        behavior: HitTestBehavior.translucent,
+        child: SafeArea(
+          bottom: false,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: KeyedSubtree(
+              key: ValueKey(currentIndex),
+              child: [
+                const HomeScreen(),
+                const ChatScreen(),
+                const LibraryScreen(),
+                const LawyerTabScreen(),
+                const AppointmentTabScreen(),
+              ][currentIndex],
+            ),
           ),
         ),
       ),
+      floatingActionButton: currentIndex == 1
+          ? null
+          : _QuickActionsFab(
+              open: _fabOpen,
+              anim: _fabAnim,
+              onToggle: _toggleFab,
+              onNewChat: _fabNewChat,
+              onFindLawyer: _fabFindLawyer,
+            ),
       bottomNavigationBar: _buildNav(context, currentIndex, navLabels),
     );
   }
@@ -89,7 +145,6 @@ class _MainShellState extends ConsumerState<MainShell> {
   Widget _buildNav(BuildContext context, int currentIndex, List<String> labels) {
     final cl = context.c;
     final bottom = MediaQuery.of(context).viewPadding.bottom;
-    final notifCount = ref.watch(notificationInboxProvider).unreadCount;
     final apptPendingCount = ref.watch(appointmentProvider).pendingCount;
 
     return Container(
@@ -111,11 +166,7 @@ class _MainShellState extends ConsumerState<MainShell> {
           children: List.generate(
             labels.length,
             (i) {
-              final badgeCount = i == 0
-                  ? notifCount
-                  : i == 4
-                      ? apptPendingCount
-                      : 0;
+              final badgeCount = i == 4 ? apptPendingCount : 0;
               return _navItem(i, currentIndex, labels, badgeCount);
             },
           ),
@@ -193,6 +244,181 @@ class _MainShellState extends ConsumerState<MainShell> {
             ),
           ],
         ]),
+      ),
+    );
+  }
+}
+
+// ── Quick Actions FAB ─────────────────────────────────────────────────────────
+
+class _QuickActionsFab extends StatelessWidget {
+  const _QuickActionsFab({
+    required this.open,
+    required this.anim,
+    required this.onToggle,
+    required this.onNewChat,
+    required this.onFindLawyer,
+  });
+
+  final bool open;
+  final AnimationController anim;
+  final VoidCallback onToggle;
+  final VoidCallback onNewChat;
+  final VoidCallback onFindLawyer;
+
+  @override
+  Widget build(BuildContext context) {
+    final cl = context.c;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        // ── Book appointment action ─────────────────────────────────────────
+        _FabAction(
+          anim: anim,
+          delay: 0.0,
+          icon: Icons.balance_rounded,
+          label: 'Find a Lawyer',
+          cl: cl,
+          onTap: onFindLawyer,
+        ),
+        const SizedBox(height: 10),
+
+        // ── New chat action ─────────────────────────────────────────────────
+        _FabAction(
+          anim: anim,
+          delay: 0.08,
+          icon: Icons.chat_bubble_rounded,
+          label: 'New Chat',
+          cl: cl,
+          onTap: onNewChat,
+        ),
+        const SizedBox(height: 14),
+
+        // ── Main FAB ────────────────────────────────────────────────────────
+        GestureDetector(
+          onTap: onToggle,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: cl.accent,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: cl.accent.withValues(alpha: open ? 0.15 : 0.35),
+                  blurRadius: open ? 8 : 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Center(
+              child: AnimatedRotation(
+                turns: open ? 0.125 : 0.0,
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeInOut,
+                child: Icon(
+                  Icons.add_rounded,
+                  size: 28,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FabAction extends StatelessWidget {
+  const _FabAction({
+    required this.anim,
+    required this.delay,
+    required this.icon,
+    required this.label,
+    required this.cl,
+    required this.onTap,
+  });
+
+  final AnimationController anim;
+  final double delay;
+  final IconData icon;
+  final String label;
+  final AppColorTheme cl;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    // Stagger the entrance: each child starts slightly after the previous.
+    final staggered = CurvedAnimation(
+      parent: anim,
+      curve: Interval(delay, delay + 0.7, curve: Curves.easeOutCubic),
+    );
+
+    return AnimatedBuilder(
+      animation: staggered,
+      builder: (context, child) {
+        final v = staggered.value;
+        return Opacity(
+          opacity: v,
+          child: Transform.translate(
+            offset: Offset(0, 16 * (1 - v)),
+            child: child,
+          ),
+        );
+      },
+      child: GestureDetector(
+        onTap: onTap,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Label pill
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: cl.surface,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: cl.textDark.withValues(alpha: 0.10),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Text(
+                label,
+                style: GoogleFonts.nunito(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: cl.textDark,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            // Mini FAB circle
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: cl.surface,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: cl.textDark.withValues(alpha: 0.10),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Icon(icon, size: 20, color: cl.accent),
+            ),
+          ],
+        ),
       ),
     );
   }
