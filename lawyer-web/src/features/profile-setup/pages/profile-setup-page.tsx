@@ -343,6 +343,18 @@ export function ProfileSetupPage() {
                   </div>
                 </div>
 
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide">Bio / About</label>
+                  <p className="text-[11px] text-[#957186]">A short introduction clients will see on your public profile.</p>
+                  <textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    rows={4}
+                    placeholder="e.g. With over 10 years of experience in family and civil law, I help clients navigate complex legal matters with clarity and care."
+                    className={inputCls + " resize-none"}
+                  />
+                </div>
+
                 <div className="pt-2 border-t border-[#d9b8c4]/40">
                   <p className="text-xs font-semibold text-[#5a3046] uppercase tracking-wide mb-3">Office / Contact</p>
                   <div className="grid grid-cols-2 gap-4">
@@ -471,22 +483,7 @@ export function ProfileSetupPage() {
             <div className="space-y-6">
               <div>
                 <h2 className="text-xl font-bold text-[#241715]">Office Details</h2>
-                <p className="text-sm text-[#957186] mt-1">Add your bio, office hours, and pin your location. These are visible to clients in the CLAiR app.</p>
-              </div>
-
-              {/* Bio */}
-              <div className="bg-white rounded-2xl border border-[#d9b8c4]/40 p-6 space-y-3">
-                <div>
-                  <h3 className="text-sm font-semibold text-[#241715]">Bio / About</h3>
-                  <p className="text-xs text-[#957186] mt-0.5">A short introduction clients will see on your public profile.</p>
-                </div>
-                <textarea
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  rows={4}
-                  placeholder="e.g. With over 10 years of experience in family and civil law, I help clients navigate complex legal matters with clarity and care."
-                  className={inputCls + " resize-none"}
-                />
+                <p className="text-sm text-[#957186] mt-1">Set your office hours and pin your location. These are visible to clients in the CLAiR app.</p>
               </div>
 
               {/* Office Hours */}
@@ -578,6 +575,7 @@ export function ProfileSetupPage() {
                   lat={latitude}
                   lng={longitude}
                   onChange={(lat, lng) => { setLatitude(lat); setLongitude(lng); }}
+                  onAddressInferred={setOfficeAddress}
                 />
               </div>
 

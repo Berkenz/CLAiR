@@ -24,6 +24,9 @@ class SuggestedLawyer(BaseModel):
     display_name: str | None = None
     designation: str | None = None
     practice_areas: list[str] = Field(default_factory=list)
+    first_name: str | None = None
+    last_name: str | None = None
+    photo_url: str | None = None
     bio: str | None = None
     office_address: str | None = None
     office_hours: dict | None = None

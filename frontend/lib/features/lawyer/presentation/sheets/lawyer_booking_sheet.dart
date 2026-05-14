@@ -13,6 +13,7 @@ import 'package:clair/features/lawyer/data/datasources/lawyer_remote_datasource.
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 import 'package:clair/features/lawyer/presentation/providers/lawyer_provider.dart';
 import 'package:clair/features/lawyer/presentation/widgets/lawyer_attachments_section.dart';
+import 'package:clair/features/lawyer/presentation/widgets/lawyer_display_avatar.dart';
 import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
 
@@ -350,9 +351,9 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
 
               // Lawyer mini-header
               Row(children: [
-                Container(
-                  width: 46,
-                  height: 46,
+                LawyerDisplayAvatar(
+                  lawyer: widget.lawyer,
+                  size: 46,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: [
                       cl.accent.withValues(alpha: 0.12),
@@ -360,12 +361,10 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
                     ]),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Center(
-                    child: Text(widget.lawyer.initials,
-                        style: GoogleFonts.nunito(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: cl.accent)),
+                  initialsStyle: GoogleFonts.nunito(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: cl.accent,
                   ),
                 ),
                 const SizedBox(width: 12),

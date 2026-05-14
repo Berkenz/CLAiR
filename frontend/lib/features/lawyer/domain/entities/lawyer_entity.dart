@@ -6,6 +6,9 @@ class LawyerEntity {
   final String? firstName;
   final String? lastName;
 
+  /// Public profile photo URL (Supabase `profile-photos`; set from lawyer web / users API).
+  final String? photoUrl;
+
   /// Lawyer's written bio shown in the "About" section.
   final String? bio;
 
@@ -34,6 +37,7 @@ class LawyerEntity {
     this.practiceAreas = const [],
     this.firstName,
     this.lastName,
+    this.photoUrl,
     this.bio,
     this.officeLocation,
     this.officeHours,
@@ -92,7 +96,55 @@ class LawyerEntity {
     return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 
+  /// Fills [photoUrl] from [other] when this entity has no photo (e.g. chat
+  /// suggested-lawyer payloads merged with directory cache).
+  LawyerEntity mergePhotoFrom(LawyerEntity? other) {
+    if (other == null) return this;
+    if (id != other.id) return this;
+    final o = other.photoUrl?.trim();
+    if (o == null || o.isEmpty) return this;
+    final mine = photoUrl?.trim();
+    if (mine != null && mine.isNotEmpty) return this;
+    return LawyerEntity(
+      id: id,
+      displayName: displayName,
+      designation: designation,
+      practiceAreas: practiceAreas,
+      firstName: firstName,
+      lastName: lastName,
+      photoUrl: o,
+      bio: bio,
+      officeLocation: officeLocation,
+      officeHours: officeHours,
+      officeHoursData: officeHoursData,
+      officePhone: officePhone,
+      mobilePhone: mobilePhone,
+      officeEmail: officeEmail,
+      latitude: latitude,
+      longitude: longitude,
+    );
+  }
+
   // ── Parsing ────────────────────────────────────────────────────────────────
+
+  static String? _photoUrlFromJson(Map<String, dynamic> json) {
+    const keys = ['photo_url', 'photoUrl', 'profile_photo_url'];
+    for (final key in keys) {
+      final v = json[key];
+      if (v is String) {
+        final s = v.trim();
+        if (s.isNotEmpty) return s;
+      }
+      if (v is Map) {
+        final m = Map<String, dynamic>.from(v);
+        final nested = m['publicUrl'] ?? m['public_url'];
+        if (nested is String && nested.trim().isNotEmpty) {
+          return nested.trim();
+        }
+      }
+    }
+    return null;
+  }
 
   factory LawyerEntity.fromJson(Map<String, dynamic> json) {
     final id = '${json['id'] ?? ''}'.trim();
@@ -117,6 +169,7 @@ class LawyerEntity {
       practiceAreas: _parsePracticeAreas(json['practice_areas']),
       firstName: json['first_name'] as String?,
       lastName: json['last_name'] as String?,
+      photoUrl: _photoUrlFromJson(json),
       bio: json['bio'] as String?,
       officeLocation: json['office_address'] as String?,
       officeHours: hoursText,

@@ -10,8 +10,10 @@ import 'package:clair/features/chat/data/repositories/chat_repository_impl.dart'
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/chat/domain/repositories/chat_repository.dart';
 import 'package:clair/features/history/data/datasources/history_remote_datasource.dart';
+import 'package:clair/features/lawyer/presentation/providers/lawyer_provider.dart';
 import 'package:clair/features/history/data/repositories/history_repository_impl.dart';
 import 'package:clair/features/history/domain/repositories/history_repository.dart';
+import 'package:clair/features/history/presentation/providers/history_provider.dart';
 import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/providers/shared_providers.dart';
 
@@ -79,8 +81,14 @@ class ChatNotifier extends StateNotifier<ChatState> {
       error: null,
     );
 
-    // Attach location if already available (no blocking permission request here)
-    final loc = _ref.read(locationProvider);
+    // Best-effort: obtain GPS before the API call so "lawyers near me" has coordinates
+    // (avoids racing the background fetch started in ChatScreen.initState).
+    var loc = _ref.read(locationProvider);
+    if (!loc.hasLocation) {
+      await _ref.read(locationProvider.notifier).fetchLocation();
+      loc = _ref.read(locationProvider);
+    }
+
     final localeCode =
         _chatApiLocale(_ref.read(appLocaleProvider).languageCode);
 
@@ -94,10 +102,27 @@ class ChatNotifier extends StateNotifier<ChatState> {
         locale: localeCode,
       );
 
+      var suggestedLawyers = response.suggestedLawyers;
+      if (suggestedLawyers.isNotEmpty) {
+        var directory = _ref.read(lawyerProvider).lawyers;
+        if (directory.isEmpty) {
+          try {
+            await _ref.read(lawyerProvider.notifier).loadLawyers();
+          } catch (_) {}
+          directory = _ref.read(lawyerProvider).lawyers;
+        }
+        if (directory.isNotEmpty) {
+          final byId = {for (final d in directory) d.id: d};
+          suggestedLawyers = suggestedLawyers
+              .map((l) => l.mergePhotoFrom(byId[l.id]))
+              .toList();
+        }
+      }
+
       final aiMessage = ChatMessageEntity(
         text: response.reply,
         isUser: false,
-        suggestedLawyers: response.suggestedLawyers,
+        suggestedLawyers: suggestedLawyers,
         ragSources: response.ragSources,
         ragEnabled: response.ragEnabled,
       );
@@ -179,6 +204,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     if (id == null) return;
     try {
       await _historyRepository.deleteConversation(id);
+      _ref.read(historyProvider.notifier).removeConversationFromList(id);
       state = _freshChatForRef(_ref);
     } catch (e) {
       state = state.copyWith(error: friendlyErrorMessage(e));

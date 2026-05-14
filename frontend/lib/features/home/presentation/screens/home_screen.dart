@@ -17,6 +17,7 @@ import 'package:clair/features/history/presentation/providers/history_provider.d
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 import 'package:clair/features/lawyer/presentation/providers/lawyer_provider.dart';
 import 'package:clair/features/lawyer/presentation/screens/lawyer_overview_screen.dart';
+import 'package:clair/features/lawyer/presentation/widgets/lawyer_display_avatar.dart';
 import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
@@ -340,9 +341,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ],
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(
-            width: 42,
-            height: 42,
+          LawyerDisplayAvatar(
+            lawyer: lawyer,
+            size: 42,
             decoration: BoxDecoration(
               gradient: LinearGradient(colors: [
                 cl.accent.withValues(alpha: 0.1),
@@ -350,12 +351,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ]),
               borderRadius: BorderRadius.circular(13),
             ),
-            child: Center(
-                child: Text(lawyer.initials,
-                    style: GoogleFonts.nunito(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: cl.accent))),
+            initialsStyle: GoogleFonts.nunito(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: cl.accent,
+            ),
           ),
           const SizedBox(height: 10),
           Text(lawyer.name,

@@ -433,6 +433,9 @@ class AppLocalizationsCeb extends AppLocalizations {
   String get chatMenuShareToLawyer => 'Ipaambit sa abogado';
 
   @override
+  String get chatMenuDelete => 'Tangtanga ang chat';
+
+  @override
   String get chatPdfGeneratingSummary => 'Naghimo og PDF summary...';
 
   @override

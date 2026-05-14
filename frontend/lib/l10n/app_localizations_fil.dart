@@ -433,6 +433,9 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatMenuShareToLawyer => 'I-share sa abogado';
 
   @override
+  String get chatMenuDelete => 'Burahin ang chat';
+
+  @override
   String get chatPdfGeneratingSummary => 'Gumagawa ng PDF summary...';
 
   @override

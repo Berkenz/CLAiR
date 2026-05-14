@@ -60,10 +60,13 @@ class ChatRemoteDataSource {
 
       final rawLawyers =
           body['suggested_lawyers'] as List<dynamic>? ?? [];
-      final suggestedLawyers = rawLawyers
-          .whereType<Map<String, dynamic>>()
-          .map(LawyerEntity.fromJson)
-          .toList();
+      final suggestedLawyers = <LawyerEntity>[];
+      for (final e in rawLawyers) {
+        if (e is! Map) continue;
+        suggestedLawyers.add(
+          LawyerEntity.fromJson(Map<String, dynamic>.from(e)),
+        );
+      }
 
       final bool? ragEnabled = body.containsKey('rag_enabled')
           ? body['rag_enabled'] == true

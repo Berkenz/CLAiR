@@ -70,16 +70,23 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
     }
   }
 
-  Future<void> deleteConversation(String id) async {
+  /// Returns `true` if the conversation was deleted on the server.
+  Future<bool> deleteConversation(String id) async {
     try {
       await _repository.deleteConversation(id);
-      state = state.copyWith(
-        conversations:
-            state.conversations.where((c) => c.id != id).toList(),
-      );
+      removeConversationFromList(id);
+      return true;
     } catch (e) {
       state = state.copyWith(error: friendlyErrorMessage(e));
+      return false;
     }
+  }
+
+  /// Updates local state after a conversation was deleted elsewhere (e.g. chat screen).
+  void removeConversationFromList(String id) {
+    state = state.copyWith(
+      conversations: state.conversations.where((c) => c.id != id).toList(),
+    );
   }
 
   void clearError() {

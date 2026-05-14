@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { updateEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { api } from "@/lib/api";
@@ -123,6 +123,11 @@ export function ProfilePage() {
   const [hoursSaved, setHoursSaved] = useState(false);
   const [hoursSaving, setHoursSaving] = useState(false);
   const [hoursError, setHoursError] = useState("");
+
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoError, setPhotoError] = useState("");
+  const [photoMsg, setPhotoMsg] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -295,6 +300,68 @@ export function ProfilePage() {
       return next;
     });
   }
+  async function uploadProfilePhoto(file: File) {
+    setPhotoError("");
+    setPhotoMsg("");
+    const fb = auth.currentUser;
+    if (!fb) {
+      setPhotoError("Not signed in.");
+      return;
+    }
+    setPhotoUploading(true);
+    try {
+      await fb.getIdToken(true);
+      const token = await fb.getIdToken();
+      const fd = new FormData();
+      fd.append("file", file);
+      const envBase = import.meta.env.VITE_API_BASE_URL as string | undefined;
+      const base = (envBase?.replace(/\/$/, "")) || "/api/v1";
+      const res = await fetch(`${base}/users/me/photo`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      if (!res.ok) {
+        let detail = `Upload failed (${res.status})`;
+        try {
+          const j = (await res.json()) as { detail?: unknown };
+          const d = j.detail;
+          if (typeof d === "string") detail = d;
+          else if (Array.isArray(d))
+            detail = d
+              .map((x) => (typeof x === "object" && x && "msg" in x ? String((x as { msg: string }).msg) : ""))
+              .filter(Boolean)
+              .join(" ") || detail;
+        } catch {
+          /* keep detail */
+        }
+        throw new Error(detail);
+      }
+      await refreshLawyerState();
+      setPhotoMsg("Profile photo updated.");
+      setTimeout(() => setPhotoMsg(""), 4000);
+    } catch (e: unknown) {
+      setPhotoError(e instanceof Error ? e.message : "Could not upload photo.");
+    } finally {
+      setPhotoUploading(false);
+      if (photoInputRef.current) photoInputRef.current.value = "";
+    }
+  }
+
+  function onPhotoPicked(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setPhotoError("Please choose an image (JPEG, PNG, WebP, or GIF).");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError("Image must be 5 MB or smaller.");
+      return;
+    }
+    void uploadProfilePhoto(file);
+  }
+
   async function saveHours() {
     setHoursError("");
     setHoursSaving(true);
@@ -401,14 +468,49 @@ export function ProfilePage() {
           <div className="rounded-2xl border border-[#d9b8c4]/40 bg-white p-6">
             <div className="flex items-center gap-5">
               <div className="relative">
-                <div className="h-20 w-20 rounded-full bg-[#703d57] flex items-center justify-center text-2xl font-bold text-white">{initials}</div>
-                <button className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-white border border-[#d9b8c4] flex items-center justify-center shadow-sm hover:bg-[#f7f0f4] transition">
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={onPhotoPicked}
+                />
+                <div className="h-20 w-20 rounded-full bg-[#703d57] overflow-hidden flex items-center justify-center text-2xl font-bold text-white shrink-0">
+                  {lawyerState?.user.photo_url ? (
+                    <img
+                      src={lawyerState.user.photo_url}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    initials
+                  )}
+                </div>
+                <button
+                  type="button"
+                  disabled={photoUploading || !lawyerState}
+                  onClick={() => photoInputRef.current?.click()}
+                  title="Upload profile photo"
+                  className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-white border border-[#d9b8c4] flex items-center justify-center shadow-sm hover:bg-[#f7f0f4] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   <Camera className="h-3.5 w-3.5 text-[#703d57]" />
                 </button>
               </div>
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-lg font-bold text-[#241715]">{fullName}</p>
                 <p className="text-sm text-[#957186]">{designation || "—"} · {practiceAreas.slice(0, 2).join(", ") || "No practice areas set"}</p>
+                {photoUploading && (
+                  <p className="text-xs text-[#703d57] mt-2">Uploading…</p>
+                )}
+                {photoMsg && (
+                  <p className="text-xs text-emerald-700 mt-2">{photoMsg}</p>
+                )}
+                {photoError && (
+                  <p className="text-xs text-red-600 mt-2">{photoError}</p>
+                )}
+                <p className="text-[11px] text-[#c490aa] mt-2">
+                  JPEG, PNG, WebP, or GIF · max 5 MB. Requires Supabase storage on the server.
+                </p>
               </div>
             </div>
           </div>
@@ -434,6 +536,16 @@ export function ProfilePage() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div className="col-span-2">
+                <label className={labelCls}>Bio / About</label>
+                <textarea
+                  className={inputCls + " resize-none"}
+                  rows={4}
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="Write a short bio that clients will see on your profile, e.g. areas of expertise, years of experience, approach to clients."
+                />
               </div>
             </div>
           </div>
@@ -476,16 +588,6 @@ export function ProfilePage() {
               <div><label className={labelCls}>Office Phone</label><input className={inputCls} value={officePhone} onChange={(e) => setOfficePhone(e.target.value)} placeholder="+63 32 XXX XXXX" /></div>
               <div className="col-span-2"><label className={labelCls}>Office Email</label><input className={inputCls} value={officeEmail} onChange={(e) => setOfficeEmail(e.target.value)} /></div>
               <div className="col-span-2"><label className={labelCls}>Office Address</label><textarea className={inputCls + " resize-none"} rows={2} value={officeAddress} onChange={(e) => setOfficeAddress(e.target.value)} placeholder="Unit, Building, Street, Barangay, City, Province" /></div>
-              <div className="col-span-2">
-                <label className={labelCls}>Bio / About</label>
-                <textarea
-                  className={inputCls + " resize-none"}
-                  rows={4}
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  placeholder="Write a short bio that clients will see on your profile, e.g. areas of expertise, years of experience, approach to clients."
-                />
-              </div>
             </div>
           </div>
 
@@ -654,6 +756,7 @@ export function ProfilePage() {
               lat={latitude}
               lng={longitude}
               onChange={(lat, lng) => { setLatitude(lat); setLongitude(lng); }}
+              onAddressInferred={setOfficeAddress}
             />
           </div>
 

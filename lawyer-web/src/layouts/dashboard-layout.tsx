@@ -5,16 +5,13 @@ import { auth } from "@/lib/firebase";
 import { useAuth } from "@/features/auth/auth-provider";
 import { cn } from "@/lib/cn";
 import {
-  LayoutDashboard, Briefcase, CalendarRange,
-  FolderOpen, LogOut, Menu, X, Scale, ChevronRight, Sparkles, MessageSquare,
+  LayoutDashboard, Briefcase,
+  LogOut, Menu, X, Scale, ChevronRight, Sparkles,
 } from "lucide-react";
 
 const navItems = [
   { to: "/",               label: "Home",           icon: LayoutDashboard },
   { to: "/cases",          label: "Cases",          icon: Briefcase },
-  { to: "/availability",   label: "Availability",   icon: CalendarRange },
-  { to: "/conversations",  label: "Client Convos",  icon: MessageSquare },
-  { to: "/documents",      label: "Documents",      icon: FolderOpen },
   { to: "/ai-assessment",  label: "AI Assessment",  icon: Sparkles },
 ];
 
@@ -35,7 +32,8 @@ export function DashboardLayout() {
     const li = (u?.last_name ?? "").trim().charAt(0);
     const initials =
       fi && li ? `${fi}${li}`.toUpperCase() : display.slice(0, 2).toUpperCase() || "?";
-    return { display, initials };
+    const photoUrl = u?.photo_url?.trim() || null;
+    return { display, initials, photoUrl };
   }, [lawyerState]);
 
   async function handleSignOut() {
@@ -93,9 +91,17 @@ export function DashboardLayout() {
               isActive ? "bg-white/10" : "hover:bg-white/10"
             )}
           >
-            <div className="h-7 w-7 rounded-full bg-[#957186] flex items-center justify-center text-xs font-bold text-white shrink-0">
-              {sidebarUser.initials}
-            </div>
+            {sidebarUser.photoUrl ? (
+              <img
+                src={sidebarUser.photoUrl}
+                alt=""
+                className="h-7 w-7 rounded-full object-cover shrink-0 ring-1 ring-white/20"
+              />
+            ) : (
+              <div className="h-7 w-7 rounded-full bg-[#957186] flex items-center justify-center text-xs font-bold text-white shrink-0">
+                {sidebarUser.initials}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-white truncate">{sidebarUser.display}</p>
               <p className="text-[10px] text-white/50 truncate">View profile</p>

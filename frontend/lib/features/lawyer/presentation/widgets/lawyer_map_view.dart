@@ -9,6 +9,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:clair/core/services/location_service.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
+import 'package:clair/features/lawyer/presentation/widgets/lawyer_display_avatar.dart';
 
 // Default centre — Philippines
 const _kDefaultCentre = LatLng(12.8797, 121.7740);
@@ -108,9 +109,9 @@ class _LawyerMapViewState extends ConsumerState<LawyerMapView> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          width: 36,
-                          height: 36,
+                        LawyerDisplayAvatar(
+                          lawyer: lawyer,
+                          size: 36,
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? AppColors.accentDark
@@ -128,15 +129,10 @@ class _LawyerMapViewState extends ConsumerState<LawyerMapView> {
                               ),
                             ],
                           ),
-                          child: Center(
-                            child: Text(
-                              lawyer.initials,
-                              style: GoogleFonts.nunito(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            ),
+                          initialsStyle: GoogleFonts.nunito(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
                           ),
                         ),
                         CustomPaint(
@@ -340,22 +336,17 @@ class _LawyerMapCard extends StatelessWidget {
         child: Row(
           children: [
             // Avatar
-            Container(
-              width: 48,
-              height: 48,
+            LawyerDisplayAvatar(
+              lawyer: lawyer,
+              size: 48,
               decoration: const BoxDecoration(
                 color: AppColors.accent,
                 shape: BoxShape.circle,
               ),
-              child: Center(
-                child: Text(
-                  lawyer.initials,
-                  style: GoogleFonts.nunito(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
+              initialsStyle: GoogleFonts.nunito(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
               ),
             ),
             const SizedBox(width: 12),

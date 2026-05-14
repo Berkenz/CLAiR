@@ -130,6 +130,7 @@ class LawyerService:
                 "practice_areas": profile.practice_areas,
                 "first_name": user.first_name,
                 "last_name": user.last_name,
+                "photo_url": user.photo_url,
                 "bio": profile.bio,
                 "office_address": profile.office_address,
                 "office_hours": profile.office_hours,

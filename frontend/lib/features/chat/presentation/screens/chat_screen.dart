@@ -22,6 +22,7 @@ import 'package:clair/features/chat/presentation/widgets/message_report_sheet.da
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 import 'package:clair/features/lawyer/presentation/providers/lawyer_sharing_provider.dart';
 import 'package:clair/features/lawyer/presentation/screens/lawyer_overview_screen.dart';
+import 'package:clair/features/lawyer/presentation/widgets/lawyer_display_avatar.dart';
 import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/widgets/app_drawer.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
@@ -273,6 +274,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         Overlay.of(context).context.findRenderObject() as RenderBox;
     final padding = MediaQuery.of(context).padding;
 
+    final menuItems = <PopupMenuEntry<String>>[
+      _popupItem(
+        cl,
+        chatState.conversationIsPinned
+            ? Icons.bookmark_rounded
+            : Icons.bookmark_outline_rounded,
+        chatState.conversationIsPinned
+            ? l10n.chatMenuUnsaveChat
+            : l10n.chatMenuSaveChat,
+        'save',
+      ),
+      _popupItem(
+          cl, Icons.download_rounded, l10n.chatMenuDownloadPdf, 'download'),
+      _popupItem(cl, Icons.flag_outlined, l10n.chatMenuReport, 'report'),
+      _popupItem(
+          cl, Icons.balance_rounded, l10n.chatMenuShareToLawyer, 'lawyer'),
+    ];
+    if (chatState.conversationId != null) {
+      menuItems.add(
+        _popupItemDestructive(
+          cl,
+          Icons.delete_outline_rounded,
+          l10n.chatMenuDelete,
+          'delete',
+        ),
+      );
+    }
+
     showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -281,34 +310,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         16,
         0,
       ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: cl.surface,
-      elevation: 8,
-      shadowColor: cl.cardShadow,
-      items: [
-        _popupItem(
-          cl,
-          chatState.conversationIsPinned
-              ? Icons.bookmark_rounded
-              : Icons.bookmark_outline_rounded,
-          chatState.conversationIsPinned
-              ? l10n.chatMenuUnsaveChat
-              : l10n.chatMenuSaveChat,
-          'save',
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: cl.textDark.withValues(alpha: 0.12),
+          width: 1,
         ),
-        _popupItem(cl, Icons.share_outlined, l10n.chatMenuShare, 'share'),
-        _popupItem(cl, Icons.download_rounded, l10n.chatMenuDownloadPdf, 'download'),
-        _popupItem(cl, Icons.flag_outlined, l10n.chatMenuReport, 'report'),
-        _popupItem(
-            cl, Icons.balance_rounded, l10n.chatMenuShareToLawyer, 'lawyer'),
-      ],
+      ),
+      // Slightly off the chat canvas (cl.surface) so the menu reads as a floating card.
+      color: cl.fieldBg,
+      elevation: 22,
+      shadowColor: Colors.black.withValues(alpha: 0.35),
+      surfaceTintColor: Colors.transparent,
+      menuPadding: const EdgeInsets.symmetric(vertical: 8),
+      items: menuItems,
     ).then((value) {
       if (value == null || !mounted) return;
       switch (value) {
         case 'save':
           ref.read(chatProvider.notifier).toggleCurrentPin();
-        case 'share':
-          _generatePdf();
         case 'download':
           _generatePdf();
         case 'report':
@@ -321,8 +341,97 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             conversationId: chatState.conversationId,
           );
           ref.read(mainShellTabProvider.notifier).state = 3;
+        case 'delete':
+          _confirmDeleteConversation();
       }
     });
+  }
+
+  void _confirmDeleteConversation() {
+    final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          l10n.histDeleteTitle,
+          style: GoogleFonts.nunito(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: cl.textDark,
+          ),
+        ),
+        content: Text(
+          l10n.histDeleteBody,
+          style: GoogleFonts.nunito(
+            fontSize: 14,
+            height: 1.4,
+            color: cl.textDark,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              l10n.commonCancel,
+              style: GoogleFonts.nunito(
+                fontWeight: FontWeight.w600,
+                color: cl.textLight,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref.read(chatProvider.notifier).deleteCurrentConversation();
+            },
+            child: Text(
+              l10n.commonDelete,
+              style: GoogleFonts.nunito(
+                fontWeight: FontWeight.w700,
+                color: Colors.red.shade700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _popupItemDestructive(
+    AppColorTheme cl,
+    IconData icon,
+    String label,
+    String value,
+  ) {
+    final red = Colors.red.shade700;
+    return PopupMenuItem<String>(
+      value: value,
+      height: 48,
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: red.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: red),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: GoogleFonts.nunito(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: red,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   PopupMenuItem<String> _popupItem(
@@ -333,6 +442,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   ) {
     return PopupMenuItem<String>(
       value: value,
+      height: 48,
       child: Row(
         children: [
           Container(
@@ -1492,9 +1602,9 @@ class _LawyerChip extends StatelessWidget {
           children: [
             Row(
               children: [
-                Container(
-                  width: 28,
-                  height: 28,
+                LawyerDisplayAvatar(
+                  lawyer: lawyer,
+                  size: 36,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
@@ -1504,15 +1614,10 @@ class _LawyerChip extends StatelessWidget {
                     ),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Center(
-                    child: Text(
-                      lawyer.initials,
-                      style: GoogleFonts.nunito(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: cl.accent,
-                      ),
-                    ),
+                  initialsStyle: GoogleFonts.nunito(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: cl.accent,
                   ),
                 ),
                 const SizedBox(width: 6),

@@ -184,6 +184,7 @@ class LawyerDirectoryItem(BaseModel):
     practice_areas: list[str] | None = None
     first_name: str | None = None
     last_name: str | None = None
+    photo_url: str | None = None
     bio: str | None = None
     office_address: str | None = None
     office_hours: dict | None = None

@@ -432,6 +432,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatMenuShareToLawyer => 'Share to Lawyer';
 
   @override
+  String get chatMenuDelete => 'Delete chat';
+
+  @override
   String get chatPdfGeneratingSummary => 'Generating PDF summary...';
 
   @override

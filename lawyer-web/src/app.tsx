@@ -7,9 +7,6 @@ import { ChangePasswordPage } from "@/features/auth/pages/change-password-page";
 import { ProfileSetupPage } from "@/features/profile-setup/pages/profile-setup-page";
 import { DashboardPage } from "@/features/dashboard/pages/dashboard-page";
 import { CasesPage } from "@/features/cases/pages/cases-page";
-import { AvailabilityCalendarPage } from "@/features/availability/pages/availability-calendar-page";
-import { ConversationsPage } from "@/features/conversations/pages/conversations-page";
-import { DocumentsPage } from "@/features/documents/pages/documents-page";
 import { ProfilePage } from "@/features/profile/pages/profile-page";
 import { AiAssessmentPage } from "@/features/ai-assessment/pages/ai-assessment-page";
 import {
@@ -78,9 +75,9 @@ export function App() {
         <Route path="/"               element={<DashboardPage />} />
         <Route path="/cases"          element={<CasesPage />} />
         <Route path="/appointments"   element={<Navigate to="/cases" replace />} />
-        <Route path="/availability"   element={<AvailabilityCalendarPage />} />
-        <Route path="/conversations"  element={<ConversationsPage />} />
-        <Route path="/documents"      element={<DocumentsPage />} />
+        <Route path="/availability"   element={<Navigate to="/" replace />} />
+        <Route path="/conversations"  element={<Navigate to="/" replace />} />
+        <Route path="/documents"      element={<Navigate to="/" replace />} />
         <Route path="/ai-assessment"  element={<AiAssessmentPage />} />
         <Route path="/profile"        element={<ProfilePage />} />
       </Route>

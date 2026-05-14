@@ -179,6 +179,7 @@
   "chatMenuDownloadPdf": "Download as PDF",
   "chatMenuReport": "Report",
   "chatMenuShareToLawyer": "Share to Lawyer",
+  "chatMenuDelete": "Delete chat",
   "chatPdfGeneratingSummary": "Generating PDF summary...",
   "chatPdfSaveFailed": "Failed to save PDF: {error}",
   "@chatPdfSaveFailed": {

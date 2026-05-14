@@ -928,11 +928,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 style: GoogleFonts.nunito(color: cl.textMid)),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
-              ref
+              final ok = await ref
                   .read(historyProvider.notifier)
                   .deleteConversation(conversation.id);
+              if (!context.mounted) return;
+              if (ok &&
+                  ref.read(chatProvider).conversationId == conversation.id) {
+                ref.read(chatProvider.notifier).reset();
+              }
             },
             child: Text(dl.commonDelete,
                 style: GoogleFonts.nunito(color: Colors.red.shade700)),

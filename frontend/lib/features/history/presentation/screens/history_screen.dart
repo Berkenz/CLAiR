@@ -73,8 +73,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     ref.read(mainShellTabProvider.notifier).state = 1;
   }
 
-  void _deleteConversation(String id) {
-    ref.read(historyProvider.notifier).deleteConversation(id);
+  Future<void> _deleteConversation(String id) async {
+    final ok =
+        await ref.read(historyProvider.notifier).deleteConversation(id);
+    if (!mounted) return;
+    if (ok && ref.read(chatProvider).conversationId == id) {
+      ref.read(chatProvider.notifier).reset();
+    }
   }
 
   void _togglePin(String id) {

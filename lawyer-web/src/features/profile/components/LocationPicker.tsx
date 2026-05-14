@@ -21,10 +21,16 @@ interface NominatimResult {
   display_name: string;
 }
 
+interface NominatimReverseResult {
+  display_name?: string;
+}
+
 interface Props {
   lat: number | null;
   lng: number | null;
   onChange: (lat: number, lng: number) => void;
+  /** When the pin moves (click, drag, GPS), resolved street-level text from Nominatim. */
+  onAddressInferred?: (address: string) => void;
 }
 
 /** Fires onChange when the map is clicked */
@@ -79,14 +85,32 @@ function DraggableMarker({
   );
 }
 
-export function LocationPicker({ lat, lng, onChange }: Props) {
+async function reverseGeocode(
+  lat: number,
+  lng: number,
+  signal: AbortSignal,
+): Promise<string | null> {
+  const url = `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(String(lat))}&lon=${encodeURIComponent(String(lng))}&format=json`;
+  const res = await fetch(url, {
+    signal,
+    headers: { "Accept-Language": "en", "User-Agent": "CLAiR-lawyer-portal/1.0" },
+  });
+  if (!res.ok) return null;
+  const data = (await res.json()) as NominatimReverseResult;
+  const name = data.display_name?.trim();
+  return name || null;
+}
+
+export function LocationPicker({ lat, lng, onChange, onAddressInferred }: Props) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [geoLoading, setGeoLoading] = useState(false);
+  const [reverseLoading, setReverseLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reverseAbortRef = useRef<AbortController | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const centre: [number, number] =
@@ -132,9 +156,50 @@ export function LocationPicker({ lat, lng, onChange }: Props) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  useEffect(() => {
+    return () => {
+      reverseAbortRef.current?.abort();
+    };
+  }, []);
+
+  function applyResolvedAddress(displayName: string) {
+    const trimmed = displayName.trim();
+    if (!trimmed) return;
+    setQuery(trimmed);
+    onAddressInferred?.(trimmed);
+  }
+
+  async function resolveAddressAfterPinMove(lat: number, lng: number, explicitDisplayName?: string) {
+    if (explicitDisplayName) {
+      applyResolvedAddress(explicitDisplayName);
+      return;
+    }
+    reverseAbortRef.current?.abort();
+    const ac = new AbortController();
+    reverseAbortRef.current = ac;
+    setReverseLoading(true);
+    setSearchError("");
+    try {
+      const addr = await reverseGeocode(lat, lng, ac.signal);
+      if (addr && !ac.signal.aborted) {
+        applyResolvedAddress(addr);
+      }
+    } catch {
+      if (!ac.signal.aborted) {
+        setSearchError("Could not resolve address for this pin. You can still type it above.");
+      }
+    } finally {
+      if (!ac.signal.aborted) setReverseLoading(false);
+    }
+  }
+
+  function handlePinChange(lat: number, lng: number, explicitDisplayName?: string) {
+    onChange(lat, lng);
+    void resolveAddressAfterPinMove(lat, lng, explicitDisplayName);
+  }
+
   function selectSuggestion(result: NominatimResult) {
-    onChange(parseFloat(result.lat), parseFloat(result.lon));
-    setQuery(result.display_name);
+    handlePinChange(parseFloat(result.lat), parseFloat(result.lon), result.display_name);
     setShowSuggestions(false);
     setSuggestions([]);
     setSearchError("");
@@ -156,7 +221,7 @@ export function LocationPicker({ lat, lng, onChange }: Props) {
     setSearchError("");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        onChange(pos.coords.latitude, pos.coords.longitude);
+        handlePinChange(pos.coords.latitude, pos.coords.longitude);
         setGeoLoading(false);
       },
       (err) => {
@@ -229,6 +294,9 @@ export function LocationPicker({ lat, lng, onChange }: Props) {
 
       <p className="text-xs text-[#957186]">
         Type an address and select a suggestion, or click anywhere on the map to pin your office.
+        {reverseLoading && (
+          <span className="ml-2 text-[#703d57] font-medium">Updating address…</span>
+        )}
         {lat !== null && lng !== null && (
           <span className="ml-2 font-mono text-[#703d57]">
             {lat.toFixed(5)}, {lng.toFixed(5)}
@@ -248,9 +316,9 @@ export function LocationPicker({ lat, lng, onChange }: Props) {
           />
           {/* Flies to pin whenever lat/lng changes (e.g. after selecting a suggestion) */}
           <FlyToLocation lat={lat} lng={lng} />
-          <ClickHandler onChange={onChange} />
+          <ClickHandler onChange={(la, ln) => handlePinChange(la, ln)} />
           {lat !== null && lng !== null && (
-            <DraggableMarker lat={lat} lng={lng} onChange={onChange} />
+            <DraggableMarker lat={lat} lng={lng} onChange={(la, ln) => handlePinChange(la, ln)} />
           )}
         </MapContainer>
       </div>

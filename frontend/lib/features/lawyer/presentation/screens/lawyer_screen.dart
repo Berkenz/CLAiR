@@ -9,6 +9,7 @@ import 'package:clair/features/lawyer/presentation/providers/lawyer_sharing_prov
 import 'package:clair/features/lawyer/presentation/screens/lawyer_overview_screen.dart';
 import 'package:clair/features/lawyer/presentation/sheets/lawyer_booking_sheet.dart';
 import 'package:clair/features/lawyer/presentation/widgets/lawyer_map_view.dart';
+import 'package:clair/features/lawyer/presentation/widgets/lawyer_display_avatar.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
 import 'package:clair/features/lawyer/presentation/lawyer_practice_l10n.dart';
@@ -683,9 +684,9 @@ class _LawyerCard extends StatelessWidget {
         child: Row(
           children: [
             // Avatar
-            Container(
-              width: 52,
-              height: 52,
+            LawyerDisplayAvatar(
+              lawyer: lawyer,
+              size: 52,
               decoration: BoxDecoration(
                 gradient: LinearGradient(colors: [
                   cl.accent.withValues(alpha: 0.12),
@@ -693,12 +694,10 @@ class _LawyerCard extends StatelessWidget {
                 ]),
                 borderRadius: BorderRadius.circular(15),
               ),
-              child: Center(
-                child: Text(lawyer.initials,
-                    style: GoogleFonts.nunito(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: cl.accent)),
+              initialsStyle: GoogleFonts.nunito(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: cl.accent,
               ),
             ),
             const SizedBox(width: 14),

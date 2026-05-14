@@ -9,6 +9,7 @@ import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 import 'package:clair/features/lawyer/presentation/sheets/lawyer_booking_sheet.dart';
 import 'package:clair/features/lawyer/presentation/sheets/lawyer_concern_sheet.dart';
+import 'package:clair/features/lawyer/presentation/widgets/lawyer_display_avatar.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
 
 // ─── Days meta ────────────────────────────────────────────────────────────────
@@ -705,9 +706,9 @@ class _ProfileHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Avatar
-                  Container(
-                    width: 72,
-                    height: 72,
+                  LawyerDisplayAvatar(
+                    lawyer: lawyer,
+                    size: 72,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
@@ -719,17 +720,14 @@ class _ProfileHeader extends StatelessWidget {
                       ),
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(
-                          color: cl.accent.withValues(alpha: 0.2), width: 1.5),
-                    ),
-                    child: Center(
-                      child: Text(
-                        lawyer.initials,
-                        style: GoogleFonts.nunito(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          color: cl.accent,
-                        ),
+                        color: cl.accent.withValues(alpha: 0.2),
+                        width: 1.5,
                       ),
+                    ),
+                    initialsStyle: GoogleFonts.nunito(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: cl.accent,
                     ),
                   ),
                   const SizedBox(width: 16),

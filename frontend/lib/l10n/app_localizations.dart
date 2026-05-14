@@ -904,6 +904,12 @@ abstract class AppLocalizations {
   /// **'Share to Lawyer'**
   String get chatMenuShareToLawyer;
 
+  /// No description provided for @chatMenuDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete chat'**
+  String get chatMenuDelete;
+
   /// No description provided for @chatPdfGeneratingSummary.
   ///
   /// In en, this message translates to:

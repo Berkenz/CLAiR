@@ -179,6 +179,7 @@
   "chatMenuDownloadPdf": "Download isip PDF",
   "chatMenuReport": "Report",
   "chatMenuShareToLawyer": "Ipaambit sa abogado",
+  "chatMenuDelete": "Tangtanga ang chat",
   "chatPdfGeneratingSummary": "Naghimo og PDF summary...",
   "chatPdfSaveFailed": "Dili ma-save ang PDF: {error}",
   "@chatPdfSaveFailed": {
