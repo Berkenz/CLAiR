@@ -128,6 +128,62 @@ def upload_consultation_summary_pdf(*, appointment_id: str, content: bytes) -> s
     return path
 
 
+# ── Direct chat attachments (client ↔ lawyer) ────────────────────────────────
+
+CHAT_BUCKET = "chat-attachments"
+_MAX_CHAT_FILE = 12 * 1024 * 1024  # 12 MB
+_CHAT_ALLOWED_TYPES = {
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+
+
+def upload_chat_attachment(
+    *,
+    appointment_id: str,
+    sender_type: str,
+    filename: str,
+    content: bytes,
+    content_type: str,
+) -> str:
+    """
+    Upload a direct-message attachment; return public URL.
+    Requires Supabase bucket ``chat-attachments`` (public read).
+    """
+    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
+        raise ValueError("Supabase is not configured for file uploads")
+
+    ct = (content_type or "application/octet-stream").split(";")[0].strip().lower()
+    if ct not in _CHAT_ALLOWED_TYPES:
+        raise ValueError(
+            f"Unsupported file type: {content_type!r}. "
+            f"Allowed: {sorted(_CHAT_ALLOWED_TYPES)}"
+        )
+
+    if len(content) > _MAX_CHAT_FILE:
+        raise ValueError(f"File too large (max {_MAX_CHAT_FILE // (1024 * 1024)} MB)")
+
+    safe = "".join(c if c.isalnum() or c in "._-" else "_" for c in filename)[:180]
+    if not safe:
+        safe = "attachment"
+
+    uniq = uuid.uuid4().hex[:12]
+    path = f"{appointment_id}/{sender_type}/{uniq}_{safe}"
+    client = _get_client()
+    client.storage.from_(CHAT_BUCKET).upload(
+        path,
+        content,
+        file_options={"content-type": ct, "upsert": "true"},
+    )
+    return client.storage.from_(CHAT_BUCKET).get_public_url(path)
+
+
 def download_storage_object(path: str) -> bytes:
     """Download raw bytes from appointment-attachments bucket."""
     if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:

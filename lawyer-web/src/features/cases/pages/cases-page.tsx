@@ -1114,63 +1114,324 @@ function PdfTab({ appt }: { appt: Appointment }) {
 
 // ─── Tab: Client Chat (UI placeholder) ───────────────────────────────────────
 
-function ClientChatTab({ appt }: { appt: Appointment }) {
-  const bottomRef = useRef<HTMLDivElement>(null);
+// ─── Direct Message Types ─────────────────────────────────────────────────────
 
-  const placeholderMessages = [
-    { id: "1", role: "lawyer", text: `Hi ${appt.client_name.split(" ")[0]}, I've reviewed your appointment request and I'm looking into your concerns. I'll get back to you with further details shortly.` },
-    { id: "2", role: "client", text: "Thank you, I appreciate it. Please let me know if you need any additional documents from my end." },
-  ];
+interface DirectMessage {
+  id: string;
+  appointment_id: string;
+  sender_type: "client" | "lawyer";
+  content: string | null;
+  attachment_url: string | null;
+  attachment_name: string | null;
+  attachment_content_type: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+function fmtMsgTime(iso: string) {
+  try {
+    return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  } catch { return ""; }
+}
+
+function fmtMsgDate(iso: string) {
+  try {
+    const d = new Date(iso);
+    const today = new Date();
+    if (d.toDateString() === today.toDateString()) return "Today";
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  } catch { return ""; }
+}
+
+function isSameDay(a: string, b: string) {
+  try { return new Date(a).toDateString() === new Date(b).toDateString(); }
+  catch { return false; }
+}
+
+function isImageType(ct: string | null | undefined) {
+  return (ct ?? "").startsWith("image/");
+}
+
+// ─── ClientChatTab ────────────────────────────────────────────────────────────
+
+function ClientChatTab({ appt }: { appt: Appointment }) {
+  const [messages, setMessages] = useState<DirectMessage[]>([]);
+  const [unread, setUnread] = useState(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const isConfirmed = appt.status === "confirmed";
+
+  const scrollToBottom = useCallback((smooth = true) => {
+    setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "instant" });
+    }, 60);
+  }, []);
+
+  const fetchMessages = useCallback(async (silent = false) => {
+    if (!isConfirmed) return;
+    try {
+      const { data } = await api.get<{ messages: DirectMessage[]; unread_count: number }>(
+        `/lawyer/appointments/${appt.id}/messages`
+      );
+      setMessages(data.messages);
+      setUnread(data.unread_count);
+      if (!silent) setLoadError(null);
+    } catch (err: unknown) {
+      if (!silent) setLoadError(getApiErrorMessage(err, "Could not load messages."));
+    }
+  }, [appt.id, isConfirmed]);
+
+  const markRead = useCallback(async () => {
+    if (!isConfirmed) return;
+    try { await api.patch(`/lawyer/appointments/${appt.id}/messages/read`); }
+    catch { /* best-effort */ }
+  }, [appt.id, isConfirmed]);
+
+  useEffect(() => {
+    fetchMessages().then(() => {
+      scrollToBottom(false);
+      markRead();
+    });
+    pollRef.current = setInterval(() => fetchMessages(true), 5000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [fetchMessages, markRead, scrollToBottom]);
+
+  // Mark read whenever new messages arrive
+  useEffect(() => {
+    if (unread > 0) markRead();
+  }, [messages.length, markRead, unread]);
+
+  async function handleSend() {
+    const t = text.trim();
+    if (!t || sending) return;
+    setSending(true);
+    setSendError(null);
+    try {
+      const { data } = await api.post<DirectMessage>(`/lawyer/appointments/${appt.id}/messages`, { content: t });
+      setText("");
+      setMessages((prev) => [...prev, data]);
+      scrollToBottom();
+    } catch (err: unknown) {
+      setSendError(getApiErrorMessage(err, "Failed to send message."));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setUploading(true);
+    setSendError(null);
+    try {
+      const form = new FormData();
+      form.append("file", file, file.name);
+      const { data } = await api.post<DirectMessage>(
+        `/lawyer/appointments/${appt.id}/messages/upload`,
+        form,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      setMessages((prev) => [...prev, data]);
+      scrollToBottom();
+    } catch (err: unknown) {
+      setSendError(getApiErrorMessage(err, "Failed to upload file."));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  if (!isConfirmed) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3 p-8 text-center">
+        <MessageCircle className="h-10 w-10 text-[#d9b8c4]" />
+        <p className="text-sm font-semibold text-[#241715]">Chat unavailable</p>
+        <p className="text-xs text-[#957186] max-w-xs">
+          Direct messaging is only available for confirmed appointments.
+          Accept this appointment to enable the chat.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
-      {/* Coming soon banner */}
-      <div className="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 flex items-center gap-2 shrink-0">
-        <MessageCircle className="h-4 w-4 text-amber-600 shrink-0" />
-        <p className="text-xs text-amber-800 font-medium">
-          Direct client messaging is coming soon. The interface below is a preview.
-        </p>
+      {/* Case context bar */}
+      <div className="px-4 py-2 bg-[#f7f0f4]/60 border-b border-[#d9b8c4]/30 flex items-center gap-2 shrink-0">
+        <MessageCircle className="h-3.5 w-3.5 text-[#703d57]" />
+        <span className="text-xs text-[#703d57] font-semibold truncate flex-1">
+          {appt.client_name} — {displayCaseTitle(appt)}
+        </span>
+        {unread > 0 && (
+          <span className="text-xs bg-[#703d57] text-white rounded-full px-2 py-0.5 font-bold">
+            {unread} new
+          </span>
+        )}
       </div>
 
-      {/* Chat messages (placeholder) */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-4 min-h-0 opacity-60 pointer-events-none select-none">
-        {placeholderMessages.map((msg) => {
-          const isLawyer = msg.role === "lawyer";
-          return (
-            <div key={msg.id} className={cn("flex gap-3", isLawyer ? "justify-end" : "justify-start")}>
-              {!isLawyer && (
-                <div className="h-7 w-7 rounded-full bg-[#957186] flex items-center justify-center shrink-0 mt-0.5">
-                  <User className="h-3.5 w-3.5 text-white" />
+      {loadError && (
+        <div className="mx-4 mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 shrink-0">
+          {loadError}
+        </div>
+      )}
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1 min-h-0">
+        {messages.length === 0 && !loadError ? (
+          <div className="flex flex-col items-center justify-center h-full gap-2 text-center">
+            <MessageCircle className="h-8 w-8 text-[#d9b8c4]" />
+            <p className="text-sm text-[#957186]">No messages yet</p>
+            <p className="text-xs text-[#c4a8b5]">Send a message to start the conversation.</p>
+          </div>
+        ) : (
+          messages.map((msg, i) => {
+            const isLawyer = msg.sender_type === "lawyer";
+            const showDate = i === 0 || !isSameDay(messages[i - 1].created_at, msg.created_at);
+            return (
+              <div key={msg.id}>
+                {showDate && (
+                  <div className="flex items-center gap-2 my-3">
+                    <div className="flex-1 h-px bg-[#d9b8c4]/40" />
+                    <span className="text-[11px] text-[#957186]">{fmtMsgDate(msg.created_at)}</span>
+                    <div className="flex-1 h-px bg-[#d9b8c4]/40" />
+                  </div>
+                )}
+                <div className={cn("flex gap-2 mb-2.5", isLawyer ? "justify-end" : "justify-start")}>
+                  {!isLawyer && (
+                    <div className="h-7 w-7 rounded-full bg-[#957186] flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold text-white">
+                      {initials(appt.client_name)}
+                    </div>
+                  )}
+                  <div className="max-w-[70%] flex flex-col gap-0.5">
+                    <div className={cn(
+                      "rounded-2xl text-sm leading-relaxed overflow-hidden",
+                      isLawyer
+                        ? "bg-[#703d57] text-white rounded-tr-sm"
+                        : "bg-[#f7f0f4] text-[#241715] rounded-tl-sm border border-[#d9b8c4]/40"
+                    )}>
+                      {msg.attachment_url ? (
+                        isImageType(msg.attachment_content_type) ? (
+                          <a href={msg.attachment_url} target="_blank" rel="noreferrer">
+                            <img
+                              src={msg.attachment_url}
+                              alt={msg.attachment_name ?? "image"}
+                              className="max-w-[220px] max-h-[160px] object-cover rounded-t-2xl"
+                            />
+                            {msg.content && (
+                              <p className="px-3 py-2 text-sm">{msg.content}</p>
+                            )}
+                          </a>
+                        ) : (
+                          <a
+                            href={msg.attachment_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={cn("flex items-center gap-2 px-3 py-2.5 hover:opacity-80 transition-opacity")}
+                          >
+                            <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                            <span className="text-sm font-medium underline underline-offset-2 truncate max-w-[160px]">
+                              {msg.attachment_name ?? "File"}
+                            </span>
+                            <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
+                          </a>
+                        )
+                      ) : (
+                        <p className="px-3 py-2.5">{msg.content}</p>
+                      )}
+                    </div>
+                    <div className={cn("flex items-center gap-1", isLawyer ? "justify-end" : "justify-start")}>
+                      <span className="text-[10px] text-[#957186]">{fmtMsgTime(msg.created_at)}</span>
+                      {isLawyer && (
+                        <span className={cn("text-[10px]", msg.is_read ? "text-[#703d57]" : "text-[#c4a8b5]")}>
+                          {msg.is_read ? "✓✓" : "✓"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {isLawyer && (
+                    <div className="h-7 w-7 rounded-full bg-[#703d57] flex items-center justify-center shrink-0 mt-0.5">
+                      <User className="h-3.5 w-3.5 text-white" />
+                    </div>
+                  )}
                 </div>
-              )}
-              <div className={cn(
-                "max-w-[72%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                isLawyer ? "bg-[#703d57] text-white rounded-tr-sm" : "bg-[#f7f0f4] text-[#241715] rounded-tl-sm"
-              )}>
-                {msg.text}
               </div>
-              {isLawyer && (
-                <div className="h-7 w-7 rounded-full bg-[#703d57] flex items-center justify-center shrink-0 mt-0.5">
-                  <User className="h-3.5 w-3.5 text-white" />
-                </div>
-              )}
-            </div>
-          );
-        })}
+            );
+          })
+        )}
         <div ref={bottomRef} />
       </div>
 
-      {/* Input (disabled) */}
-      <div className="px-4 pb-4 shrink-0">
-        <div className="flex gap-2 items-end opacity-50 pointer-events-none">
-          <div className="flex-1 rounded-2xl border border-[#d9b8c4] bg-white px-4 py-3">
-            <p className="text-sm text-[#c490aa]">Message {appt.client_name.split(" ")[0]}…</p>
-          </div>
-          <button className="p-3 rounded-2xl bg-[#703d57] flex items-center justify-center" disabled>
-            <Send className="h-4 w-4 text-white" />
+      {/* Send error */}
+      {sendError && (
+        <div className="mx-4 mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-700 flex items-center justify-between shrink-0">
+          <span>{sendError}</span>
+          <button onClick={() => setSendError(null)} className="ml-2 text-red-400 hover:text-red-600">
+            <X className="h-3 w-3" />
           </button>
         </div>
-        <p className="text-center text-[11px] text-[#957186] mt-2">Client messaging will be available in a future update.</p>
+      )}
+
+      {/* Input */}
+      <div className="px-4 pb-4 pt-2 shrink-0 border-t border-[#d9b8c4]/30">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx"
+          className="hidden"
+          onChange={handleFileUpload}
+        />
+        <div className="flex gap-2 items-end">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={sending || uploading}
+            className="p-2.5 rounded-xl border border-[#d9b8c4]/60 text-[#957186] hover:bg-[#f7f0f4] disabled:opacity-40 transition-colors shrink-0"
+            title="Attach file"
+          >
+            {uploading
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <Paperclip className="h-4 w-4" />}
+          </button>
+          <div className="flex-1 rounded-2xl border border-[#d9b8c4] bg-white px-4 py-2.5">
+            <textarea
+              rows={1}
+              className="w-full text-sm text-[#241715] placeholder-[#c4a8b5] resize-none outline-none leading-relaxed"
+              placeholder={`Message ${appt.client_name.split(" ")[0]}…`}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              disabled={sending || uploading}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={!text.trim() || sending || uploading}
+            className="p-2.5 rounded-xl bg-[#703d57] text-white hover:bg-[#5a3046] disabled:opacity-40 transition-colors shrink-0"
+          >
+            {sending
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <Send className="h-4 w-4" />}
+          </button>
+        </div>
+        <p className="text-center text-[10px] text-[#c4a8b5] mt-1.5">
+          Enter to send · Shift+Enter for new line · Messages refresh every 5 s
+        </p>
       </div>
     </div>
   );

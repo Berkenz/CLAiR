@@ -1,33 +1,27 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/appointments/domain/entities/appointment_entity.dart';
+import 'package:clair/features/appointments/domain/entities/direct_message_entity.dart';
+import 'package:clair/features/appointments/presentation/providers/direct_message_provider.dart';
 
-class LawyerChatScreen extends StatefulWidget {
+class LawyerChatScreen extends ConsumerStatefulWidget {
   const LawyerChatScreen({super.key, required this.appointment});
 
   final AppointmentEntity appointment;
 
   @override
-  State<LawyerChatScreen> createState() => _LawyerChatScreenState();
+  ConsumerState<LawyerChatScreen> createState() => _LawyerChatScreenState();
 }
 
-class _LawyerChatScreenState extends State<LawyerChatScreen> {
+class _LawyerChatScreenState extends ConsumerState<LawyerChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
-
-  // Placeholder messages shown before real API integration
-  final List<_ChatMsg> _messages = [
-    _ChatMsg(
-      text:
-          'Hello! I\'ve reviewed your appointment request and I\'m ready to assist you. Please feel free to ask any questions or share additional details about your case.',
-      isLawyer: true,
-      time: DateTime.now().subtract(const Duration(minutes: 5)),
-    ),
-  ];
-
-  bool _isTyping = false;
 
   AppointmentEntity get appt => widget.appointment;
 
@@ -40,93 +34,133 @@ class _LawyerChatScreenState extends State<LawyerChatScreen> {
     return name.isNotEmpty ? name[0].toUpperCase() : 'L';
   }
 
-  void _sendMessage() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-
-    setState(() {
-      _messages.add(_ChatMsg(text: text, isLawyer: false, time: DateTime.now()));
-      _controller.clear();
-      _isTyping = true;
-    });
-
-    _scrollToBottom();
-
-    // Simulate lawyer typing reply (placeholder)
-    Future.delayed(const Duration(milliseconds: 1800), () {
-      if (!mounted) return;
-      setState(() {
-        _isTyping = false;
-        _messages.add(
-          _ChatMsg(
-            text:
-                'Thank you for your message. This is a placeholder response — full lawyer messaging will be enabled in a future update.',
-            isLawyer: true,
-            time: DateTime.now(),
-          ),
-        );
-      });
-      _scrollToBottom();
-    });
-  }
-
-  void _scrollToBottom() {
+  @override
+  void initState() {
+    super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
+      ref.read(directMessageProvider(appt.id).notifier).startPolling();
     });
   }
 
   @override
   void dispose() {
+    ref.read(directMessageProvider(appt.id).notifier).stopPolling();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
+  void _scrollToBottom({bool animated = true}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      if (animated) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      } else {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
+  }
+
+  Future<void> _sendText() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    _controller.clear();
+    final ok = await ref
+        .read(directMessageProvider(appt.id).notifier)
+        .sendMessage(text);
+    if (ok) _scrollToBottom();
+  }
+
+  Future<void> _pickAndSendFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx'],
+      withData: false,
+      withReadStream: false,
+    );
+    if (result == null || result.files.isEmpty) return;
+
+    final file = result.files.first;
+    if (file.path == null) return;
+
+    final mimeType = _mimeFromExtension(file.extension ?? '');
+
+    if (!mounted) return;
+    final ok = await ref
+        .read(directMessageProvider(appt.id).notifier)
+        .sendAttachment(
+          filePath: file.path!,
+          fileName: file.name,
+          mimeType: mimeType,
+        );
+    if (ok) _scrollToBottom();
+  }
+
+  String _mimeFromExtension(String ext) {
+    return switch (ext.toLowerCase()) {
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'png' => 'image/png',
+      'gif' => 'image/gif',
+      'webp' => 'image/webp',
+      'pdf' => 'application/pdf',
+      'doc' => 'application/msword',
+      'docx' =>
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      _ => 'application/octet-stream',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final chatState = ref.watch(directMessageProvider(appt.id));
+
+    // Scroll to bottom when new messages arrive
+    ref.listen(directMessageProvider(appt.id), (prev, next) {
+      if ((prev?.messages.length ?? 0) < next.messages.length) {
+        _scrollToBottom();
+      }
+    });
 
     return Scaffold(
       backgroundColor: cl.bg,
       appBar: _buildAppBar(cl),
       body: Column(
         children: [
-          // Case context banner
           _CaseBanner(appointment: appt),
+
+          // Error banner
+          if (chatState.error != null)
+            _ErrorBanner(
+              message: chatState.error!,
+              onDismiss: () =>
+                  ref.read(directMessageProvider(appt.id).notifier).clearError(),
+            ),
 
           // Message list
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              itemCount: _messages.length + (_isTyping ? 1 : 0),
-              itemBuilder: (_, i) {
-                if (_isTyping && i == _messages.length) {
-                  return _TypingBubble(initials: _lawyerInitials);
-                }
-                final msg = _messages[i];
-                return _MessageBubble(
-                  message: msg,
-                  lawyerInitials: _lawyerInitials,
-                );
-              },
-            ),
+            child: chatState.isLoading && chatState.messages.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : chatState.messages.isEmpty
+                    ? _EmptyState(lawyerName: appt.displayLawyerName)
+                    : _MessageList(
+                        messages: chatState.messages,
+                        scrollController: _scrollController,
+                        lawyerInitials: _lawyerInitials,
+                        cl: cl,
+                      ),
           ),
-
-          // Coming-soon notice
-          _ComingSoonNotice(),
 
           // Input bar
           _InputBar(
             controller: _controller,
-            onSend: _sendMessage,
+            isSending: chatState.isSending,
+            onSend: _sendText,
+            onAttach: _pickAndSendFile,
           ),
         ],
       ),
@@ -141,16 +175,11 @@ class _LawyerChatScreenState extends State<LawyerChatScreen> {
       elevation: 0,
       leadingWidth: 40,
       leading: IconButton(
-        icon: Icon(
-          Icons.arrow_back_ios_new_rounded,
-          size: 20,
-          color: cl.textDark,
-        ),
+        icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: cl.textDark),
         onPressed: () => Navigator.of(context).pop(),
       ),
       title: Row(
         children: [
-          // Lawyer avatar
           Container(
             width: 36,
             height: 36,
@@ -191,10 +220,7 @@ class _LawyerChatScreenState extends State<LawyerChatScreen> {
                 ),
                 Text(
                   'Appointment Chat',
-                  style: GoogleFonts.nunito(
-                    fontSize: 11,
-                    color: cl.textMid,
-                  ),
+                  style: GoogleFonts.nunito(fontSize: 11, color: cl.textMid),
                 ),
               ],
             ),
@@ -264,30 +290,195 @@ class _CaseBanner extends StatelessWidget {
   }
 }
 
-// ── Message bubble ────────────────────────────────────────────────────────────
+// ── Error banner ──────────────────────────────────────────────────────────────
 
-class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message, required this.lawyerInitials});
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message, required this.onDismiss});
+  final String message;
+  final VoidCallback onDismiss;
 
-  final _ChatMsg message;
-  final String lawyerInitials;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFFFF3CD),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFF856404)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF856404),
+                fontFamily: 'Satoshi',
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: onDismiss,
+            child: const Icon(Icons.close, size: 16, color: Color(0xFF856404)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.lawyerName});
+  final String lawyerName;
 
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
-    final isLawyer = message.isLawyer;
-    final timeStr =
-        '${message.time.hour % 12 == 0 ? 12 : message.time.hour % 12}:${message.time.minute.toString().padLeft(2, '0')} ${message.time.hour >= 12 ? 'PM' : 'AM'}';
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.chat_bubble_outline_rounded, size: 48, color: cl.textLight),
+            const SizedBox(height: 16),
+            Text(
+              'Start the conversation',
+              style: GoogleFonts.nunito(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: cl.textDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Send a message to $lawyerName to get started. You can also share documents or images related to your case.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.nunito(fontSize: 13, color: cl.textMid),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Message list ──────────────────────────────────────────────────────────────
+
+class _MessageList extends StatelessWidget {
+  const _MessageList({
+    required this.messages,
+    required this.scrollController,
+    required this.lawyerInitials,
+    required this.cl,
+  });
+
+  final List<DirectMessageEntity> messages;
+  final ScrollController scrollController;
+  final String lawyerInitials;
+  final AppColorTheme cl;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      controller: scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      itemCount: messages.length,
+      itemBuilder: (_, i) {
+        final msg = messages[i];
+        final showDate = i == 0 ||
+            !_sameDay(messages[i - 1].createdAt, msg.createdAt);
+        return Column(
+          children: [
+            if (showDate) _DateDivider(date: msg.createdAt),
+            _MessageBubble(
+              message: msg,
+              lawyerInitials: lawyerInitials,
+              cl: cl,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  bool _sameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+}
+
+// ── Date divider ──────────────────────────────────────────────────────────────
+
+class _DateDivider extends StatelessWidget {
+  const _DateDivider({required this.date});
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    final cl = context.c;
+    final now = DateTime.now();
+    String label;
+    if (date.year == now.year && date.month == now.month && date.day == now.day) {
+      label = 'Today';
+    } else if (date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day - 1) {
+      label = 'Yesterday';
+    } else {
+      label = DateFormat('MMM d, yyyy').format(date);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Expanded(child: Divider(color: cl.border)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: cl.textLight,
+                fontFamily: 'Satoshi',
+              ),
+            ),
+          ),
+          Expanded(child: Divider(color: cl.border)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Message bubble ────────────────────────────────────────────────────────────
+
+class _MessageBubble extends StatelessWidget {
+  const _MessageBubble({
+    required this.message,
+    required this.lawyerInitials,
+    required this.cl,
+  });
+
+  final DirectMessageEntity message;
+  final String lawyerInitials;
+  final AppColorTheme cl;
+
+  @override
+  Widget build(BuildContext context) {
+    // From the client's perspective, lawyer messages are on the left
+    final isIncoming = message.isFromLawyer;
+    final timeStr = DateFormat('h:mm a').format(message.createdAt.toLocal());
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisAlignment:
-            isLawyer ? MainAxisAlignment.start : MainAxisAlignment.end,
+            isIncoming ? MainAxisAlignment.start : MainAxisAlignment.end,
         children: [
-          if (isLawyer) ...[
-            // Lawyer avatar
+          if (isIncoming) ...[
             Container(
               width: 30,
               height: 30,
@@ -310,27 +501,22 @@ class _MessageBubble extends StatelessWidget {
           ],
           Flexible(
             child: Column(
-              crossAxisAlignment: isLawyer
-                  ? CrossAxisAlignment.start
-                  : CrossAxisAlignment.end,
+              crossAxisAlignment:
+                  isIncoming ? CrossAxisAlignment.start : CrossAxisAlignment.end,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
                   constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width * 0.72,
                   ),
                   decoration: BoxDecoration(
-                    color: isLawyer ? cl.surface : cl.accent,
+                    color: isIncoming ? cl.surface : cl.accent,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(16),
                       topRight: const Radius.circular(16),
-                      bottomLeft: Radius.circular(isLawyer ? 4 : 16),
-                      bottomRight: Radius.circular(isLawyer ? 16 : 4),
+                      bottomLeft: Radius.circular(isIncoming ? 4 : 16),
+                      bottomRight: Radius.circular(isIncoming ? 16 : 4),
                     ),
-                    border: isLawyer
-                        ? Border.all(color: cl.border)
-                        : null,
+                    border: isIncoming ? Border.all(color: cl.border) : null,
                     boxShadow: [
                       BoxShadow(
                         color: cl.cardShadow,
@@ -339,24 +525,37 @@ class _MessageBubble extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Text(
-                    message.text,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isLawyer ? cl.textDark : Colors.white,
-                      fontFamily: 'Satoshi',
-                      height: 1.45,
-                    ),
+                  child: _BubbleContent(
+                    message: message,
+                    isIncoming: isIncoming,
+                    cl: cl,
                   ),
                 ),
                 const SizedBox(height: 3),
-                Text(
-                  timeStr,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: cl.textLight,
-                    fontFamily: 'Satoshi',
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      timeStr,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: cl.textLight,
+                        fontFamily: 'Satoshi',
+                      ),
+                    ),
+                    if (!isIncoming) ...[
+                      const SizedBox(width: 4),
+                      Icon(
+                        message.isRead
+                            ? Icons.done_all_rounded
+                            : Icons.done_rounded,
+                        size: 12,
+                        color: message.isRead
+                            ? cl.accent
+                            : cl.textLight,
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -367,162 +566,141 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-// ── Typing indicator ──────────────────────────────────────────────────────────
+// ── Bubble content (text + attachment) ───────────────────────────────────────
 
-class _TypingBubble extends StatefulWidget {
-  const _TypingBubble({required this.initials});
-  final String initials;
+class _BubbleContent extends StatelessWidget {
+  const _BubbleContent({
+    required this.message,
+    required this.isIncoming,
+    required this.cl,
+  });
 
-  @override
-  State<_TypingBubble> createState() => _TypingBubbleState();
-}
-
-class _TypingBubbleState extends State<_TypingBubble>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _anim;
-  late final Animation<double> _fade;
-
-  @override
-  void initState() {
-    super.initState();
-    _anim = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 700))
-      ..repeat(reverse: true);
-    _fade = CurvedAnimation(parent: _anim, curve: Curves.easeInOut);
-  }
-
-  @override
-  void dispose() {
-    _anim.dispose();
-    super.dispose();
-  }
+  final DirectMessageEntity message;
+  final bool isIncoming;
+  final AppColorTheme cl;
 
   @override
   Widget build(BuildContext context) {
-    final cl = context.c;
+    final textColor = isIncoming ? cl.textDark : Colors.white;
+
+    if (message.hasAttachment) {
+      return _AttachmentBubble(
+        message: message,
+        isIncoming: isIncoming,
+        textColor: textColor,
+        cl: cl,
+      );
+    }
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: cl.accent.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                widget.initials,
-                style: GoogleFonts.nunito(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: cl.accent,
-                ),
-              ),
-            ),
-          ),
-          FadeTransition(
-            opacity: _fade,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: cl.surface,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                  bottomLeft: Radius.circular(4),
-                  bottomRight: Radius.circular(16),
-                ),
-                border: Border.all(color: cl.border),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _Dot(delay: 0),
-                  SizedBox(width: 4),
-                  _Dot(delay: 150),
-                  SizedBox(width: 4),
-                  _Dot(delay: 300),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Dot extends StatefulWidget {
-  const _Dot({required this.delay});
-  final int delay;
-
-  @override
-  State<_Dot> createState() => _DotState();
-}
-
-class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
-  late final AnimationController _anim;
-
-  @override
-  void initState() {
-    super.initState();
-    _anim = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 600))
-      ..repeat(reverse: true);
-    Future.delayed(Duration(milliseconds: widget.delay), () {
-      if (mounted) _anim.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _anim.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cl = context.c;
-    return AnimatedBuilder(
-      animation: _anim,
-      builder: (_, __) => Container(
-        width: 7,
-        height: 7,
-        decoration: BoxDecoration(
-          color: cl.accent
-              .withValues(alpha: 0.3 + (_anim.value * 0.5)),
-          shape: BoxShape.circle,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Text(
+        message.content ?? '',
+        style: TextStyle(
+          fontSize: 14,
+          color: textColor,
+          fontFamily: 'Satoshi',
+          height: 1.45,
         ),
       ),
     );
   }
 }
 
-// ── Coming soon notice ────────────────────────────────────────────────────────
+// ── Attachment bubble ─────────────────────────────────────────────────────────
 
-class _ComingSoonNotice extends StatelessWidget {
+class _AttachmentBubble extends StatelessWidget {
+  const _AttachmentBubble({
+    required this.message,
+    required this.isIncoming,
+    required this.textColor,
+    required this.cl,
+  });
+
+  final DirectMessageEntity message;
+  final bool isIncoming;
+  final Color textColor;
+  final AppColorTheme cl;
+
+  Future<void> _open() async {
+    final url = message.attachmentUrl;
+    if (url == null) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cl = context.c;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      color: cl.fieldBg,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+    final isImg = message.isImage;
+
+    return GestureDetector(
+      onTap: _open,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, size: 12, color: cl.textLight),
-          const SizedBox(width: 5),
-          Text(
-            'Live messaging with lawyers is coming soon',
-            style: GoogleFonts.nunito(
-              fontSize: 11,
-              color: cl.textLight,
+          if (isImg)
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+              child: Image.network(
+                message.attachmentUrl!,
+                width: 220,
+                height: 160,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 220,
+                  height: 80,
+                  color: cl.fieldBg,
+                  alignment: Alignment.center,
+                  child: Icon(Icons.broken_image_outlined, color: cl.textLight),
+                ),
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.insert_drive_file_outlined,
+                    size: 20,
+                    color: isIncoming ? cl.accent : Colors.white70,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      message.attachmentName ?? 'File',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: textColor,
+                        fontFamily: 'Satoshi',
+                        decoration: TextDecoration.underline,
+                        decorationColor: textColor,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          if (message.content != null && message.content!.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+              child: Text(
+                message.content!,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: textColor,
+                  fontFamily: 'Satoshi',
+                  height: 1.4,
+                ),
+              ),
+            )
+          else
+            const SizedBox(height: 8),
         ],
       ),
     );
@@ -532,10 +710,17 @@ class _ComingSoonNotice extends StatelessWidget {
 // ── Input bar ─────────────────────────────────────────────────────────────────
 
 class _InputBar extends StatelessWidget {
-  const _InputBar({required this.controller, required this.onSend});
+  const _InputBar({
+    required this.controller,
+    required this.isSending,
+    required this.onSend,
+    required this.onAttach,
+  });
 
   final TextEditingController controller;
+  final bool isSending;
   final VoidCallback onSend;
+  final VoidCallback onAttach;
 
   @override
   Widget build(BuildContext context) {
@@ -546,9 +731,7 @@ class _InputBar extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + bottom),
       decoration: BoxDecoration(
         color: cl.surface,
-        border: Border(
-          top: BorderSide(color: cl.border),
-        ),
+        border: Border(top: BorderSide(color: cl.border)),
         boxShadow: [
           BoxShadow(
             color: cl.cardShadow,
@@ -561,6 +744,26 @@ class _InputBar extends StatelessWidget {
         top: false,
         child: Row(
           children: [
+            // Attachment button
+            GestureDetector(
+              onTap: isSending ? null : onAttach,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: cl.fieldBg,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: cl.border),
+                ),
+                child: Icon(
+                  Icons.attach_file_rounded,
+                  size: 18,
+                  color: isSending ? cl.textLight : cl.textMid,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Text field
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -587,34 +790,40 @@ class _InputBar extends StatelessWidget {
                       fontFamily: 'Satoshi',
                     ),
                     border: InputBorder.none,
-                    contentPadding:
-                        const EdgeInsets.symmetric(vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
                   ),
+                  onSubmitted: (_) => onSend(),
                 ),
               ),
             ),
             const SizedBox(width: 8),
+            // Send button
             GestureDetector(
-              onTap: onSend,
+              onTap: isSending ? null : onSend,
               child: Container(
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: cl.accent,
+                  color: isSending ? cl.textLight : cl.accent,
                   shape: BoxShape.circle,
                   boxShadow: [
-                    BoxShadow(
-                      color: cl.accent.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
+                    if (!isSending)
+                      BoxShadow(
+                        color: cl.accent.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.send_rounded,
-                  size: 20,
-                  color: Colors.white,
-                ),
+                child: isSending
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.send_rounded, size: 20, color: Colors.white),
               ),
             ),
           ],
@@ -622,18 +831,4 @@ class _InputBar extends StatelessWidget {
       ),
     );
   }
-}
-
-// ── Data model ────────────────────────────────────────────────────────────────
-
-class _ChatMsg {
-  const _ChatMsg({
-    required this.text,
-    required this.isLawyer,
-    required this.time,
-  });
-
-  final String text;
-  final bool isLawyer;
-  final DateTime time;
 }

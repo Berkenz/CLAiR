@@ -11,6 +11,7 @@ from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.conversation import Conversation
+    from app.models.direct_message import DirectMessage
     from app.models.lawyer_profile import LawyerProfile
     from app.models.user import User
 
@@ -78,6 +79,12 @@ class Appointment(Base):
     attached_conversation: Mapped["Conversation | None"] = relationship(
         "Conversation",
         foreign_keys=[attached_conversation_id],
+    )
+    direct_messages: Mapped[list["DirectMessage"]] = relationship(
+        "DirectMessage",
+        back_populates="appointment",
+        cascade="all, delete-orphan",
+        order_by="DirectMessage.created_at",
     )
 
     @property
