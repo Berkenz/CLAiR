@@ -51,15 +51,23 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     _controller = VideoPlayerController.asset('assets/images/1.mp4')
       ..setVolume(0)
-      ..setLooping(false)
-      ..initialize().then((_) {
-        if (!mounted) return;
-        setState(() {});
-        _controller.play();
-        _fadeCtrl.forward();
-        _controller.addListener(_onProgress);
-      });
+      ..setLooping(false);
 
+    _controller
+        .initialize()
+        .timeout(const Duration(seconds: 3))
+        .then((_) {
+      if (!mounted) return;
+      setState(() {});
+      _controller.play();
+      _fadeCtrl.forward();
+      _controller.addListener(_onProgress);
+    }).catchError((_) {
+      // Video failed to init or timed out — skip ahead.
+      if (mounted) _navigate();
+    });
+
+    // Hard ceiling: always navigate even if init hangs or video stalls.
     Future.delayed(_maxDuration, _navigate);
   }
 
