@@ -211,6 +211,8 @@ class AppointmentResponse(BaseModel):
     id: uuid.UUID
     lawyer_profile_id: uuid.UUID
     lawyer_display_name: str | None = None
+    lawyer_photo_url: str | None = None
+    client_photo_url: str | None = None
     attached_conversation_id: uuid.UUID | None = None
     client_user_id: uuid.UUID | None
     client_name: str

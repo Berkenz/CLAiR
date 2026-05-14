@@ -11,6 +11,69 @@ import 'package:clair/features/appointments/domain/entities/direct_message_entit
 import 'package:clair/features/appointments/presentation/providers/direct_message_provider.dart';
 import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
 
+Widget _dmChatAvatar({
+  required String initials,
+  String? photoUrl,
+  required AppColorTheme cl,
+  double size = 36,
+  double fontSize = 13,
+}) {
+  final trimmed = photoUrl?.trim();
+  if (trimmed != null && trimmed.isNotEmpty) {
+    return ClipOval(
+      child: Image.network(
+        trimmed,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _dmChatAvatarInitials(
+          initials: initials,
+          cl: cl,
+          size: size,
+          fontSize: fontSize,
+        ),
+      ),
+    );
+  }
+  return _dmChatAvatarInitials(
+    initials: initials,
+    cl: cl,
+    size: size,
+    fontSize: fontSize,
+  );
+}
+
+Widget _dmChatAvatarInitials({
+  required String initials,
+  required AppColorTheme cl,
+  required double size,
+  required double fontSize,
+}) {
+  return Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [
+          cl.accent.withValues(alpha: 0.18),
+          cl.accentLight.withValues(alpha: 0.4),
+        ],
+      ),
+      shape: BoxShape.circle,
+    ),
+    child: Center(
+      child: Text(
+        initials,
+        style: GoogleFonts.nunito(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w800,
+          color: cl.accent,
+        ),
+      ),
+    ),
+  );
+}
+
 class LawyerChatScreen extends ConsumerStatefulWidget {
   const LawyerChatScreen({super.key, required this.appointment});
 
@@ -161,6 +224,7 @@ class _LawyerChatScreenState extends ConsumerState<LawyerChatScreen> {
                         messages: chatState.messages,
                         scrollController: _scrollController,
                         lawyerInitials: _lawyerInitials,
+                        lawyerPhotoUrl: appt.lawyerPhotoUrl,
                         cl: cl,
                       ),
           ),
@@ -190,28 +254,12 @@ class _LawyerChatScreenState extends ConsumerState<LawyerChatScreen> {
       ),
       title: Row(
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  cl.accent.withValues(alpha: 0.18),
-                  cl.accentLight.withValues(alpha: 0.4),
-                ],
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                _lawyerInitials,
-                style: GoogleFonts.nunito(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: cl.accent,
-                ),
-              ),
-            ),
+          _dmChatAvatar(
+            initials: _lawyerInitials,
+            photoUrl: appt.lawyerPhotoUrl,
+            cl: cl,
+            size: 36,
+            fontSize: 13,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -381,12 +429,14 @@ class _MessageList extends StatelessWidget {
     required this.messages,
     required this.scrollController,
     required this.lawyerInitials,
+    required this.lawyerPhotoUrl,
     required this.cl,
   });
 
   final List<DirectMessageEntity> messages;
   final ScrollController scrollController;
   final String lawyerInitials;
+  final String? lawyerPhotoUrl;
   final AppColorTheme cl;
 
   @override
@@ -405,6 +455,7 @@ class _MessageList extends StatelessWidget {
             _MessageBubble(
               message: msg,
               lawyerInitials: lawyerInitials,
+              lawyerPhotoUrl: lawyerPhotoUrl,
               cl: cl,
             ),
           ],
@@ -468,11 +519,13 @@ class _MessageBubble extends StatelessWidget {
   const _MessageBubble({
     required this.message,
     required this.lawyerInitials,
+    required this.lawyerPhotoUrl,
     required this.cl,
   });
 
   final DirectMessageEntity message;
   final String lawyerInitials;
+  final String? lawyerPhotoUrl;
   final AppColorTheme cl;
 
   @override
@@ -489,25 +542,14 @@ class _MessageBubble extends StatelessWidget {
             isIncoming ? MainAxisAlignment.start : MainAxisAlignment.end,
         children: [
           if (isIncoming) ...[
-            Container(
-              width: 30,
-              height: 30,
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(
-                color: cl.accent.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  lawyerInitials,
-                  style: GoogleFonts.nunito(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: cl.accent,
-                  ),
-                ),
-              ),
+            _dmChatAvatar(
+              initials: lawyerInitials,
+              photoUrl: lawyerPhotoUrl,
+              cl: cl,
+              size: 30,
+              fontSize: 11,
             ),
+            const SizedBox(width: 8),
           ],
           Flexible(
             child: Column(

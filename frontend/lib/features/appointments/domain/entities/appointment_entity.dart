@@ -9,6 +9,8 @@ class AppointmentEntity {
     required this.status,
     required this.createdAt,
     this.lawyerDisplayName,
+    this.lawyerPhotoUrl,
+    this.clientPhotoUrl,
     this.attachedConversationId,
     this.caseTitle,
     this.description,
@@ -19,6 +21,8 @@ class AppointmentEntity {
   final String id;
   final String lawyerProfileId;
   final String? lawyerDisplayName;
+  final String? lawyerPhotoUrl;
+  final String? clientPhotoUrl;
   final String? attachedConversationId;
   final String clientName;
   final DateTime appointmentDate;
@@ -33,12 +37,17 @@ class AppointmentEntity {
 
   bool get canStartLawyerChat => status == 'confirmed';
 
-  /// True when this appointment was created or last updated within the past 48 hours
-  /// and has not been cancelled/declined — used for the "New" badge on cards.
-  bool get isNew {
+  /// "New" list badge: not cancelled, still within 48h of last activity, and either
+  /// the user has never opened this appointment's detail for this version, or the
+  /// row changed since they last did ([lastSeenAppointmentVersionAt] from prefs).
+  bool showsNewAppointmentBadge(DateTime? lastSeenAppointmentVersionAt) {
+    if (status == 'cancelled') return false;
     final ref = updatedAt ?? createdAt;
-    return status != 'cancelled' &&
-        DateTime.now().difference(ref).inHours < 48;
+    if (DateTime.now().difference(ref) >= const Duration(hours: 48)) {
+      return false;
+    }
+    if (lastSeenAppointmentVersionAt == null) return true;
+    return ref.isAfter(lastSeenAppointmentVersionAt);
   }
 
   /// Matches backend `CLIENT_CANCEL_REASON_STORAGE_PREFIX` + label.
@@ -100,6 +109,8 @@ class AppointmentEntity {
       id: id,
       lawyerProfileId: lawyerProfileId,
       lawyerDisplayName: json['lawyer_display_name'] as String?,
+      lawyerPhotoUrl: _optionalUrl(json['lawyer_photo_url']),
+      clientPhotoUrl: _optionalUrl(json['client_photo_url']),
       attachedConversationId: json['attached_conversation_id'] as String?,
       clientName: '${json['client_name'] ?? ''}',
       appointmentDate: DateTime.parse(dateRaw),
@@ -114,5 +125,11 @@ class AppointmentEntity {
           ? DateTime.parse('${json['updated_at']}')
           : null,
     );
+  }
+
+  static String? _optionalUrl(Object? raw) {
+    if (raw == null) return null;
+    final s = '$raw'.trim();
+    return s.isEmpty ? null : s;
   }
 }

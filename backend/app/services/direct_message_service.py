@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.appointment import Appointment
 from app.models.direct_message import DirectMessage
+from app.models.lawyer_profile import LawyerProfile
 
 
 async def get_appointment_for_client(
@@ -18,7 +19,10 @@ async def get_appointment_for_client(
 ) -> Appointment | None:
     result = await db.execute(
         select(Appointment)
-        .options(selectinload(Appointment.lawyer_profile))
+        .options(
+            selectinload(Appointment.lawyer_profile).selectinload(LawyerProfile.user),
+            selectinload(Appointment.client_user),
+        )
         .where(
             Appointment.id == appointment_id,
             Appointment.client_user_id == client_user_id,
@@ -35,6 +39,10 @@ async def get_appointment_for_lawyer(
 ) -> Appointment | None:
     result = await db.execute(
         select(Appointment)
+        .options(
+            selectinload(Appointment.lawyer_profile).selectinload(LawyerProfile.user),
+            selectinload(Appointment.client_user),
+        )
         .where(
             Appointment.id == appointment_id,
             Appointment.lawyer_profile_id == lawyer_profile_id,

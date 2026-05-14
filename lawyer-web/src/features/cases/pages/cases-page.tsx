@@ -8,6 +8,7 @@ import {
 import { api } from "@/lib/api";
 import { getApiErrorMessage, isApiNetworkError } from "@/lib/api-error";
 import { cn } from "@/lib/cn";
+import { useAuth } from "@/features/auth/auth-provider";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,8 @@ interface Appointment {
   id: string;
   client_user_id: string | null;
   client_name: string;
+  lawyer_photo_url?: string | null;
+  client_photo_url?: string | null;
   appointment_date: string;
   appointment_time: string;
   appointment_type: string;
@@ -110,6 +113,42 @@ function fmtIso(iso: string | null) {
 
 function initials(name: string) {
   return name.trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+}
+
+function ProfileAvatar({
+  photoUrl,
+  name,
+  className,
+  fallbackBgClass,
+}: {
+  photoUrl?: string | null;
+  name: string;
+  className: string;
+  fallbackBgClass: string;
+}) {
+  const [broken, setBroken] = useState(false);
+  const url = (photoUrl ?? "").trim();
+  if (url && !broken) {
+    return (
+      <img
+        src={url}
+        alt=""
+        className={cn(className, "rounded-full object-cover shrink-0")}
+        onError={() => setBroken(true)}
+      />
+    );
+  }
+  return (
+    <div
+      className={cn(
+        className,
+        "rounded-full flex items-center justify-center font-bold text-white shrink-0",
+        fallbackBgClass,
+      )}
+    >
+      {initials(name)}
+    </div>
+  );
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -314,9 +353,12 @@ export function CasesPage() {
                   )}
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${AVATAR_BG[i % AVATAR_BG.length]}`}>
-                      {initials(a.client_name)}
-                    </div>
+                    <ProfileAvatar
+                      photoUrl={a.client_photo_url}
+                      name={a.client_name}
+                      className="h-8 w-8 text-xs"
+                      fallbackBgClass={AVATAR_BG[i % AVATAR_BG.length]}
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="text-[15px] font-bold text-[#241715] truncate leading-snug">{displayCaseTitle(a)}</p>
                       <p className="text-xs text-[#957186] truncate mt-0.5">{a.client_name}</p>
@@ -374,9 +416,12 @@ export function CasesPage() {
                 )}
               >
                 <div className="flex items-center gap-2.5">
-                  <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${AVATAR_BG[i % AVATAR_BG.length]}`}>
-                    {initials(a.client_name)}
-                  </div>
+                  <ProfileAvatar
+                    photoUrl={a.client_photo_url}
+                    name={a.client_name}
+                    className="h-8 w-8 text-xs"
+                    fallbackBgClass={AVATAR_BG[i % AVATAR_BG.length]}
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="text-[15px] font-bold text-[#241715] truncate leading-snug">{displayCaseTitle(a)}</p>
                     <p className="text-xs text-[#957186] truncate mt-0.5">{a.client_name}</p>
@@ -412,9 +457,12 @@ export function CasesPage() {
                     )}
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${AVATAR_BG[i % AVATAR_BG.length]}`}>
-                        {initials(a.client_name)}
-                      </div>
+                      <ProfileAvatar
+                        photoUrl={a.client_photo_url}
+                        name={a.client_name}
+                        className="h-8 w-8 text-xs"
+                        fallbackBgClass={AVATAR_BG[i % AVATAR_BG.length]}
+                      />
                       <div className="min-w-0 flex-1">
                         <p className="text-[15px] font-bold text-[#241715] truncate leading-snug">{displayCaseTitle(a)}</p>
                         <p className="text-xs text-[#957186] truncate mt-0.5">{a.client_name}</p>
@@ -514,9 +562,12 @@ function CaseDetail({ appt, onAccept, accepting, onReject, onApptUpdated }: {
       <div className="px-6 py-4 border-b border-[#d9b8c4]/30 bg-[#f7f0f4] shrink-0">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="h-10 w-10 rounded-full bg-[#703d57] flex items-center justify-center text-sm font-bold text-white shrink-0">
-              {initials(appt.client_name)}
-            </div>
+            <ProfileAvatar
+              photoUrl={appt.client_photo_url}
+              name={appt.client_name}
+              className="h-10 w-10 text-sm"
+              fallbackBgClass="bg-[#703d57]"
+            />
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-[#957186]">Case</p>
               <p className="font-bold text-[#241715] truncate text-lg leading-tight">{displayCaseTitle(appt)}</p>
@@ -1167,6 +1218,13 @@ function ClientChatTab({ appt }: { appt: Appointment }) {
 
   const isConfirmed = appt.status === "confirmed";
 
+  const { lawyerState } = useAuth();
+  const lawyerSelfPhoto = lawyerState?.user.photo_url ?? null;
+  const lawyerDisplayName =
+    lawyerState?.profile.display_name?.trim() ||
+    [lawyerState?.user.first_name, lawyerState?.user.last_name].filter(Boolean).join(" ") ||
+    "Lawyer";
+
   const scrollToBottom = useCallback((smooth = true) => {
     setTimeout(() => {
       bottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "instant" });
@@ -1304,9 +1362,12 @@ function ClientChatTab({ appt }: { appt: Appointment }) {
                 )}
                 <div className={cn("flex gap-2 mb-2.5", isLawyer ? "justify-end" : "justify-start")}>
                   {!isLawyer && (
-                    <div className="h-7 w-7 rounded-full bg-[#957186] flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold text-white">
-                      {initials(appt.client_name)}
-                    </div>
+                    <ProfileAvatar
+                      photoUrl={appt.client_photo_url}
+                      name={appt.client_name}
+                      className="h-7 w-7 text-[11px] mt-0.5"
+                      fallbackBgClass="bg-[#957186]"
+                    />
                   )}
                   <div className="max-w-[70%] flex flex-col gap-0.5">
                     <div className={cn(
@@ -1355,9 +1416,12 @@ function ClientChatTab({ appt }: { appt: Appointment }) {
                     </div>
                   </div>
                   {isLawyer && (
-                    <div className="h-7 w-7 rounded-full bg-[#703d57] flex items-center justify-center shrink-0 mt-0.5">
-                      <User className="h-3.5 w-3.5 text-white" />
-                    </div>
+                    <ProfileAvatar
+                      photoUrl={lawyerSelfPhoto}
+                      name={lawyerDisplayName}
+                      className="h-7 w-7 text-[11px] mt-0.5"
+                      fallbackBgClass="bg-[#703d57]"
+                    />
                   )}
                 </div>
               </div>

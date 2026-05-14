@@ -30,7 +30,10 @@ class AppointmentService:
         result = await db.execute(
             select(Appointment)
             .where(Appointment.id == appointment_id)
-            .options(selectinload(Appointment.lawyer_profile))
+            .options(
+                selectinload(Appointment.lawyer_profile).selectinload(LawyerProfile.user),
+                selectinload(Appointment.client_user),
+            )
         )
         return result.scalar_one()
 
@@ -96,7 +99,10 @@ class AppointmentService:
         query = (
             select(Appointment)
             .where(Appointment.lawyer_profile_id == lawyer_profile_id)
-            .options(selectinload(Appointment.lawyer_profile))
+            .options(
+                selectinload(Appointment.lawyer_profile).selectinload(LawyerProfile.user),
+                selectinload(Appointment.client_user),
+            )
         )
         if filter_date is not None:
             query = query.where(Appointment.appointment_date == filter_date)
@@ -119,7 +125,10 @@ class AppointmentService:
         query = (
             select(Appointment)
             .where(Appointment.client_user_id == client_user_id)
-            .options(selectinload(Appointment.lawyer_profile))
+            .options(
+                selectinload(Appointment.lawyer_profile).selectinload(LawyerProfile.user),
+                selectinload(Appointment.client_user),
+            )
         )
         if filter_date is not None:
             query = query.where(Appointment.appointment_date == filter_date)
@@ -138,7 +147,10 @@ class AppointmentService:
         result = await db.execute(
             select(Appointment)
             .where(Appointment.id == appointment_id)
-            .options(selectinload(Appointment.lawyer_profile))
+            .options(
+                selectinload(Appointment.lawyer_profile).selectinload(LawyerProfile.user),
+                selectinload(Appointment.client_user),
+            )
         )
         return result.scalar_one_or_none()
 

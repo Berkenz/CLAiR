@@ -95,3 +95,22 @@ class Appointment(Base):
         if profile.display_name and profile.display_name.strip():
             return profile.display_name.strip()
         return None
+
+    @property
+    def lawyer_photo_url(self) -> str | None:
+        profile = self.lawyer_profile
+        if profile is None:
+            return None
+        user = getattr(profile, "user", None)
+        if user is None:
+            return None
+        url = (user.photo_url or "").strip()
+        return url or None
+
+    @property
+    def client_photo_url(self) -> str | None:
+        user = self.client_user
+        if user is None:
+            return None
+        url = (user.photo_url or "").strip()
+        return url or None

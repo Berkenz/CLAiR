@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/appointments/domain/entities/appointment_entity.dart';
+import 'package:clair/features/appointments/presentation/providers/appointment_new_badge_seen_provider.dart';
 import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
 import 'package:clair/features/appointments/presentation/providers/direct_message_provider.dart';
 import 'package:clair/features/appointments/presentation/screens/appointment_detail_screen.dart';
@@ -226,6 +227,7 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
     final filtered = _applyFilter(raw);
     final sorted = List<AppointmentEntity>.of(filtered);
     _applySort(sorted);
+    final seenRefs = ref.watch(appointmentNewBadgeSeenProvider);
 
     if (sorted.isEmpty) {
       return _buildNoFilterMatches(cl, l10n);
@@ -239,11 +241,11 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(
-            child: _buildHeader(state, l10n, cl),
+            child: _buildHeader(state, l10n, cl, sorted, seenRefs),
           ),
           SliverToBoxAdapter(child: _buildFilterSortRow(cl, l10n)),
           if (_filter == _AppointmentListFilter.all)
-            ..._buildGroupedSlivers(cl, sorted, l10n)
+            ..._buildGroupedSlivers(cl, sorted, l10n, seenRefs)
           else ...[
             _buildSectionHeader(_filterSectionTitle(l10n), sorted.length),
             SliverPadding(
@@ -254,6 +256,7 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
                     padding: const EdgeInsets.only(bottom: 10),
                     child: _AppointmentCard(
                       appointment: sorted[i],
+                      seenRefs: seenRefs,
                       onTap: () => _openDetail(sorted[i]),
                       muted: sorted[i].status == 'cancelled',
                     ),
@@ -270,9 +273,18 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
   }
 
   Widget _buildHeader(
-      AppointmentState state, AppLocalizations l10n, AppColorTheme cl) {
+    AppointmentState state,
+    AppLocalizations l10n,
+    AppColorTheme cl,
+    List<AppointmentEntity> visible,
+    Map<String, DateTime> seenRefs,
+  ) {
     final pendingCount = state.pendingCount;
-    final newCount = state.newCount;
+    final newCount = visible
+        .where(
+          (a) => a.showsNewAppointmentBadge(seenRefs[a.id.trim()]),
+        )
+        .length;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
@@ -348,6 +360,7 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
     AppColorTheme cl,
     List<AppointmentEntity> sorted,
     AppLocalizations l10n,
+    Map<String, DateTime> seenRefs,
   ) {
     final today = DateTime.now();
     final todayDate = DateTime(today.year, today.month, today.day);
@@ -375,24 +388,28 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
     return [
       if (todayAppts.isNotEmpty) ...[
         _buildSectionHeader('Today', todayAppts.length, highlight: true),
-        _buildCardList(todayAppts),
+        _buildCardList(todayAppts, seenRefs: seenRefs),
       ],
       if (upcoming.isNotEmpty) ...[
         _buildSectionHeader('Upcoming', upcoming.length),
-        _buildCardList(upcoming),
+        _buildCardList(upcoming, seenRefs: seenRefs),
       ],
       if (past.isNotEmpty) ...[
         _buildSectionHeader('Past', past.length),
-        _buildCardList(past),
+        _buildCardList(past, seenRefs: seenRefs),
       ],
       if (cancelled.isNotEmpty) ...[
         _buildSectionHeader(l10n.apptSectionCancelledOrDeclined, cancelled.length),
-        _buildCardList(cancelled, muted: true),
+        _buildCardList(cancelled, seenRefs: seenRefs, muted: true),
       ],
     ];
   }
 
-  Widget _buildCardList(List<AppointmentEntity> items, {bool muted = false}) {
+  Widget _buildCardList(
+    List<AppointmentEntity> items, {
+    required Map<String, DateTime> seenRefs,
+    bool muted = false,
+  }) {
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
       sliver: SliverList(
@@ -401,6 +418,7 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
             padding: const EdgeInsets.only(bottom: 10),
             child: _AppointmentCard(
               appointment: items[i],
+              seenRefs: seenRefs,
               onTap: () => _openDetail(items[i]),
               muted: muted,
             ),
@@ -786,11 +804,13 @@ class _FilterChip extends StatelessWidget {
 class _AppointmentCard extends ConsumerStatefulWidget {
   const _AppointmentCard({
     required this.appointment,
+    required this.seenRefs,
     required this.onTap,
     this.muted = false,
   });
 
   final AppointmentEntity appointment;
+  final Map<String, DateTime> seenRefs;
   final VoidCallback onTap;
   final bool muted;
 
@@ -835,7 +855,8 @@ class _AppointmentCardState extends ConsumerState<_AppointmentCard> {
     final bookedDate = DateFormat('MMM d, y').format(bookedLocal);
     final bookedTime = DateFormat('h:mm a').format(bookedLocal);
     final bookedLine = l10n.apptCardBookedAt(bookedDate, bookedTime);
-    final isNew = appointment.isNew;
+    final lastSeen = widget.seenRefs[appointment.id.trim()];
+    final isNew = appointment.showsNewAppointmentBadge(lastSeen);
 
     final dmUnread =
         appointment.canStartLawyerChat ? _dmUnread : 0;

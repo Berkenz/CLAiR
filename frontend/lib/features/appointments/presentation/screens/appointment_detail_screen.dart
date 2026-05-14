@@ -8,6 +8,7 @@ import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/appointments/domain/entities/appointment_entity.dart';
+import 'package:clair/features/appointments/presentation/providers/appointment_new_badge_seen_provider.dart';
 import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
 import 'package:clair/features/appointments/presentation/providers/direct_message_provider.dart';
 import 'package:clair/features/appointments/presentation/screens/lawyer_chat_screen.dart';
@@ -30,10 +31,13 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
+    Future.microtask(() async {
       ref
           .read(notificationInboxProvider.notifier)
           .markReadForAppointment(widget.appointment.id);
+      await ref
+          .read(appointmentNewBadgeSeenProvider.notifier)
+          .markSeen(widget.appointment);
     });
   }
 
