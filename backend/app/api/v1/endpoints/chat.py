@@ -45,6 +45,7 @@ async def send_message(
             db=db,
             user_lat=body.user_lat,
             user_lng=body.user_lng,
+            locale=body.locale,
         )
         rag_sources = [RagSourceItem(**r) for r in rag_sources_raw]
         tavily_sources = [
@@ -91,6 +92,7 @@ async def send_message(
                 body.message,
                 reply,
                 fallback_title=fallback,
+                locale=body.locale,
             )
             await conversation_service.update_conversation_title(
                 db, conv.id, conversation_title

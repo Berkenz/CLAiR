@@ -4,11 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/core/theme/appearance_provider.dart';
+import 'package:clair/l10n/app_localizations.dart';
 
 class AppearanceScreen extends ConsumerWidget {
   const AppearanceScreen({super.key});
 
-  static const _modes = ['Light', 'Dark', 'System'];
   static const _modeIcons = [
     Icons.light_mode_rounded,
     Icons.dark_mode_rounded,
@@ -18,6 +18,7 @@ class AppearanceScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     final state = ref.watch(appearanceProvider);
     final notifier = ref.read(appearanceProvider.notifier);
 
@@ -53,7 +54,7 @@ class AppearanceScreen extends ConsumerWidget {
                   ),
                   const Spacer(),
                   Text(
-                    'Appearance',
+                    l10n.appearance,
                     style: GoogleFonts.nunito(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
@@ -72,7 +73,7 @@ class AppearanceScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── Theme mode ────────────────────────────────────
-                    Text('Theme',
+                    Text(l10n.appearanceSectionTheme,
                         style: GoogleFonts.nunito(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -126,7 +127,11 @@ class AppearanceScreen extends ConsumerWidget {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      _modes[i],
+                                      [
+                                        l10n.appearanceThemeLight,
+                                        l10n.appearanceThemeDark,
+                                        l10n.appearanceThemeSystem,
+                                      ][i],
                                       style: GoogleFonts.nunito(
                                         fontSize: 12,
                                         fontWeight:
@@ -149,7 +154,7 @@ class AppearanceScreen extends ConsumerWidget {
 
                     // ── Accent color ──────────────────────────────────
                     const SizedBox(height: 32),
-                    Text('Accent Color',
+                    Text(l10n.appearanceAccentColor,
                         style: GoogleFonts.nunito(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -210,7 +215,7 @@ class AppearanceScreen extends ConsumerWidget {
 
                     // ── Font size ─────────────────────────────────────
                     const SizedBox(height: 32),
-                    Text('Font Size',
+                    Text(l10n.appearanceFontSize,
                         style: GoogleFonts.nunito(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -259,7 +264,7 @@ class AppearanceScreen extends ConsumerWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
-                        _fontLabel(state.fontScale),
+                        _fontLabel(l10n, state.fontScale),
                         style: GoogleFonts.nunito(
                             fontSize: 12, color: cl.textLight),
                       ),
@@ -279,7 +284,7 @@ class AppearanceScreen extends ConsumerWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          'Appearance saved',
+                          l10n.appearanceSavedSnackbar,
                           style: GoogleFonts.nunito(
                               fontWeight: FontWeight.w600),
                         ),
@@ -307,7 +312,7 @@ class AppearanceScreen extends ConsumerWidget {
                   ),
                   child: Center(
                     child: Text(
-                      'Save Appearance',
+                      l10n.appearanceSaveButton,
                       style: GoogleFonts.nunito(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -324,10 +329,10 @@ class AppearanceScreen extends ConsumerWidget {
     );
   }
 
-  static String _fontLabel(double scale) {
-    if (scale <= 0.85) return 'Small';
-    if (scale <= 1.05) return 'Default';
-    if (scale <= 1.25) return 'Large';
-    return 'Extra Large';
+  static String _fontLabel(AppLocalizations l, double scale) {
+    if (scale <= 0.85) return l.appearanceFontSmall;
+    if (scale <= 1.05) return l.appearanceFontDefault;
+    if (scale <= 1.25) return l.appearanceFontLarge;
+    return l.appearanceFontExtraLarge;
   }
 }

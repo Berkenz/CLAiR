@@ -12,6 +12,7 @@ from app.database import Base
 if TYPE_CHECKING:
     from app.models.appointment import Appointment
     from app.models.lawyer_profile import LawyerProfile
+    from app.models.user_notification import UserNotification
 
 
 class User(Base):
@@ -56,6 +57,9 @@ class User(Base):
     )
     appointments: Mapped[list["Appointment"]] = relationship(
         "Appointment", back_populates="client_user", foreign_keys="Appointment.client_user_id"
+    )
+    notifications: Mapped[list["UserNotification"]] = relationship(
+        "UserNotification", back_populates="user", cascade="all, delete-orphan"
     )
 
     @property

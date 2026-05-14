@@ -1,119 +1,334 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
+import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
-
-class _Notif {
-  final String title, body, time;
-  final IconData icon;
-  final bool isNew;
-  const _Notif({required this.title, required this.body, required this.time, required this.icon, this.isNew = false});
-}
+import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
+import 'package:clair/features/notifications/domain/entities/in_app_notification_entity.dart';
+import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
+import 'package:clair/l10n/app_localizations.dart';
 
 /// Standalone page with back button (for /notifications route)
-class NotificationFullScreen extends StatelessWidget {
+class NotificationFullScreen extends ConsumerStatefulWidget {
   const NotificationFullScreen({super.key});
+
+  @override
+  ConsumerState<NotificationFullScreen> createState() =>
+      _NotificationFullScreenState();
+}
+
+class _NotificationFullScreenState extends ConsumerState<NotificationFullScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(
+      () => ref.read(notificationInboxProvider.notifier).refresh(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
     return Scaffold(
       backgroundColor: cl.bg,
-      body: SafeArea(child: _NotificationBody(onBack: () => Navigator.pop(context))),
+      body: SafeArea(
+        child: _NotificationBody(
+          onBack: () => Navigator.pop(context),
+        ),
+      ),
     );
   }
 }
 
-class _NotificationBody extends StatelessWidget {
-  final VoidCallback? onBack;
+class _NotificationBody extends ConsumerWidget {
   const _NotificationBody({this.onBack});
 
-  static const _today = [
-    _Notif(title: 'Case Update', body: 'Your land dispute case has a new document attached.', time: '2h ago', icon: Icons.description_outlined, isNew: true),
-    _Notif(title: 'Appointment Reminder', body: 'You have an appointment with Atty. Santos tomorrow at 2:00 PM.', time: '4h ago', icon: Icons.calendar_today_outlined, isNew: true),
-  ];
+  final VoidCallback? onBack;
 
-  static const _earlier = [
-    _Notif(title: 'New Feature', body: 'Legal dictionary is now available. Check it out!', time: 'Yesterday', icon: Icons.menu_book_outlined),
-    _Notif(title: 'Lawyer Response', body: 'Atty. Reyes has responded to your inquiry.', time: '2 days ago', icon: Icons.person_outline_rounded),
-    _Notif(title: 'Welcome to CLAiR', body: 'Thanks for joining. Start by asking a legal question.', time: '1 week ago', icon: Icons.waving_hand_outlined),
-  ];
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
+    final inbox = ref.watch(notificationInboxProvider);
+
+    ref.listen<NotificationInboxState>(notificationInboxProvider, (prev, next) {
+      if (next.error != null && prev?.error == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.error!),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+        ref.read(notificationInboxProvider.notifier).clearError();
+      }
+    });
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [cl.surface, cl.bg],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+            child: Row(
+              children: [
+                if (onBack != null)
+                  IconButton(
+                    onPressed: onBack,
+                    icon: Icon(Icons.arrow_back_rounded, color: cl.textDark),
+                  ),
+                Expanded(
+                  child: Text(
+                    l10n.notifications,
+                    style: GoogleFonts.nunito(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: cl.textDark,
+                    ),
+                  ),
+                ),
+                if (inbox.unreadCount > 0)
+                  TextButton(
+                    onPressed: inbox.isLoading
+                        ? null
+                        : () => ref
+                            .read(notificationInboxProvider.notifier)
+                            .markAllRead(),
+                    child: Text(
+                      l10n.notifMarkAllRead,
+                      style: GoogleFonts.nunito(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: cl.accent,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: inbox.isLoading && inbox.notifications.isEmpty
+                ? Center(
+                    child: CircularProgressIndicator(color: cl.accent),
+                  )
+                : RefreshIndicator(
+                    color: cl.accent,
+                    onRefresh: () =>
+                        ref.read(notificationInboxProvider.notifier).refresh(),
+                    child: inbox.notifications.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              SizedBox(
+                                height: MediaQuery.sizeOf(context).height * 0.35,
+                              ),
+                              Center(
+                                child: Text(
+                                  l10n.notifEmpty,
+                                  style: GoogleFonts.nunito(
+                                    fontSize: 15,
+                                    color: cl.textMid,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : ListView.separated(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                            itemCount: inbox.notifications.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, i) {
+                              final n = inbox.notifications[i];
+                              return _NotificationTile(
+                                notification: n,
+                                onTap: () => _onTapNotification(context, ref, n),
+                              );
+                            },
+                          ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _onTapNotification(
+    BuildContext context,
+    WidgetRef ref,
+    InAppNotificationEntity n,
+  ) async {
+    await ref.read(notificationInboxProvider.notifier).markRead(n.id);
+    if (!context.mounted) return;
+
+    final apptId = n.appointmentId;
+    if (apptId != null &&
+        (n.notificationType == 'appointment_accepted' ||
+            n.notificationType == 'appointment_rejected')) {
+      ref.read(pendingAppointmentDetailIdProvider.notifier).state = apptId;
+      ref.read(mainShellTabProvider.notifier).state = 4;
+      Navigator.of(context).pop();
+      await ref.read(appointmentProvider.notifier).loadAppointments(force: true);
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+}
+
+class _NotificationTile extends StatelessWidget {
+  const _NotificationTile({
+    required this.notification,
+    required this.onTap,
+  });
+
+  final InAppNotificationEntity notification;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-            colors: [cl.surface, cl.bg]),
-      ),
-      child: SingleChildScrollView(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 20, 0),
-            child: Row(children: [
-              if (onBack != null)
-                GestureDetector(onTap: onBack,
-                    child: Icon(Icons.arrow_back_rounded, color: cl.textDark, size: 22)),
-              if (onBack != null) const SizedBox(width: 12),
-              Text('Notifications', style: GoogleFonts.nunito(fontSize: 24, fontWeight: FontWeight.w800, color: cl.textDark)),
-              const Spacer(),
-            ]),
-          ),
-          const SizedBox(height: 20),
-          _sectionLabel(context, 'Today'),
-          ..._today.map((n) => _tile(context, n)),
-          const SizedBox(height: 16),
-          _sectionLabel(context, 'Earlier'),
-          ..._earlier.map((n) => _tile(context, n)),
-          const SizedBox(height: 32),
-        ]),
-      ),
-    );
-  }
+    final unread = !notification.isRead;
+    final icon = switch (notification.notificationType) {
+      'appointment_accepted' => Icons.check_circle_outline_rounded,
+      'appointment_rejected' => Icons.cancel_outlined,
+      _ => Icons.notifications_none_rounded,
+    };
 
-  Widget _sectionLabel(BuildContext context, String s) {
-    final cl = context.c;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-      child: Text(s, style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700, color: cl.textMid)),
-    );
-  }
-
-  Widget _tile(BuildContext context, _Notif n) {
-    final cl = context.c;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: n.isNew ? cl.surface : cl.fieldBg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: n.isNew ? cl.accent.withValues(alpha: 0.2) : cl.border),
-          boxShadow: n.isNew ? [BoxShadow(color: cl.cardShadow, blurRadius: 8, offset: const Offset(0, 2))] : [],
-        ),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(
-            width: 38, height: 38,
-            decoration: BoxDecoration(
-              color: n.isNew ? cl.accent.withValues(alpha: 0.1) : cl.border.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(12),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: unread ? cl.surface : cl.fieldBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: unread
+                  ? cl.accent.withValues(alpha: 0.22)
+                  : cl.border,
             ),
-            child: Icon(n.icon, size: 18, color: n.isNew ? cl.accent : cl.textMid),
+            boxShadow: unread
+                ? [
+                    BoxShadow(
+                      color: cl.cardShadow,
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
           ),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Expanded(child: Text(n.title, style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700, color: cl.textDark))),
-              if (n.isNew) Container(width: 7, height: 7,
-                  decoration: BoxDecoration(color: cl.accent, shape: BoxShape.circle)),
-            ]),
-            const SizedBox(height: 3),
-            Text(n.body, style: GoogleFonts.nunito(fontSize: 12, color: cl.textMid, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 4),
-            Text(n.time, style: GoogleFonts.nunito(fontSize: 11, color: cl.textLight)),
-          ])),
-        ]),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: unread
+                      ? cl.accent.withValues(alpha: 0.1)
+                      : cl.border.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  size: 20,
+                  color: unread ? cl.accent : cl.textMid,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            notification.title,
+                            style: GoogleFonts.nunito(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: cl.textDark,
+                            ),
+                          ),
+                        ),
+                        if (unread)
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade600,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (notification.body != null &&
+                        notification.body!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        notification.body!.trim(),
+                        style: GoogleFonts.nunito(
+                          fontSize: 12.5,
+                          color: cl.textMid,
+                          height: 1.4,
+                        ),
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatTime(notification.createdAt),
+                      style: GoogleFonts.nunito(
+                        fontSize: 11,
+                        color: cl.textLight,
+                      ),
+                    ),
+                    if (notification.appointmentId != null &&
+                        (notification.notificationType ==
+                                'appointment_accepted' ||
+                            notification.notificationType ==
+                                'appointment_rejected')) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Tap to view appointment',
+                        style: GoogleFonts.nunito(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: cl.accent,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
+  }
+
+  static String _formatTime(DateTime dt) {
+    final local = dt.toLocal();
+    final now = DateTime.now();
+    final diff = now.difference(local);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return DateFormat('MMM d, y').format(local);
   }
 }

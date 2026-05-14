@@ -257,7 +257,7 @@ export function AppointmentsPage() {
           {cancelled.length > 0 && (
             <section>
               <button onClick={() => setCancelledCollapsed((v) => !v)} className="flex w-full items-center gap-2 mb-3 group">
-                <h2 className="text-sm font-bold text-[#241715]">Rejected</h2>
+                <h2 className="text-sm font-bold text-[#241715]">Cancelled / declined</h2>
                 <span className="rounded-full bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5">{cancelled.length}</span>
                 <span className="ml-auto text-gray-400 group-hover:text-gray-600">
                   {cancelledCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}

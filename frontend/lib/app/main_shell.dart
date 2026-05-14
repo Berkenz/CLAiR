@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/features/home/presentation/screens/home_screen.dart';
 import 'package:clair/features/chat/presentation/screens/chat_screen.dart';
 import 'package:clair/features/library/presentation/screens/library_screen.dart';
 import 'package:clair/features/lawyer/presentation/screens/lawyer_screen.dart';
 import 'package:clair/features/appointments/presentation/screens/appointment_screen.dart';
 import 'package:clair/app/main_shell_tab.dart';
+import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
 import 'package:clair/shared/widgets/app_drawer.dart';
 
 class MainShell extends ConsumerStatefulWidget {
@@ -18,7 +20,6 @@ class MainShell extends ConsumerStatefulWidget {
 }
 
 class _MainShellState extends ConsumerState<MainShell> {
-  static const _labels = ['Home', 'Chat', 'Library', 'Lawyers', 'Appointments'];
   static const _icons = [
     Icons.home_outlined,
     Icons.chat_bubble_outline_rounded,
@@ -35,9 +36,31 @@ class _MainShellState extends ConsumerState<MainShell> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(notificationInboxProvider.notifier).refresh();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
+    final navLabels = [
+      l10n.navHome,
+      l10n.navChat,
+      l10n.navLibrary,
+      l10n.navLawyers,
+      l10n.navAppointments,
+    ];
     final currentIndex = ref.watch(mainShellTabProvider);
+
+    ref.listen<int>(mainShellTabProvider, (prev, next) {
+      if (next == 4 && prev != next) {
+        ref.read(notificationInboxProvider.notifier).refresh();
+      }
+    });
 
     return Scaffold(
       backgroundColor: cl.bg,
@@ -58,11 +81,11 @@ class _MainShellState extends ConsumerState<MainShell> {
           ),
         ),
       ),
-      bottomNavigationBar: _buildNav(context, currentIndex),
+      bottomNavigationBar: _buildNav(context, currentIndex, navLabels),
     );
   }
 
-  Widget _buildNav(BuildContext context, int currentIndex) {
+  Widget _buildNav(BuildContext context, int currentIndex, List<String> labels) {
     final cl = context.c;
     final bottom = MediaQuery.of(context).viewPadding.bottom;
     return Container(
@@ -81,16 +104,52 @@ class _MainShellState extends ConsumerState<MainShell> {
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children:
-              List.generate(_labels.length, (i) => _navItem(i, currentIndex)),
+          children: List.generate(
+            labels.length,
+            (i) => _navItem(
+              i,
+              currentIndex,
+              labels,
+              ref.watch(notificationInboxProvider).unreadCount,
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _navItem(int i, int currentIndex) {
+  Widget _navItem(int i, int currentIndex, List<String> labels, int unreadCount) {
     final cl = context.c;
     final active = currentIndex == i;
+    final showDot = unreadCount > 0 && (i == 0 || i == 4);
+
+    Widget iconWidget = Icon(
+      active ? _activeIcons[i] : _icons[i],
+      size: 24,
+      color: active ? cl.accent : cl.textLight,
+    );
+    if (showDot) {
+      iconWidget = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          iconWidget,
+          Positioned(
+            right: -2,
+            top: -2,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: Colors.red.shade600,
+                shape: BoxShape.circle,
+                border: Border.all(color: cl.surface, width: 1.2),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return GestureDetector(
       onTap: () => ref.read(mainShellTabProvider.notifier).state = i,
       behavior: HitTestBehavior.opaque,
@@ -105,15 +164,11 @@ class _MainShellState extends ConsumerState<MainShell> {
           borderRadius: BorderRadius.circular(24),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(
-            active ? _activeIcons[i] : _icons[i],
-            size: 24,
-            color: active ? cl.accent : cl.textLight,
-          ),
+          iconWidget,
           if (active) ...[
             const SizedBox(width: 6),
             Text(
-              _labels[i],
+              labels[i],
               style: GoogleFonts.nunito(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,

@@ -14,6 +14,7 @@ import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/history/domain/entities/conversation_entity.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
 import 'package:clair/features/lawyer/presentation/providers/lawyer_sharing_provider.dart';
+import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
@@ -81,6 +82,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   Widget _buildBody(HistoryState state) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
+
     if (state.isLoading && state.conversations.isEmpty) {
       return Center(
         child: CircularProgressIndicator(color: cl.darkBrown),
@@ -88,7 +91,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     }
 
     if (state.conversations.isEmpty) {
-      return _buildEmptyState();
+      return _buildEmptyState(l10n);
     }
 
     final sorted = state.conversations.toList()
@@ -103,18 +106,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         itemCount: sorted.length,
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, index) =>
-            _buildConversationCard(sorted[index]),
+            _buildConversationCard(sorted[index], l10n),
       ),
     );
   }
 
-  Widget _buildConversationCard(ConversationEntity conversation) {
+  Widget _buildConversationCard(ConversationEntity conversation, AppLocalizations l10n) {
     final cl = context.c;
     final chatDate = conversation.updatedAt ?? conversation.createdAt;
     final dateTimeStr = _formatDateTime(chatDate);
     final lastMessagePreview = conversation.lastMessage?.trim().isNotEmpty == true
       ? conversation.lastMessage!.trim()
-      : 'Tap to open conversation';
+      : l10n.histTapToOpen;
 
     return GestureDetector(
       onTap: () => _openConversation(conversation),
@@ -227,7 +230,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        conversation.isPinned ? 'Unsave' : 'Save',
+                        conversation.isPinned ? l10n.convUnsave : l10n.convSave,
                         style: TextStyle(
                           fontFamily: 'Satoshi',
                           color: cl.darkBrown,
@@ -247,7 +250,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        'Rename',
+                        l10n.convRename,
                         style: TextStyle(
                           fontFamily: 'Satoshi',
                           color: cl.darkBrown,
@@ -267,7 +270,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        'Share to Lawyer',
+                        l10n.convShareToLawyer,
                         style: TextStyle(
                           fontFamily: 'Satoshi',
                           color: cl.darkBrown,
@@ -287,7 +290,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        'Download',
+                        l10n.convDownload,
                         style: TextStyle(
                           fontFamily: 'Satoshi',
                           color: cl.darkBrown,
@@ -307,7 +310,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        'Delete',
+                        l10n.convDelete,
                         style: TextStyle(
                           fontFamily: 'Satoshi',
                           color: Colors.red.shade700,
@@ -329,11 +332,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final controller = TextEditingController(text: conversation.title);
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) {
+        final dl = AppLocalizations.of(ctx)!;
+        return AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Rename conversation',
-          style: TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w600),
+        title: Text(
+          dl.histRenameDialogTitle,
+          style: const TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w600),
         ),
         content: TextField(
           controller: controller,
@@ -341,7 +346,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           maxLength: 200,
           style: const TextStyle(fontFamily: 'Satoshi'),
           decoration: InputDecoration(
-            hintText: 'Enter new title',
+            hintText: dl.histRenameHint,
             hintStyle: TextStyle(
               fontFamily: 'Satoshi',
               color: cl.darkBrown.withOpacity(0.4),
@@ -358,7 +363,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
+            child: Text(dl.commonCancel,
                 style: TextStyle(color: cl.darkBrown, fontFamily: 'Satoshi')),
           ),
           TextButton(
@@ -370,14 +375,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               }
               Navigator.pop(ctx);
             },
-            child: Text('Rename',
+            child: Text(dl.histRenameButton,
                 style: TextStyle(
                     color: cl.darkBrown,
                     fontWeight: FontWeight.w600,
                     fontFamily: 'Satoshi')),
           ),
         ],
-      ),
+      );
+      },
     );
   }
 
@@ -385,20 +391,22 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final cl = context.c;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) {
+        final dl = AppLocalizations.of(ctx)!;
+        return AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Delete conversation?',
-          style: TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w600),
+        title: Text(
+          dl.histDeleteTitle,
+          style: const TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w600),
         ),
-        content: const Text(
-          'This will permanently delete this conversation and all its messages.',
-          style: TextStyle(fontFamily: 'Satoshi'),
+        content: Text(
+          dl.histDeleteBody,
+          style: const TextStyle(fontFamily: 'Satoshi'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
+            child: Text(dl.commonCancel,
                 style: TextStyle(color: cl.darkBrown)),
           ),
           TextButton(
@@ -406,11 +414,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               Navigator.pop(ctx);
               _deleteConversation(conversation.id);
             },
-            child: Text('Delete',
+            child: Text(dl.commonDelete,
                 style: TextStyle(color: Colors.red.shade700)),
           ),
         ],
-      ),
+      );
+      },
     );
   }
 
@@ -426,9 +435,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   Future<void> _downloadConversation(ConversationEntity conversation) async {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Generating PDF...'),
+        content: Text(l10n.histGeneratingPdf),
         backgroundColor: cl.darkBrown,
         duration: const Duration(seconds: 10),
       ),
@@ -462,14 +472,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to download: $e'),
+          content: Text(l10n.histDownloadFailed(e.toString())),
           backgroundColor: Colors.red.shade700,
         ),
       );
     }
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(AppLocalizations l10n) {
     final cl = context.c;
     return Center(
       child: Column(
@@ -482,7 +492,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No conversations yet',
+            l10n.histEmptyTitle,
             style: TextStyle(
               fontSize: 16,
               color: cl.darkBrown.withOpacity(0.4),
@@ -492,7 +502,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Start a chat and your conversations will appear here',
+            l10n.histEmptySubtitle,
             style: TextStyle(
               fontSize: 13,
               color: cl.darkBrown.withOpacity(0.3),

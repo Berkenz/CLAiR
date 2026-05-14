@@ -11,8 +11,11 @@ from app.models.conversation import Conversation
 from app.models.lawyer_profile import LawyerProfile
 from app.models.user import User
 from app.schemas.appointment import (
+    CLIENT_APPOINTMENT_CANCEL_REASONS,
+    CLIENT_CANCEL_REASON_STORAGE_PREFIX,
     AppointmentBookRequest,
     AppointmentCreateRequest,
+    AppointmentClientCancelRequest,
     AppointmentUpdateRequest,
 )
 from app.services.appointment_legacy import migrate_legacy_appointment_if_needed
@@ -20,6 +23,17 @@ from app.services.storage_service import delete_storage_object
 
 
 class AppointmentService:
+    async def reload_appointment_for_response(
+        self, db: AsyncSession, appointment_id: uuid.UUID
+    ) -> Appointment:
+        """Reload row with lawyer_profile eager-loaded (required for AppointmentResponse serialization)."""
+        result = await db.execute(
+            select(Appointment)
+            .where(Appointment.id == appointment_id)
+            .options(selectinload(Appointment.lawyer_profile))
+        )
+        return result.scalar_one()
+
     async def _persist_legacy_split_if_needed(
         self, db: AsyncSession, appt: Appointment | None
     ) -> None:
@@ -70,7 +84,7 @@ class AppointmentService:
         db.add(appt)
         await db.flush()
         await db.refresh(appt)
-        return appt
+        return await self.reload_appointment_for_response(db, appt.id)
 
     async def get_lawyer_appointments(
         self,
@@ -79,8 +93,10 @@ class AppointmentService:
         filter_date: date | None = None,
     ) -> list[Appointment]:
         """Return all appointments for a lawyer, optionally filtered by date."""
-        query = select(Appointment).where(
-            Appointment.lawyer_profile_id == lawyer_profile_id
+        query = (
+            select(Appointment)
+            .where(Appointment.lawyer_profile_id == lawyer_profile_id)
+            .options(selectinload(Appointment.lawyer_profile))
         )
         if filter_date is not None:
             query = query.where(Appointment.appointment_date == filter_date)
@@ -120,7 +136,9 @@ class AppointmentService:
         self, db: AsyncSession, appointment_id: uuid.UUID
     ) -> Appointment | None:
         result = await db.execute(
-            select(Appointment).where(Appointment.id == appointment_id)
+            select(Appointment)
+            .where(Appointment.id == appointment_id)
+            .options(selectinload(Appointment.lawyer_profile))
         )
         return result.scalar_one_or_none()
 
@@ -147,7 +165,7 @@ class AppointmentService:
         db.add(appt)
         await db.flush()
         await db.refresh(appt)
-        return appt
+        return await self.reload_appointment_for_response(db, appt.id)
 
     async def update_appointment(
         self,
@@ -172,7 +190,7 @@ class AppointmentService:
             appt.status = data.status
         await db.flush()
         await db.refresh(appt)
-        return appt
+        return await self.reload_appointment_for_response(db, appt.id)
 
     async def accept_appointment(
         self, db: AsyncSession, appt: Appointment
@@ -182,7 +200,7 @@ class AppointmentService:
         await db.flush()
         await db.refresh(appt)
         await self._persist_legacy_split_if_needed(db, appt)
-        return appt
+        return await self.reload_appointment_for_response(db, appt.id)
 
     async def reject_appointment(
         self, db: AsyncSession, appt: Appointment, reason: str
@@ -192,7 +210,45 @@ class AppointmentService:
         await db.flush()
         await db.refresh(appt)
         await self._persist_legacy_split_if_needed(db, appt)
-        return appt
+        return await self.reload_appointment_for_response(db, appt.id)
+
+    def _format_client_cancellation_text(self, body: AppointmentClientCancelRequest) -> str:
+        label = CLIENT_APPOINTMENT_CANCEL_REASONS[body.reason]
+        prefix = CLIENT_CANCEL_REASON_STORAGE_PREFIX
+        if body.reason == "other" and body.other_details:
+            return f"{prefix} {label} — {body.other_details.strip()}"
+        return f"{prefix} {label}"
+
+    async def cancel_appointment_by_client(
+        self,
+        db: AsyncSession,
+        client_user_id: uuid.UUID,
+        appointment_id: uuid.UUID,
+        body: AppointmentClientCancelRequest,
+    ) -> Appointment:
+        """Soft-cancel: status cancelled + reason visible to the lawyer."""
+        appt = await self.get_appointment_by_id(db, appointment_id)
+        if appt is None or appt.client_user_id != client_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Appointment not found",
+            )
+        if appt.status == "cancelled":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This appointment is already cancelled",
+            )
+        if appt.status not in ("pending", "confirmed"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This appointment cannot be cancelled",
+            )
+        appt.status = "cancelled"
+        appt.rejection_reason = self._format_client_cancellation_text(body)
+        await db.flush()
+        await db.refresh(appt)
+        await self._persist_legacy_split_if_needed(db, appt)
+        return await self.reload_appointment_for_response(db, appt.id)
 
     async def delete_appointment(
         self, db: AsyncSession, appt: Appointment

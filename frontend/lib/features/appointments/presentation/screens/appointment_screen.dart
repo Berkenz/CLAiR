@@ -8,8 +8,13 @@ import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/appointments/domain/entities/appointment_entity.dart';
 import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
 import 'package:clair/features/appointments/presentation/screens/appointment_detail_screen.dart';
+import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
+
+enum _AppointmentListFilter { all, pending, confirmed, cancelled }
+
+enum _AppointmentListSort { dateNewest, dateOldest }
 
 class AppointmentTabScreen extends ConsumerStatefulWidget {
   const AppointmentTabScreen({super.key});
@@ -21,6 +26,9 @@ class AppointmentTabScreen extends ConsumerStatefulWidget {
 
 class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
   static const int _tabIndex = 4;
+
+  _AppointmentListFilter _filter = _AppointmentListFilter.all;
+  _AppointmentListSort _sort = _AppointmentListSort.dateNewest;
 
   @override
   void initState() {
@@ -47,6 +55,46 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
         );
         ref.read(appointmentProvider.notifier).clearError();
       }
+
+      final pending = ref.read(pendingAppointmentDetailIdProvider);
+      if (pending == null || next.isLoading) return;
+
+      AppointmentEntity? found;
+      for (final a in next.appointments) {
+        if (a.id == pending) {
+          found = a;
+          break;
+        }
+      }
+      ref.read(pendingAppointmentDetailIdProvider.notifier).state = null;
+      if (found != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Navigator.of(context)
+              .push<bool>(
+            MaterialPageRoute(
+              builder: (_) => AppointmentDetailScreen(appointment: found!),
+            ),
+          )
+              .then((changed) {
+            if (changed == true && mounted) {
+              ref
+                  .read(appointmentProvider.notifier)
+                  .loadAppointments(force: true);
+            }
+          });
+        });
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.apptNotFoundSnackbar),
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+        });
+      }
     });
 
     final state = ref.watch(appointmentProvider);
@@ -54,12 +102,38 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
     return Column(
       children: [
         const ClairAppBar(),
-        Expanded(child: _buildBody(state)),
+        Expanded(child: _buildBody(state, AppLocalizations.of(context)!)),
       ],
     );
   }
 
-  Widget _buildBody(AppointmentState state) {
+  List<AppointmentEntity> _applyFilter(List<AppointmentEntity> list) {
+    switch (_filter) {
+      case _AppointmentListFilter.all:
+        return List<AppointmentEntity>.of(list);
+      case _AppointmentListFilter.pending:
+        return list.where((a) => a.status == 'pending').toList();
+      case _AppointmentListFilter.confirmed:
+        return list.where((a) => a.status == 'confirmed').toList();
+      case _AppointmentListFilter.cancelled:
+        return list.where((a) => a.status == 'cancelled').toList();
+    }
+  }
+
+  void _applySort(List<AppointmentEntity> list) {
+    int dateTimeCmp(AppointmentEntity a, AppointmentEntity b) {
+      final d = a.appointmentDate.compareTo(b.appointmentDate);
+      if (d != 0) return d;
+      return a.appointmentTime.compareTo(b.appointmentTime);
+    }
+
+    list.sort((a, b) {
+      final c = dateTimeCmp(a, b);
+      return _sort == _AppointmentListSort.dateOldest ? c : -c;
+    });
+  }
+
+  Widget _buildBody(AppointmentState state, AppLocalizations l10n) {
     final cl = context.c;
 
     if (state.isLoading && state.appointments.isEmpty) {
@@ -68,26 +142,27 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
       );
     }
 
-    final all = state.appointments;
+    final raw = state.appointments;
 
-    if (all.isEmpty) {
-      return _buildEmptyState();
+    if (raw.isEmpty) {
+      return _buildEmptyState(l10n);
     }
 
-    // Group appointments
-    final active = all
-        .where((a) => a.status == 'confirmed' || a.status == 'pending')
-        .toList();
-    final past = all.where((a) => a.status == 'cancelled').toList();
+    final filtered = _applyFilter(raw);
+    final sorted = List<AppointmentEntity>.of(filtered);
+    _applySort(sorted);
+
+    if (sorted.isEmpty) {
+      return _buildNoFilterMatches(cl, l10n);
+    }
 
     return RefreshIndicator(
       color: cl.accent,
       onRefresh: () =>
-          ref.read(appointmentProvider.notifier).loadAppointments(),
+          ref.read(appointmentProvider.notifier).loadAppointments(force: true),
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
-          // Header
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
@@ -95,7 +170,7 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'My Appointments',
+                    l10n.apptMyTitle,
                     style: GoogleFonts.nunito(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
@@ -104,7 +179,7 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${all.length} appointment${all.length == 1 ? '' : 's'} total',
+                    l10n.apptTotalCount(raw.length),
                     style: GoogleFonts.nunito(
                       fontSize: 13,
                       color: cl.textMid,
@@ -114,28 +189,14 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
               ),
             ),
           ),
-
-          if (active.isNotEmpty) ...[
-            _buildSectionHeader('Active & Pending', active.length),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (_, i) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _AppointmentCard(
-                      appointment: active[i],
-                      onTap: () => _openDetail(active[i]),
-                    ),
-                  ),
-                  childCount: active.length,
-                ),
-              ),
+          SliverToBoxAdapter(child: _buildFilterSortRow(cl, l10n)),
+          if (_filter == _AppointmentListFilter.all) ...[
+            ..._buildGroupedAppointmentSlivers(cl, sorted, l10n),
+          ] else ...[
+            _buildSectionHeader(
+              _filterSectionTitle(l10n),
+              sorted.length,
             ),
-          ],
-
-          if (past.isNotEmpty) ...[
-            _buildSectionHeader('Past / Rejected', past.length),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
               sliver: SliverList(
@@ -143,19 +204,244 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
                   (_, i) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: _AppointmentCard(
-                      appointment: past[i],
-                      onTap: () => _openDetail(past[i]),
-                      muted: true,
+                      appointment: sorted[i],
+                      onTap: () => _openDetail(sorted[i]),
+                      muted: sorted[i].status == 'cancelled',
                     ),
                   ),
-                  childCount: past.length,
+                  childCount: sorted.length,
                 ),
               ),
             ),
           ],
-
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
+      ),
+    );
+  }
+
+  String _filterSectionTitle(AppLocalizations l10n) {
+    return switch (_filter) {
+      _AppointmentListFilter.pending => l10n.apptFilterPending,
+      _AppointmentListFilter.confirmed => l10n.apptFilterAccepted,
+      _AppointmentListFilter.cancelled => l10n.apptSectionCancelledOrDeclined,
+      _AppointmentListFilter.all => '',
+    };
+  }
+
+  List<Widget> _buildGroupedAppointmentSlivers(
+    AppColorTheme cl,
+    List<AppointmentEntity> sorted,
+    AppLocalizations l10n,
+  ) {
+    final active = sorted
+        .where((a) => a.status == 'confirmed' || a.status == 'pending')
+        .toList();
+    final past = sorted.where((a) => a.status == 'cancelled').toList();
+
+    return [
+      if (active.isNotEmpty) ...[
+        _buildSectionHeader(l10n.apptSectionActivePending, active.length),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (_, i) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _AppointmentCard(
+                  appointment: active[i],
+                  onTap: () => _openDetail(active[i]),
+                ),
+              ),
+              childCount: active.length,
+            ),
+          ),
+        ),
+      ],
+      if (past.isNotEmpty) ...[
+        _buildSectionHeader(l10n.apptSectionPastCancelled, past.length),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (_, i) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _AppointmentCard(
+                  appointment: past[i],
+                  onTap: () => _openDetail(past[i]),
+                  muted: true,
+                ),
+              ),
+              childCount: past.length,
+            ),
+          ),
+        ),
+      ],
+    ];
+  }
+
+  Widget _buildFilterSortRow(AppColorTheme cl, AppLocalizations l10n) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                FilterChip(
+                  label: Text(l10n.apptFilterAll, style: GoogleFonts.nunito(fontSize: 13)),
+                  selected: _filter == _AppointmentListFilter.all,
+                  onSelected: (_) =>
+                      setState(() => _filter = _AppointmentListFilter.all),
+                  selectedColor: cl.accent.withValues(alpha: 0.18),
+                  checkmarkColor: cl.accent,
+                  labelStyle: TextStyle(
+                    color: _filter == _AppointmentListFilter.all
+                        ? cl.textDark
+                        : cl.textMid,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  label: Text(l10n.apptFilterPending, style: GoogleFonts.nunito(fontSize: 13)),
+                  selected: _filter == _AppointmentListFilter.pending,
+                  onSelected: (_) =>
+                      setState(() => _filter = _AppointmentListFilter.pending),
+                  selectedColor: cl.accent.withValues(alpha: 0.18),
+                  checkmarkColor: cl.accent,
+                  labelStyle: TextStyle(
+                    color: _filter == _AppointmentListFilter.pending
+                        ? cl.textDark
+                        : cl.textMid,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  label: Text(l10n.apptFilterAccepted, style: GoogleFonts.nunito(fontSize: 13)),
+                  selected: _filter == _AppointmentListFilter.confirmed,
+                  onSelected: (_) => setState(
+                      () => _filter = _AppointmentListFilter.confirmed),
+                  selectedColor: cl.accent.withValues(alpha: 0.18),
+                  checkmarkColor: cl.accent,
+                  labelStyle: TextStyle(
+                    color: _filter == _AppointmentListFilter.confirmed
+                        ? cl.textDark
+                        : cl.textMid,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  label:
+                      Text(l10n.apptFilterCancelled, style: GoogleFonts.nunito(fontSize: 13)),
+                  selected: _filter == _AppointmentListFilter.cancelled,
+                  onSelected: (_) => setState(
+                      () => _filter = _AppointmentListFilter.cancelled),
+                  selectedColor: cl.accent.withValues(alpha: 0.18),
+                  checkmarkColor: cl.accent,
+                  labelStyle: TextStyle(
+                    color: _filter == _AppointmentListFilter.cancelled
+                        ? cl.textDark
+                        : cl.textMid,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: PopupMenuButton<_AppointmentListSort>(
+              onSelected: (v) => setState(() => _sort = v),
+              itemBuilder: (ctx) => [
+                PopupMenuItem(
+                  value: _AppointmentListSort.dateNewest,
+                  child: Text(
+                    l10n.apptSortNewestFirst,
+                    style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: _AppointmentListSort.dateOldest,
+                  child: Text(
+                    l10n.apptSortOldestFirst,
+                    style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: cl.fieldBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: cl.border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.sort_rounded, size: 18, color: cl.accent),
+                    const SizedBox(width: 6),
+                    Text(
+                      _sort == _AppointmentListSort.dateNewest
+                          ? l10n.apptSortChipNewest
+                          : l10n.apptSortChipOldest,
+                      style: GoogleFonts.nunito(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: cl.textDark,
+                      ),
+                    ),
+                    Icon(Icons.expand_more_rounded,
+                        color: cl.textMid, size: 20),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoFilterMatches(AppColorTheme cl, AppLocalizations l10n) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.filter_alt_off_rounded, size: 48, color: cl.textLight),
+            const SizedBox(height: 12),
+            Text(
+              l10n.apptNoFilterMatch,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.nunito(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: cl.textDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () =>
+                  setState(() => _filter = _AppointmentListFilter.all),
+              child: Text(
+                l10n.apptShowAll,
+                style: GoogleFonts.nunito(
+                  fontWeight: FontWeight.w700,
+                  color: cl.accent,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -197,15 +483,18 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
     );
   }
 
-  void _openDetail(AppointmentEntity appt) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
+  Future<void> _openDetail(AppointmentEntity appt) async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
         builder: (_) => AppointmentDetailScreen(appointment: appt),
       ),
     );
+    if (changed == true && mounted) {
+      await ref.read(appointmentProvider.notifier).loadAppointments(force: true);
+    }
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(AppLocalizations l10n) {
     final cl = context.c;
     return Center(
       child: Column(
@@ -226,7 +515,7 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No appointments yet',
+            l10n.apptEmptyTitle,
             style: GoogleFonts.nunito(
               fontSize: 17,
               fontWeight: FontWeight.w700,
@@ -235,7 +524,7 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Book a lawyer consultation and\ntrack your status here',
+            l10n.apptEmptySubtitle,
             textAlign: TextAlign.center,
             style: GoogleFonts.nunito(
               fontSize: 13,
@@ -265,6 +554,7 @@ class _AppointmentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     final statusColor = _statusColor(appointment.status);
     final date = DateFormat('MMM d, y').format(appointment.appointmentDate);
     final time = _to12Hour(appointment.appointmentTime);
@@ -341,7 +631,7 @@ class _AppointmentCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         _StatusPill(
-                          status: appointment.status,
+                          appointment: appointment,
                           muted: muted,
                         ),
                       ],
@@ -384,7 +674,7 @@ class _AppointmentCard extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'Chat',
+                                  l10n.apptCardChat,
                                   style: GoogleFonts.nunito(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
@@ -437,30 +727,38 @@ class _AppointmentCard extends StatelessWidget {
 // ── Status pill ───────────────────────────────────────────────────────────────
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.status, this.muted = false});
+  const _StatusPill({required this.appointment, this.muted = false});
 
-  final String status;
+  final AppointmentEntity appointment;
   final bool muted;
 
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
+    final status = appointment.status;
     final (Color bg, Color fg, String label) = switch (status) {
       'pending' => (
           const Color(0xFFFFF4DE),
           const Color(0xFFB26A00),
-          'Pending',
+          l10n.apptStatusPending,
         ),
       'confirmed' => (
           const Color(0xFFE9F9EE),
           const Color(0xFF1E7E34),
-          'Accepted',
+          l10n.apptStatusAccepted,
         ),
-      'cancelled' => (
-          const Color(0xFFFFEAEA),
-          const Color(0xFFB02A37),
-          'Rejected',
-        ),
+      'cancelled' => appointment.isClientCancellation
+          ? (
+              const Color(0xFFFFEAEA),
+              const Color(0xFFB02A37),
+              l10n.apptStatusCancelled,
+            )
+          : (
+              const Color(0xFFFFEAEA),
+              const Color(0xFFB02A37),
+              l10n.apptStatusDeclined,
+            ),
       _ => (cl.fieldBg, cl.textMid, status),
     };
 

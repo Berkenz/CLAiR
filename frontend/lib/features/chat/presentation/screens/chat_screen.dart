@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:clair/app/main_shell_tab.dart';
+import 'package:clair/core/locale/app_locale_provider.dart';
 import 'package:clair/core/services/location_service.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
@@ -20,6 +21,7 @@ import 'package:clair/features/chat/presentation/widgets/message_report_sheet.da
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 import 'package:clair/features/lawyer/presentation/providers/lawyer_sharing_provider.dart';
 import 'package:clair/features/lawyer/presentation/screens/lawyer_overview_screen.dart';
+import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/widgets/app_drawer.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -106,6 +108,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           final state = ref.watch(historyProvider);
           final currentId = ref.watch(chatProvider).conversationId;
           final cl = context.c;
+          final l10n = AppLocalizations.of(context)!;
 
           return Container(
             constraints: BoxConstraints(
@@ -134,7 +137,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Conversations',
+                        l10n.chatConversationsTitle,
                         style: GoogleFonts.nunito(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -160,7 +163,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                   size: 16, color: cl.accent),
                               const SizedBox(width: 4),
                               Text(
-                                'New Chat',
+                                l10n.chatNewChatButton,
                                 style: GoogleFonts.nunito(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
@@ -184,7 +187,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   Padding(
                     padding: const EdgeInsets.all(32),
                     child: Text(
-                      'No conversations yet',
+                      l10n.chatNoConversationsYet,
                       style: GoogleFonts.nunito(
                           fontSize: 14, color: cl.textLight),
                     ),
@@ -264,6 +267,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _showActionsMenu() {
     final chatState = ref.read(chatProvider);
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     final overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox;
     final padding = MediaQuery.of(context).padding;
@@ -286,14 +290,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           chatState.conversationIsPinned
               ? Icons.bookmark_rounded
               : Icons.bookmark_outline_rounded,
-          chatState.conversationIsPinned ? 'Unsave Chat' : 'Save Chat',
+          chatState.conversationIsPinned
+              ? l10n.chatMenuUnsaveChat
+              : l10n.chatMenuSaveChat,
           'save',
         ),
-        _popupItem(cl, Icons.share_outlined, 'Share', 'share'),
-        _popupItem(cl, Icons.download_rounded, 'Download as PDF', 'download'),
-        _popupItem(cl, Icons.flag_outlined, 'Report', 'report'),
+        _popupItem(cl, Icons.share_outlined, l10n.chatMenuShare, 'share'),
+        _popupItem(cl, Icons.download_rounded, l10n.chatMenuDownloadPdf, 'download'),
+        _popupItem(cl, Icons.flag_outlined, l10n.chatMenuReport, 'report'),
         _popupItem(
-            cl, Icons.balance_rounded, 'Share to Lawyer', 'lawyer'),
+            cl, Icons.balance_rounded, l10n.chatMenuShareToLawyer, 'lawyer'),
       ],
     ).then((value) {
       if (value == null || !mounted) return;
@@ -310,7 +316,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           final chatState = ref.read(chatProvider);
           ref.read(lawyerSharingProvider.notifier).state =
               ConversationSharingData(
-            title: chatState.conversationTitle ?? 'Current conversation',
+            title: chatState.conversationTitle ?? l10n.chatTitleCurrentConversation,
             conversationId: chatState.conversationId,
           );
           ref.read(mainShellTabProvider.notifier).state = 3;
@@ -353,9 +359,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> _generatePdf() async {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Generating PDF summary...'),
+        content: Text(l10n.chatPdfGeneratingSummary),
         backgroundColor: cl.textDark,
         duration: const Duration(seconds: 10),
       ),
@@ -384,7 +391,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to save PDF: $e'),
+          content: Text(l10n.chatPdfSaveFailed(e.toString())),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -436,6 +443,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatProvider);
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
+
+    ref.listen<Locale>(appLocaleProvider, (prev, next) {
+      ref.read(chatProvider.notifier).refreshStarterGreetingIfApplicable();
+    });
 
     ref.listen<int>(mainShellTabProvider, (prev, next) {
       final currentMessages = ref.read(chatProvider).messages;
@@ -460,7 +472,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             content: Text(next.error!),
             backgroundColor: Colors.red.shade700,
             action: SnackBarAction(
-              label: 'Dismiss',
+              label: l10n.chatDisclaimerDismiss,
               textColor: Colors.white,
               onPressed: () => ref.read(chatProvider.notifier).clearError(),
             ),
@@ -478,7 +490,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         child: Column(
           children: [
             ClairAppBar(
-              chatTitle: chatState.conversationTitle ?? 'New Chat',
+              chatTitle: chatState.conversationTitle ?? l10n.chatTitleNewChat,
               onTitleTap: _showConversationSwitcher,
               onNewChat: _newChat,
               onActionsTap: _showActionsMenu,
@@ -726,11 +738,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final enabled = message.ragEnabled;
     if (enabled == null) return const SizedBox.shrink();
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     if (!enabled) {
       return Padding(
         padding: const EdgeInsets.only(left: 42, top: 8),
         child: Text(
-          'Law library (RAG) not connected on server — answer may use general model knowledge only.',
+          l10n.chatRagDisconnectedBanner,
           style: GoogleFonts.nunito(fontSize: 11, color: Colors.orange.shade800),
         ),
       );
@@ -739,7 +752,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return Padding(
         padding: const EdgeInsets.only(left: 42, top: 8),
         child: Text(
-          'No law excerpts met the relevance threshold for this question.',
+          l10n.chatNoLawExcerpts,
           style: GoogleFonts.nunito(fontSize: 11, color: cl.textMid),
         ),
       );
@@ -762,7 +775,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 Icon(Icons.library_books_outlined, size: 16, color: cl.accent),
                 const SizedBox(width: 6),
                 Text(
-                  'Retrieved for this answer',
+                  l10n.chatRetrievedForAnswer,
                   style: GoogleFonts.nunito(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -774,14 +787,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             const SizedBox(height: 8),
             ...message.ragSources.map((RagSourceEntity s) {
               final pct = (s.similarity * 100).clamp(0, 100).toStringAsFixed(0);
-              final head = s.number?.trim().isNotEmpty == true ? s.number! : 'Source';
+              final head = s.number?.trim().isNotEmpty == true ? s.number! : l10n.chatSourceLabel;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '$head · $pct% match',
+                      l10n.chatMatchPercent(head, pct),
                       style: GoogleFonts.nunito(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -956,6 +969,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Widget _buildDisclaimer() {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -975,7 +989,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Start a new conversation to explore a different topic.',
+              l10n.chatEmptyExploreTopic,
               style: GoogleFonts.nunito(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
@@ -992,10 +1006,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     switch (action) {
       case 'copy':
         final cl = context.c;
+        final l10n = AppLocalizations.of(context)!;
         Clipboard.setData(ClipboardData(text: text));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Copied to clipboard'),
+            content: Text(l10n.chatCopiedClipboard),
             backgroundColor: cl.textDark,
             duration: const Duration(seconds: 2),
           ),
@@ -1032,10 +1047,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) {
+        final dl = AppLocalizations.of(ctx)!;
+        return AlertDialog(
         backgroundColor: cl.surface,
         title: Text(
-          'Edit Message',
+          dl.chatEditMessageTitle,
           style: GoogleFonts.nunito(
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -1048,7 +1065,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           minLines: 2,
           style: TextStyle(color: cl.textDark),
           decoration: InputDecoration(
-            hintText: 'Edit your message',
+            hintText: dl.chatEditMessageHint,
             hintStyle: TextStyle(color: cl.textLight),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -1066,9 +1083,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(ctx),
             child: Text(
-              'Cancel',
+              dl.commonCancel,
               style: GoogleFonts.nunito(
                 color: cl.textLight,
                 fontWeight: FontWeight.w600,
@@ -1093,11 +1110,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ref.read(chatProvider.notifier).reset();
                   _controller.text = editedText;
                 }
-                Navigator.pop(context);
+                Navigator.pop(ctx);
               }
             },
             child: Text(
-              'Save',
+              dl.commonSave,
               style: GoogleFonts.nunito(
                 color: cl.accent,
                 fontWeight: FontWeight.w700,
@@ -1105,7 +1122,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ),
         ],
-      ),
+      );
+      },
     );
   }
 
@@ -1144,6 +1162,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Widget _buildInputBar(bool isLoading) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     final bottomPad = MediaQuery.of(context).viewInsets.bottom;
     return AnimatedPadding(
       duration: const Duration(milliseconds: 150),
@@ -1187,7 +1206,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               required maxLength}) =>
                           null,
                       decoration: InputDecoration(
-                        hintText: 'Ask anything',
+                        hintText: l10n.chatComposerHint,
                         hintStyle: TextStyle(
                           color: cl.textLight,
                           fontFamily: 'Satoshi',
@@ -1315,6 +1334,7 @@ class _SuggestedLawyersList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1323,7 +1343,7 @@ class _SuggestedLawyersList extends StatelessWidget {
             Icon(Icons.people_alt_outlined, size: 13, color: cl.accent),
             const SizedBox(width: 5),
             Text(
-              'Lawyers near you',
+              l10n.chatLawyersNearYou,
               style: GoogleFonts.nunito(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
@@ -1356,6 +1376,7 @@ class _LawyerChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
@@ -1449,7 +1470,7 @@ class _LawyerChip extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  'View profile',
+                  l10n.lawyerViewProfile,
                   style: GoogleFonts.nunito(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,

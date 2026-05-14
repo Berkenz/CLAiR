@@ -41,8 +41,8 @@ class AppointmentNotifier extends StateNotifier<AppointmentState> {
 
   final AppointmentRemoteDataSource _dataSource;
 
-  Future<void> loadAppointments({String? date}) async {
-    if (state.isLoading) return;
+  Future<void> loadAppointments({String? date, bool force = false}) async {
+    if (state.isLoading && !force) return;
     state = state.copyWith(isLoading: true, error: null);
     try {
       final appointments = await _dataSource.getMyAppointments(date: date);
@@ -60,6 +60,18 @@ class AppointmentNotifier extends StateNotifier<AppointmentState> {
   }
 
   void clearError() => state = state.copyWith(error: null);
+
+  Future<void> cancelAppointment(
+    String appointmentId, {
+    required String reason,
+    String? otherDetails,
+  }) async {
+    await _dataSource.cancelAppointment(
+      appointmentId,
+      reason: reason,
+      otherDetails: otherDetails,
+    );
+  }
 }
 
 final appointmentProvider =
@@ -67,3 +79,6 @@ final appointmentProvider =
   final dataSource = ref.watch(appointmentDataSourceProvider);
   return AppointmentNotifier(dataSource);
 });
+
+/// Set when user opens an appointment from a notification; [AppointmentTabScreen] opens detail then clears.
+final pendingAppointmentDetailIdProvider = StateProvider<String?>((ref) => null);

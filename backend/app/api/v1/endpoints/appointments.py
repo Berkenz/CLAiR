@@ -28,13 +28,17 @@ from app.models.user import User
 from app.schemas.appointment import (
     APPOINTMENT_TYPES,
     AppointmentBookRequest,
+    AppointmentClientCancelRequest,
     AppointmentCreateRequest,
     AppointmentListResponse,
     AppointmentRejectRequest,
     AppointmentResponse,
     AppointmentUpdateRequest,
+    CLIENT_APPOINTMENT_CANCEL_REASONS,
+    CancellationReasonOption,
 )
 from app.services.appointment_service import appointment_service
+from app.services import notification_service
 from app.services.pdf_service import generate_consultation_pdf
 from app.services.storage_service import (
     delete_storage_object,
@@ -114,7 +118,7 @@ async def book_appointment(
         await db.refresh(appt)
 
     await appointment_service._persist_legacy_split_if_needed(db, appt)
-    return appt
+    return await appointment_service.reload_appointment_for_response(db, appt.id)
 
 
 @mobile_router.get("", response_model=AppointmentListResponse)
@@ -126,6 +130,46 @@ async def list_my_appointments(
     """Return the current mobile user's appointments, optionally filtered by date."""
     appts = await appointment_service.get_client_appointments(db, current_user.id, date)
     return AppointmentListResponse(appointments=appts)
+
+
+@mobile_router.get("/cancellation-reasons", response_model=list[CancellationReasonOption])
+async def list_cancellation_reasons(
+    _: Annotated[User, Depends(get_current_user)],
+):
+    """Fixed list of reasons the client may pick when cancelling an appointment."""
+    return [
+        CancellationReasonOption(id=k, label=v)
+        for k, v in CLIENT_APPOINTMENT_CANCEL_REASONS.items()
+    ]
+
+
+@mobile_router.post("/{appointment_id}/cancel", response_model=AppointmentResponse)
+async def cancel_my_appointment(
+    appointment_id: uuid.UUID,
+    body: AppointmentClientCancelRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Mobile client cancels their own pending or confirmed appointment (lawyer still sees it as cancelled)."""
+    updated = await appointment_service.cancel_appointment_by_client(
+        db, current_user.id, appointment_id, body
+    )
+    lawyer_profile = updated.lawyer_profile
+    if lawyer_profile is not None:
+        try:
+            client_label = (updated.client_name or "A client").strip()
+            case_label = ((updated.case_title or "").strip() or updated.appointment_type)
+            await notification_service.create_notification(
+                db,
+                user_id=lawyer_profile.user_id,
+                notification_type="appointment_cancelled_by_client",
+                title="Appointment cancelled",
+                body=f"{client_label} cancelled the appointment for {case_label}.",
+                payload={"appointment_id": str(updated.id)},
+            )
+        except Exception:
+            logger.exception("Failed to record lawyer notification for client cancellation")
+    return updated
 
 
 @mobile_router.get("/types", response_model=list[str])
@@ -194,7 +238,22 @@ async def accept_appointment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
     if appt.status != "pending":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only pending appointments can be accepted")
-    return await appointment_service.accept_appointment(db, appt)
+    updated = await appointment_service.accept_appointment(db, appt)
+    if updated.client_user_id:
+        try:
+            lawyer_name = (profile.display_name or "").strip() or "Your lawyer"
+            case_label = ((updated.case_title or "").strip() or updated.appointment_type)
+            await notification_service.create_notification(
+                db,
+                user_id=updated.client_user_id,
+                notification_type="appointment_accepted",
+                title="Appointment accepted",
+                body=f"{lawyer_name} accepted your appointment for {case_label}.",
+                payload={"appointment_id": str(updated.id)},
+            )
+        except Exception:
+            logger.exception("Failed to record client notification for appointment acceptance")
+    return updated
 
 
 @lawyer_router.post("/{appointment_id}/reject", response_model=AppointmentResponse)
@@ -211,7 +270,24 @@ async def reject_appointment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
     if appt.status != "pending":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only pending appointments can be rejected")
-    return await appointment_service.reject_appointment(db, appt, body.reason)
+    updated = await appointment_service.reject_appointment(db, appt, body.reason)
+    if updated.client_user_id:
+        try:
+            lawyer_name = (profile.display_name or "").strip() or "Your lawyer"
+            case_label = ((updated.case_title or "").strip() or updated.appointment_type)
+            reason = (body.reason or "").strip()
+            extra = f" Reason: {reason}" if reason else ""
+            await notification_service.create_notification(
+                db,
+                user_id=updated.client_user_id,
+                notification_type="appointment_rejected",
+                title="Appointment request declined",
+                body=f"{lawyer_name} declined your appointment request for {case_label}.{extra}",
+                payload={"appointment_id": str(updated.id)},
+            )
+        except Exception:
+            logger.exception("Failed to record client notification for appointment rejection")
+    return updated
 
 
 @lawyer_router.get("/{appointment_id}/pdf")

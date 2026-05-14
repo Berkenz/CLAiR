@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
+import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
 
 class ClairAppBar extends ConsumerWidget {
   final String? chatTitle;
@@ -26,6 +27,7 @@ class ClairAppBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
+    final inbox = ref.watch(notificationInboxProvider);
     final cl = context.c;
 
     return Container(
@@ -80,20 +82,43 @@ class ClairAppBar extends ConsumerWidget {
 
               if (showNotificationBell) ...[
                 GestureDetector(
-                  onTap: () => context.push('/notifications'),
-                  child: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: cl.bg,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: cl.border, width: 1.5),
-                    ),
-                    child: Icon(
-                      Icons.notifications_none_rounded,
-                      color: cl.textDark,
-                      size: 20,
-                    ),
+                  onTap: () {
+                    context.push('/notifications').then((_) {
+                      ref.read(notificationInboxProvider.notifier).refresh();
+                    });
+                  },
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: cl.bg,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: cl.border, width: 1.5),
+                        ),
+                        child: Icon(
+                          Icons.notifications_none_rounded,
+                          color: cl.textDark,
+                          size: 20,
+                        ),
+                      ),
+                      if (inbox.unreadCount > 0)
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade600,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: cl.surface, width: 1.5),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),

@@ -16,6 +16,7 @@ class ChatRepositoryImpl implements ChatRepository {
     String? conversationId,
     double? userLat,
     double? userLng,
+    String locale = 'en',
   }) =>
       _remote.sendMessage(
         message: message,
@@ -23,5 +24,6 @@ class ChatRepositoryImpl implements ChatRepository {
         conversationId: conversationId,
         userLat: userLat,
         userLng: userLng,
+        locale: locale,
       );
 }

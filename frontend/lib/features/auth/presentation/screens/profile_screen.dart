@@ -14,7 +14,9 @@ import 'package:clair/features/auth/presentation/screens/privacy_policy_screen.d
 import 'package:clair/features/auth/presentation/screens/report_screen.dart';
 import 'package:clair/features/auth/presentation/screens/help_center_screen.dart';
 import 'package:clair/features/auth/presentation/screens/terms_of_use_screen.dart';
+import 'package:clair/features/auth/presentation/screens/language_screen.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
+import 'package:clair/l10n/app_localizations.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -55,6 +57,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     final user = ref.watch(currentUserProvider);
     final name = user?.displayName ?? 'User';
     final parts = name.split(' ');
@@ -96,7 +99,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
               const Spacer(),
               Text(
-                'Settings',
+                l10n.settingsTitle,
                 style: GoogleFonts.nunito(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -168,7 +171,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  'Guest Account',
+                  l10n.guestAccount,
                   style: GoogleFonts.nunito(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -189,7 +192,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'Edit Profile',
+                    l10n.editProfile,
                     style: GoogleFonts.nunito(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -200,11 +203,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             const SizedBox(height: 28),
 
-            _section(context, 'Account', [
+            _section(context, l10n.sectionAccount, [
               _row(
                 context,
                 Icons.mail_outline_rounded,
-                'Email',
+                l10n.email,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const EmailScreen()),
@@ -213,13 +216,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               _row(
                 context,
                 Icons.notifications_outlined,
-                'Notifications',
+                l10n.notifications,
                 () => context.push('/notifications'),
               ),
               _row(
                 context,
                 Icons.lock_outline_rounded,
-                'Security',
+                l10n.security,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -230,11 +233,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ]),
             const SizedBox(height: 16),
 
-            _section(context, 'App', [
+            _section(context, l10n.sectionApp, [
               _row(
                 context,
                 Icons.palette_outlined,
-                'Appearance',
+                l10n.appearance,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -242,15 +245,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
               ),
-              _row(context, Icons.language_rounded, 'App Language', () {}),
+              _row(
+                context,
+                Icons.language_rounded,
+                l10n.appLanguage,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LanguageScreen()),
+                ),
+              ),
             ]),
             const SizedBox(height: 16),
 
-            _section(context, 'About', [
+            _section(context, l10n.sectionAbout, [
               _row(
                 context,
                 Icons.flag_outlined,
-                'Report',
+                l10n.report,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const ReportScreen()),
@@ -259,7 +270,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               _row(
                 context,
                 Icons.help_outline_rounded,
-                'Help Center',
+                l10n.helpCenter,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -269,7 +280,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               _row(
                 context,
                 Icons.description_outlined,
-                'Terms of Use',
+                l10n.termsOfUse,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const TermsOfUseScreen()),
@@ -278,7 +289,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               _row(
                 context,
                 Icons.privacy_tip_outlined,
-                'Privacy Policy',
+                l10n.privacyPolicy,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
@@ -294,11 +305,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   barrierDismissible: true,
                   builder: (ctx) {
                     final d = ctx.c;
+                    final dl = AppLocalizations.of(ctx)!;
                     return AlertDialog(
                       backgroundColor: d.surface,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                       title: Text(
-                        'Reset all settings?',
+                        dl.settingsResetDialogTitle,
                         style: GoogleFonts.nunito(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
@@ -306,8 +318,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ),
                       content: Text(
-                        'Appearance options (theme, accent, and font size) will '
-                        'return to their defaults.',
+                        dl.settingsResetDialogBody,
                         style: GoogleFonts.nunito(fontSize: 13, height: 1.45, color: d.textMid),
                       ),
                       actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
@@ -315,7 +326,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, false),
                           child: Text(
-                            'Cancel',
+                            dl.commonCancel,
                             style: GoogleFonts.nunito(
                               fontWeight: FontWeight.w700,
                               color: d.textMid,
@@ -325,7 +336,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, true),
                           child: Text(
-                            'Confirm',
+                            dl.commonConfirm,
                             style: GoogleFonts.nunito(
                               fontWeight: FontWeight.w800,
                               color: d.accent,
@@ -345,7 +356,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 messenger.showSnackBar(
                   SnackBar(
                     content: Text(
-                      'Settings reset to default.',
+                      l10n.settingsResetSnackbar,
                       style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
                     ),
                     behavior: SnackBarBehavior.floating,
@@ -363,7 +374,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    'Reset All to Default',
+                    l10n.resetAllToDefault,
                     style: GoogleFonts.nunito(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -394,7 +405,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    'Log Out',
+                    l10n.logOut,
                     style: GoogleFonts.nunito(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -454,7 +465,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                         )
                       : Text(
-                          'Delete Account',
+                          l10n.deleteAccount,
                           style: GoogleFonts.nunito(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,

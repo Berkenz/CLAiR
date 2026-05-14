@@ -8,6 +8,44 @@ class AppointmentRemoteDataSource {
 
   final Dio _dio;
 
+  Future<List<({String id, String label})>> getCancellationReasons() async {
+    try {
+      final response = await _dio.get<List<dynamic>>(
+        ApiEndpoints.appointmentCancellationReasons,
+      );
+      final raw = response.data;
+      if (raw == null) return [];
+      return raw.map((e) {
+        final m = Map<String, dynamic>.from(e as Map);
+        return (
+          id: '${m['id'] ?? ''}'.trim(),
+          label: '${m['label'] ?? ''}'.trim(),
+        );
+      }).where((r) => r.id.isNotEmpty && r.label.isNotEmpty).toList();
+    } on DioException catch (e) {
+      throw AppointmentException(_extractError(e));
+    }
+  }
+
+  Future<void> cancelAppointment(
+    String appointmentId, {
+    required String reason,
+    String? otherDetails,
+  }) async {
+    try {
+      await _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.appointmentCancel(appointmentId),
+        data: <String, dynamic>{
+          'reason': reason,
+          if (otherDetails != null && otherDetails.trim().isNotEmpty)
+            'other_details': otherDetails.trim(),
+        },
+      );
+    } on DioException catch (e) {
+      throw AppointmentException(_extractError(e));
+    }
+  }
+
   Future<List<AppointmentEntity>> getMyAppointments({String? date}) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(

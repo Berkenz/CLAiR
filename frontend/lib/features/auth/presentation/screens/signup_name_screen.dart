@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/screens/terms_of_use_screen.dart';
 import 'package:clair/features/auth/presentation/screens/privacy_policy_screen.dart';
+import 'package:clair/l10n/app_localizations.dart';
 
 /// First step of sign-up: collect first name and last name.
 /// Also used when a new Google user needs to provide their name and agree to T&C.
@@ -31,10 +32,11 @@ class _SignUpNameScreenState extends State<SignUpNameScreen> {
   }
 
   void _proceed() {
+    final l10n = AppLocalizations.of(context)!;
     if (!_formKey.currentState!.validate()) return;
 
     if (!_agreedToTerms) {
-      _showError('You must agree to the Terms of Use and Privacy Policy to continue');
+      _showError(l10n.signupTermsPrivacyRequired);
       return;
     }
 
@@ -69,6 +71,7 @@ class _SignUpNameScreenState extends State<SignUpNameScreen> {
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: cl.bg,
@@ -77,7 +80,7 @@ class _SignUpNameScreenState extends State<SignUpNameScreen> {
         elevation: 0,
         centerTitle: true,
         title: Text(
-          widget.isGoogleFlow ? 'Complete Your Profile' : 'Sign Up',
+          widget.isGoogleFlow ? l10n.signupCompleteProfileTitle : l10n.signupTitle,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -112,7 +115,7 @@ class _SignUpNameScreenState extends State<SignUpNameScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Almost there! Just add your name and agree to our terms to complete your Google sign-up.',
+                          l10n.signupGoogleNameBanner,
                           style: TextStyle(
                             fontSize: 13,
                             color: cl.textMid,
@@ -131,10 +134,10 @@ class _SignUpNameScreenState extends State<SignUpNameScreen> {
               _buildInputField(
                 context: context,
                 controller: _firstNameController,
-                label: 'First Name',
+                label: l10n.signupFirstNameLabel,
                 icon: Icons.person_outline,
                 validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'First name is required' : null,
+                    (v == null || v.trim().isEmpty) ? l10n.signupFirstNameRequired : null,
               ),
               const SizedBox(height: 16),
 
@@ -150,7 +153,7 @@ class _SignUpNameScreenState extends State<SignUpNameScreen> {
               const SizedBox(height: 24),
 
               // T&C Agreement
-              _buildTermsCheckbox(context, cl),
+              _buildTermsCheckbox(context, cl, l10n),
               const SizedBox(height: 24),
 
               // Proceed Button
@@ -181,7 +184,7 @@ class _SignUpNameScreenState extends State<SignUpNameScreen> {
                       onTap: _agreedToTerms ? _proceed : null,
                       child: Center(
                         child: Text(
-                          widget.isGoogleFlow ? 'Complete Sign Up' : 'Continue',
+                          widget.isGoogleFlow ? l10n.signupCompleteSignUpButton : l10n.signupContinueButton,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -203,7 +206,8 @@ class _SignUpNameScreenState extends State<SignUpNameScreen> {
     );
   }
 
-  Widget _buildTermsCheckbox(BuildContext context, AppColorTheme cl) {
+  Widget _buildTermsCheckbox(
+      BuildContext context, AppColorTheme cl, AppLocalizations l10n) {
     return GestureDetector(
       onTap: () => setState(() => _agreedToTerms = !_agreedToTerms),
       child: Container(
@@ -252,9 +256,9 @@ class _SignUpNameScreenState extends State<SignUpNameScreen> {
                     height: 1.5,
                   ),
                   children: [
-                    const TextSpan(text: 'I have read and agree to the CLAiR '),
+                    TextSpan(text: l10n.signupAgreementLead),
                     TextSpan(
-                      text: 'Terms of Use',
+                      text: l10n.termsOfUse,
                       style: TextStyle(
                         color: cl.accent,
                         fontWeight: FontWeight.w700,
@@ -270,9 +274,9 @@ class _SignUpNameScreenState extends State<SignUpNameScreen> {
                           );
                         },
                     ),
-                    const TextSpan(text: ' and '),
+                    TextSpan(text: l10n.signupAgreementMiddle),
                     TextSpan(
-                      text: 'Privacy Policy',
+                      text: l10n.privacyPolicy,
                       style: TextStyle(
                         color: cl.accent,
                         fontWeight: FontWeight.w700,
@@ -289,8 +293,7 @@ class _SignUpNameScreenState extends State<SignUpNameScreen> {
                         },
                     ),
                     TextSpan(
-                      text: '. I understand that CLAiR provides legal information only '
-                          'and does not constitute legal advice or create an attorney-client relationship.',
+                      text: l10n.signupAgreementTail,
                       style: TextStyle(color: cl.textMid),
                     ),
                   ],

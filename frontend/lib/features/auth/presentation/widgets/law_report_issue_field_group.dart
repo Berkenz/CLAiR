@@ -2,111 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
-
-/// A single report category option.
-class LawReportCategory {
-  const LawReportCategory({
-    required this.label,
-    required this.description,
-    required this.icon,
-  });
-  final String label;
-  final String description;
-  final IconData icon;
-}
-
-/// Law-focused categories — used for chat message reports and lawyer concern reports.
-const kLawReportCategories = <LawReportCategory>[
-  LawReportCategory(
-    label: 'Bad Legal Information',
-    description: 'The response contains factually incorrect laws, cases, or statutes.',
-    icon: Icons.gavel_rounded,
-  ),
-  LawReportCategory(
-    label: 'Outdated Law or Regulation',
-    description: 'The cited law has been amended, repealed, or superseded.',
-    icon: Icons.history_edu_rounded,
-  ),
-  LawReportCategory(
-    label: 'Misleading Interpretation',
-    description: 'Legal reasoning is skewed, incomplete, or taken out of context.',
-    icon: Icons.balance_rounded,
-  ),
-  LawReportCategory(
-    label: 'Wrong Jurisdiction',
-    description: 'Laws from a different country, state, or region were applied.',
-    icon: Icons.public_rounded,
-  ),
-  LawReportCategory(
-    label: 'Missing Legal Context',
-    description: 'Key exceptions, conditions, or legal nuances were omitted.',
-    icon: Icons.info_outline_rounded,
-  ),
-  LawReportCategory(
-    label: 'Potentially Harmful Advice',
-    description: 'Following this advice could cause legal harm or risk.',
-    icon: Icons.warning_amber_rounded,
-  ),
-  LawReportCategory(
-    label: 'Unclear or Confusing Response',
-    description: 'The answer is too vague or difficult to apply in a legal context.',
-    icon: Icons.help_outline_rounded,
-  ),
-  LawReportCategory(
-    label: 'Other Legal Concern',
-    description: 'A concern not described by any category above.',
-    icon: Icons.more_horiz_rounded,
-  ),
-];
-
-/// App-level categories for the Settings › Report screen.
-const kAppReportCategories = <LawReportCategory>[
-  LawReportCategory(
-    label: 'App Bug',
-    description: 'Something in the app is broken or behaving incorrectly.',
-    icon: Icons.bug_report_outlined,
-  ),
-  LawReportCategory(
-    label: 'Wrong AI Response',
-    description: 'CLAiR gave an inaccurate, irrelevant, or harmful answer.',
-    icon: Icons.psychology_outlined,
-  ),
-  LawReportCategory(
-    label: 'Misleading Content',
-    description: 'Information was deceptive or presented out of context.',
-    icon: Icons.warning_amber_outlined,
-  ),
-  LawReportCategory(
-    label: 'Privacy or Security Concern',
-    description: 'An issue related to how your data is handled or stored.',
-    icon: Icons.security_outlined,
-  ),
-  LawReportCategory(
-    label: 'Feature Feedback',
-    description: 'Suggestions for new features or improvements to the app.',
-    icon: Icons.lightbulb_outline_rounded,
-  ),
-  LawReportCategory(
-    label: 'Other',
-    description: 'An issue not covered by any of the categories above.',
-    icon: Icons.more_horiz_rounded,
-  ),
-];
+import 'package:clair/features/auth/presentation/widgets/report_categories_localized.dart';
+import 'package:clair/l10n/app_localizations.dart';
 
 /// Shared reporting fields — category radio cards + required explanation textarea.
 class LawReportIssueFieldGroup extends StatefulWidget {
   const LawReportIssueFieldGroup({
     super.key,
     this.messageExcerpt,
-    this.explanationHint = 'Briefly explain what is wrong or concerning…',
+    this.explanationHint,
     this.showIntro = true,
-    this.categories = kLawReportCategories,
+    required this.categories,
   });
 
   final String? messageExcerpt;
-  final String explanationHint;
+  final String? explanationHint;
   final bool showIntro;
-  /// Override to show a different set of categories (e.g. [kAppReportCategories]).
   final List<LawReportCategory> categories;
 
   @override
@@ -127,12 +38,22 @@ class LawReportIssueFieldGroupState extends State<LawReportIssueFieldGroup> {
   }
 
   @override
+  void didUpdateWidget(LawReportIssueFieldGroup oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.categories.any((c) => c.id == _category.id)) {
+      _category = widget.categories.first;
+    }
+  }
+
+  @override
   void dispose() {
     _explain.dispose();
     super.dispose();
   }
 
-  String get category => _category.label;
+  /// Stable English category label used in payloads (unchanged across locales).
+  String get category => _category.id;
+
   String get explanationText => _explain.text.trim();
 
   bool validateReport() => _formKey.currentState?.validate() ?? false;
@@ -140,16 +61,16 @@ class LawReportIssueFieldGroupState extends State<LawReportIssueFieldGroup> {
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
 
     return Form(
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Excerpt preview ─────────────────────────────────────────────────
           if (widget.messageExcerpt != null &&
               widget.messageExcerpt!.trim().isNotEmpty) ...[
-            _sectionLabel(cl, 'Content being reported'),
+            _sectionLabel(cl, l10n.reportFieldContentReported),
             const SizedBox(height: 8),
             Container(
               width: double.infinity,
@@ -169,24 +90,21 @@ class LawReportIssueFieldGroupState extends State<LawReportIssueFieldGroup> {
             ),
             const SizedBox(height: 24),
           ],
-
-          // ── Category ────────────────────────────────────────────────────────
           if (widget.showIntro) ...[
-            _sectionLabel(cl, 'What best describes this issue?'),
+            _sectionLabel(cl, l10n.reportFieldChooseQuestionLegal),
             const SizedBox(height: 4),
             Text(
-              'Choose the category that closest matches the legal concern.',
-              style:
-                  GoogleFonts.nunito(fontSize: 12, color: cl.textMid, height: 1.35),
+              l10n.reportFieldChooseCategoryLegalIntro,
+              style: GoogleFonts.nunito(
+                  fontSize: 12, color: cl.textMid, height: 1.35),
             ),
             const SizedBox(height: 12),
           ] else ...[
-            _sectionLabel(cl, 'Issue category'),
+            _sectionLabel(cl, l10n.reportFieldIssueCategory),
             const SizedBox(height: 10),
           ],
-
           ...widget.categories.map((cat) {
-            final sel = _category == cat;
+            final sel = _category.id == cat.id;
             return Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: _CategoryCard(
@@ -196,16 +114,13 @@ class LawReportIssueFieldGroupState extends State<LawReportIssueFieldGroup> {
               ),
             );
           }),
-
           const SizedBox(height: 24),
-
-          // ── Explanation ──────────────────────────────────────────────────────
-          _sectionLabel(cl, 'Your explanation'),
+          _sectionLabel(cl, l10n.reportFieldYourExplanation),
           const SizedBox(height: 4),
           Text(
-            'A short explanation is required so our team can understand the issue.',
-            style:
-                GoogleFonts.nunito(fontSize: 12, color: cl.textMid, height: 1.35),
+            l10n.reportFieldExplanationBlurb,
+            style: GoogleFonts.nunito(
+                fontSize: 12, color: cl.textMid, height: 1.35),
           ),
           const SizedBox(height: 10),
           TextFormField(
@@ -216,7 +131,8 @@ class LawReportIssueFieldGroupState extends State<LawReportIssueFieldGroup> {
             style: GoogleFonts.nunito(
                 color: cl.textDark, fontSize: 14, height: 1.45),
             decoration: InputDecoration(
-              hintText: widget.explanationHint,
+              hintText:
+                  widget.explanationHint ?? l10n.reportHintBriefConcern,
               hintStyle:
                   GoogleFonts.nunito(color: cl.textLight, fontSize: 13),
               filled: true,
@@ -239,7 +155,7 @@ class LawReportIssueFieldGroupState extends State<LawReportIssueFieldGroup> {
             ),
             validator: (value) {
               if (value == null || value.trim().length < 12) {
-                return 'Please add a short explanation (at least a sentence).';
+                return l10n.reportValidationExplanationShort;
               }
               return null;
             },

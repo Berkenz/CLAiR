@@ -1,0 +1,438 @@
+{
+  "@@locale": "en",
+  "navHome": "Home",
+  "navChat": "Chat",
+  "navLibrary": "Library",
+  "navLawyers": "Lawyers",
+  "navAppointments": "Appointments",
+  "drawerRecent": "RECENT",
+  "drawerNoRecentChats": "No recent chats",
+  "drawerNavigate": "Navigate",
+  "drawerHome": "Home",
+  "drawerNewChat": "New Chat",
+  "drawerChatLibrary": "Chat Library",
+  "drawerFindLawyer": "Find a Lawyer",
+  "drawerNotifications": "Notifications",
+  "drawerAccount": "Account",
+  "drawerProfile": "Profile",
+  "drawerSignOut": "Sign Out",
+  "settingsTitle": "Settings",
+  "guestAccount": "Guest Account",
+  "editProfile": "Edit Profile",
+  "sectionAccount": "Account",
+  "email": "Email",
+  "notifications": "Notifications",
+  "security": "Security",
+  "sectionApp": "App",
+  "appearance": "Appearance",
+  "appLanguage": "App Language",
+  "sectionAbout": "About",
+  "report": "Report",
+  "helpCenter": "Help Center",
+  "termsOfUse": "Terms of Use",
+  "privacyPolicy": "Privacy Policy",
+  "resetAllToDefault": "Reset All to Default",
+  "logOut": "Log Out",
+  "deleteAccount": "Delete Account",
+  "settingsResetDialogTitle": "Reset all settings?",
+  "settingsResetDialogBody": "Appearance options (theme, accent, and font size) will return to their defaults.",
+  "settingsResetSnackbar": "Settings reset to default.",
+  "commonCancel": "Cancel",
+  "commonConfirm": "Confirm",
+  "languageScreenTitle": "App language",
+  "languageScreenSubtitle": "Choose a language for menus and labels in CLAiR.",
+  "languageEnglish": "English",
+  "languageFilipino": "Filipino",
+  "languageCebuano": "Cebuano",
+  "languageUpdatedSnackbar": "Language updated.",
+  "lawyerMap": "Map",
+  "lawyerList": "List",
+  "lawyerSearchHint": "Search by name or specialty…",
+  "lawyerBrowseByPracticeArea": "Browse by practice area",
+  "lawyerClearWithCount": "Clear ({count})",
+  "@lawyerClearWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lawyerAllRegistered": "All registered lawyers",
+  "lawyerResultsCount": "{count, plural, =1{1 result} other{{count} results}}",
+  "@lawyerResultsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lawyerClearAll": "Clear all",
+  "lawyerLoadErrorTitle": "Couldn't load lawyers.",
+  "lawyerUnknownError": "Unknown error.",
+  "lawyerRetry": "Retry",
+  "lawyerEmptyState": "No registered lawyers yet.",
+  "lawyerNoMatches": "No lawyers match your filters.",
+  "lawyerClearFilters": "Clear filters",
+  "lawyerVerified": "Verified",
+  "lawyerViewProfile": "View profile",
+  "lawyerExtraAreas": "+{count}",
+  "@lawyerExtraAreas": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lawyerSharingTitle": "Sharing conversation with a lawyer",
+  "lawyerSharingSubtitle": "\"{title}\" — tap any lawyer below to book with this pre-attached",
+  "@lawyerSharingSubtitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "lawyerChipCriminal": "Criminal",
+  "lawyerChipFamily": "Family",
+  "lawyerChipCorporate": "Corporate",
+  "lawyerChipProperty": "Property",
+  "lawyerChipFinance": "Finance",
+  "lawyerChipLabor": "Labor",
+  "lawyerChipCivil": "Civil",
+  "lawyerChipImmigration": "Immigration",
+  "lawyerChipContracts": "Contracts",
+  "lawyerChipWills": "Wills",
+  "lawyerChipAdministrative": "Administrative",
+  "lawyerChipEnvironmental": "Environmental",
+  "lawyerPracticeAdministrativeLaw": "Administrative Law",
+  "lawyerPracticeBankingFinanceLaw": "Banking & Finance Law",
+  "lawyerPracticeCivilLaw": "Civil Law",
+  "lawyerPracticeConstitutionalLaw": "Constitutional Law",
+  "lawyerPracticeCorporateLaw": "Corporate Law",
+  "lawyerPracticeCriminalLaw": "Criminal Law",
+  "lawyerPracticeEnvironmentalLaw": "Environmental Law",
+  "lawyerPracticeFamilyLaw": "Family Law",
+  "lawyerPracticeImmigrationLaw": "Immigration Law",
+  "lawyerPracticeInsuranceLaw": "Insurance Law",
+  "lawyerPracticeIntellectualPropertyLaw": "Intellectual Property Law",
+  "lawyerPracticeLaborLaw": "Labor Law",
+  "lawyerPracticeRealEstateLaw": "Real Estate Law",
+  "lawyerPracticeTaxLaw": "Tax Law",
+  "lawyerPracticeContractLaw": "Contract Law",
+  "lawyerPracticeEstateWills": "Estate & Wills",
+  "lawyerPracticeOther": "Other",
+  "lawyerDesigAssociate": "Associate",
+  "lawyerDesigJuniorAssociate": "Junior Associate",
+  "lawyerDesigOfCounsel": "Of Counsel",
+  "lawyerDesigParalegal": "Paralegal",
+  "lawyerDesigSeniorAssociate": "Senior Associate",
+  "lawyerDesigSeniorPartner": "Senior Partner",
+  "lawyerDesigManagingPartner": "Managing Partner",
+  "lawyerDesigAssociatePartner": "Associate Partner",
+  "lawyerDesigOther": "Other",
+  "brandAppName": "CLAiR",
+  "homeHelloGuest": "Hello, there",
+  "homeHelloName": "Hello, {name}",
+  "@homeHelloName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeTagline": "How can CLAiR help you today?",
+  "homeStartNewChatTitle": "Start new chat",
+  "homeStartNewChatSubtitle": "Ask CLAiR a legal question",
+  "homeQuickActions": "Quick Actions",
+  "homeSuggestedLawyers": "Suggested Lawyers",
+  "homeSeeAll": "See All",
+  "homeGeneratedDocuments": "Generated Documents",
+  "homeViewAll": "View All",
+  "homeConnect": "Connect",
+  "homeRatingCasesLine": "{rating} · {count} cases",
+  "@homeRatingCasesLine": {
+    "placeholders": {
+      "rating": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "authWelcomeBack": "Welcome\nBack",
+  "authPassword": "Password",
+  "authLogIn": "Log in",
+  "authForgotPassword": "Forgot Password ?",
+  "authNoAccountPrompt": "Don't have an account? ",
+  "authSignUpLink": "Sign up",
+  "authGuest": "Guest",
+  "authGoogle": "Google",
+  "chatConversationsTitle": "Conversations",
+  "chatNewChatButton": "New Chat",
+  "chatNoConversationsYet": "No conversations yet",
+  "chatMenuSaveChat": "Save Chat",
+  "chatMenuUnsaveChat": "Unsave Chat",
+  "chatMenuShare": "Share",
+  "chatMenuDownloadPdf": "Download as PDF",
+  "chatMenuReport": "Report",
+  "chatMenuShareToLawyer": "Share to Lawyer",
+  "chatPdfGeneratingSummary": "Generating PDF summary...",
+  "chatPdfSaveFailed": "Failed to save PDF: {error}",
+  "@chatPdfSaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "chatDisclaimerDismiss": "Dismiss",
+  "chatTitleNewChat": "New Chat",
+  "chatTitleCurrentConversation": "Current conversation",
+  "chatRagDisconnectedBanner": "Law library (RAG) not connected on server — answer may use general model knowledge only.",
+  "chatNoLawExcerpts": "No law excerpts met the relevance threshold for this question.",
+  "chatRetrievedForAnswer": "Retrieved for this answer",
+  "chatSourceLabel": "Source",
+  "chatEmptyExploreTopic": "Start a new conversation to explore a different topic.",
+  "chatCopiedClipboard": "Copied to clipboard",
+  "chatEditMessageTitle": "Edit Message",
+  "chatEditMessageHint": "Edit your message",
+  "chatComposerHint": "Ask anything",
+  "chatAssistantGreeting": "Hi! I'm CLAiR, how may I assist you today?",
+  "chatLawyersNearYou": "Lawyers near you",
+  "chatMatchPercent": "{head} · {pct}% match",
+  "@chatMatchPercent": {
+    "placeholders": {
+      "head": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "notifMarkAllRead": "Mark all read",
+  "notifEmpty": "No notifications yet",
+  "libScreenTitle": "Library",
+  "libTabHistory": "History",
+  "libTabSaved": "Saved",
+  "libSearchChatsHint": "Search chats...",
+  "libPreviewEmpty": "Start a new message",
+  "libPreviewYou": "You",
+  "libPreviewRecent": "Recent: {text}",
+  "@libPreviewRecent": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "appearanceSectionTheme": "Theme",
+  "appearanceThemeLight": "Light",
+  "appearanceThemeDark": "Dark",
+  "appearanceThemeSystem": "System",
+  "appearanceAccentColor": "Accent Color",
+  "appearanceFontSize": "Font Size",
+  "appearanceSavedSnackbar": "Appearance saved",
+  "appearanceSaveButton": "Save Appearance",
+  "appearanceFontSmall": "Small",
+  "appearanceFontDefault": "Default",
+  "appearanceFontLarge": "Large",
+  "appearanceFontExtraLarge": "Extra Large",
+  "histTapToOpen": "Tap to open conversation",
+  "histRenameDialogTitle": "Rename conversation",
+  "histRenameHint": "Enter new title",
+  "histRenameButton": "Rename",
+  "histDeleteTitle": "Delete conversation?",
+  "histDeleteBody": "This will permanently delete this conversation and all its messages.",
+  "histGeneratingPdf": "Generating PDF...",
+  "histDownloadFailed": "Failed to download: {error}",
+  "@histDownloadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "histEmptyTitle": "No conversations yet",
+  "histEmptySubtitle": "Start a chat and your conversations will appear here",
+  "convSave": "Save",
+  "convUnsave": "Unsave",
+  "convRename": "Rename",
+  "convShareToLawyer": "Share to Lawyer",
+  "convDownload": "Download",
+  "convDelete": "Delete",
+  "commonSave": "Save",
+  "commonDelete": "Delete",
+  "apptNotFoundSnackbar": "Could not find that appointment in your list.",
+  "apptMyTitle": "My Appointments",
+  "apptTotalCount": "{count, plural, =1{1 appointment total} other{{count} appointments total}}",
+  "@apptTotalCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "apptFilterAll": "All",
+  "apptFilterPending": "Pending",
+  "apptFilterAccepted": "Accepted",
+  "apptFilterCancelled": "Cancelled",
+  "apptSortNewestFirst": "Date · Newest first",
+  "apptSortOldestFirst": "Date · Oldest first",
+  "apptSortChipNewest": "Sort: newest first",
+  "apptSortChipOldest": "Sort: oldest first",
+  "apptNoFilterMatch": "No appointments match this filter",
+  "apptShowAll": "Show all",
+  "apptSectionCancelledOrDeclined": "Cancelled or declined",
+  "apptSectionActivePending": "Active & pending",
+  "apptSectionPastCancelled": "Past / cancelled or declined",
+  "apptEmptyTitle": "No appointments yet",
+  "apptEmptySubtitle": "Book a lawyer consultation and\ntrack your status here",
+  "apptCardChat": "Chat",
+  "apptStatusPending": "Pending",
+  "apptStatusAccepted": "Accepted",
+  "apptStatusCancelled": "Cancelled",
+  "apptStatusDeclined": "Declined",
+  "apptDetailLabelType": "Type",
+  "apptDetailLabelDate": "Date",
+  "apptDetailLabelTime": "Time",
+  "apptDetailLabelLawyer": "Lawyer",
+  "apptDetailSectionDescription": "Description",
+  "apptDetailReasonCancellation": "Cancellation",
+  "apptDetailReasonDecline": "Decline reason",
+  "apptDetailLabelBooked": "Booked",
+  "apptDetailLabelUpdated": "Updated",
+  "apptDetailCancelAppointment": "Cancel appointment",
+  "apptDetailAttachedConversationTitle": "Attached CLAiR conversation",
+  "apptDetailAttachedConversationSubtitle": "Open the chat you shared when you booked this appointment.",
+  "apptDetailBannerCancelledByClientTitle": "Appointment cancelled",
+  "apptDetailBannerCancelledByClientSubtitle": "You cancelled this booking. Your lawyer has been notified.",
+  "apptDetailBannerConfirmedTitle": "Appointment accepted",
+  "apptDetailBannerConfirmedSubtitle": "Your lawyer has confirmed this appointment.",
+  "apptDetailBannerPendingTitle": "Awaiting confirmation",
+  "apptDetailBannerPendingSubtitle": "Your request is pending review by the lawyer.",
+  "apptDetailBannerDeclinedTitle": "Request declined",
+  "apptDetailBannerDeclinedSubtitle": "The lawyer was unable to accept this request.",
+  "apptDetailBannerUnknownTitle": "Unknown status",
+  "apptDetailChatWithLawyer": "Chat with {lawyerName}",
+  "@apptDetailChatWithLawyer": {
+    "placeholders": {
+      "lawyerName": {
+        "type": "String"
+      }
+    }
+  },
+  "apptDetailChatLockedCancelledSelf": "Chat is unavailable — you cancelled this appointment.",
+  "apptDetailChatLockedCancelledDeclined": "Chat is unavailable — this appointment was declined.",
+  "apptDetailChatLockedPending": "Chat will unlock once your appointment is accepted.",
+  "apptDetailCancelOptionsFailed": "Could not load cancellation options. Try again later.",
+  "apptDetailCancelledSuccess": "Appointment cancelled.",
+  "apptDetailCancelWhyTitle": "Why are you cancelling?",
+  "apptDetailCancelWhySubtitle": "Your lawyer will see the reason you choose.",
+  "apptDetailCancelTellMoreHint": "Tell us a bit more…",
+  "apptDetailCancelErrorPickReason": "Please select a reason.",
+  "apptDetailCancelErrorOtherDetails": "Please briefly describe why you are cancelling.",
+  "apptDetailKeepAppointment": "Keep appointment",
+  "apptDetailConfirmCancel": "Confirm cancel",
+  "libSavedEmptyTitle": "No saved chats",
+  "libSavedEmptySubtitle": "Bookmark chats to find\nthem easily later",
+  "libSearchNoSaved": "No saved chats found",
+  "libSearchNoHistory": "No chats found",
+  "libSearchTryDifferent": "Try a different keyword.",
+  "commonSubmit": "Submit",
+  "legalDocNoticeTitle": "Official wording",
+  "legalDocNoticeBody": "For legal accuracy, the full text below is in English.",
+  "signupTermsPrivacyRequired": "You must agree to the Terms of Use and Privacy Policy to continue.",
+  "signupAgreementLead": "I have read and agree to the CLAiR ",
+  "signupAgreementMiddle": " and ",
+  "signupAgreementTail": ". I understand that CLAiR provides legal information only and does not constitute legal advice or create an attorney-client relationship.",
+  "signupTitle": "Sign Up",
+  "signupCompleteProfileTitle": "Complete Your Profile",
+  "signupGoogleNameBanner": "Almost there! Just add your name and agree to our terms to complete your Google sign-up.",
+  "signupFirstNameLabel": "First Name",
+  "signupLastNameLabel": "Last Name",
+  "signupFirstNameRequired": "First name is required",
+  "signupLastNameRequired": "Last name is required",
+  "signupContinueButton": "Continue",
+  "signupCompleteSignUpButton": "Complete Sign Up",
+  "reportScreenTitle": "Report an issue",
+  "reportScreenHeroTitle": "Report an issue with CLAiR",
+  "reportScreenHeroBody": "Found a bug, wrong answer, or have feedback? We read every report and use it to keep CLAiR accurate and useful.",
+  "reportScreenAnonymousNote": "Reports are anonymous unless you include details in your description.",
+  "reportIssueCategoryStep": "Issue category",
+  "reportDescribeIssueHint": "Describe the issue in detail. What happened, and what did you expect?",
+  "reportPrivacyNoteBody": "Reports are handled confidentially. We may follow up to verify the issue and improve CLAiR.",
+  "reportSubmitButton": "Submit report",
+  "reportSuccessTitle": "Report submitted",
+  "reportSuccessBody": "Thank you for helping improve CLAiR.\nOur team will review your report carefully.",
+  "reportBackToSettings": "Back to settings",
+  "reportReplySheetTitle": "Report reply",
+  "reportReplySheetSubtitle": "Help us improve legal accuracy and safety.",
+  "reportReplyExplainHint": "What is inaccurate or misleading about this response? Include any statutes or concepts if relevant.",
+  "reportReplySubmittedSnackbar": "Thanks — your report was sent.",
+  "lawyerConcernTitle": "Report a concern",
+  "lawyerConcernAbout": "About: {name}",
+  "@lawyerConcernAbout": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "lawyerConcernShareSnackbar": "Report shared via share sheet.",
+  "reportFieldContentReported": "Content being reported",
+  "reportFieldChooseQuestionLegal": "What best describes this issue?",
+  "reportFieldChooseCategoryLegalIntro": "Choose the category that closest matches the legal concern.",
+  "reportFieldIssueCategory": "Issue category",
+  "reportFieldYourExplanation": "Your explanation",
+  "reportFieldExplanationBlurb": "A short explanation is required so our team can understand the issue.",
+  "reportHintBriefConcern": "Briefly explain what is wrong or concerning…",
+  "reportValidationExplanationShort": "Please add a short explanation (at least a sentence).",
+  "reportLawBadLegalLabel": "Bad Legal Information",
+  "reportLawBadLegalDesc": "The response contains factually incorrect laws, cases, or statutes.",
+  "reportLawOutdatedLabel": "Outdated Law or Regulation",
+  "reportLawOutdatedDesc": "The cited law has been amended, repealed, or superseded.",
+  "reportLawMisleadingLabel": "Misleading Interpretation",
+  "reportLawMisleadingDesc": "Legal reasoning is skewed, incomplete, or taken out of context.",
+  "reportLawJurisdictionLabel": "Wrong Jurisdiction",
+  "reportLawJurisdictionDesc": "Laws from a different country, state, or region were applied.",
+  "reportLawMissingContextLabel": "Missing Legal Context",
+  "reportLawMissingContextDesc": "Key exceptions, conditions, or legal nuances were omitted.",
+  "reportLawHarmfulLabel": "Potentially Harmful Advice",
+  "reportLawHarmfulDesc": "Following this advice could cause legal harm or risk.",
+  "reportLawUnclearLabel": "Unclear or Confusing Response",
+  "reportLawUnclearDesc": "The answer is too vague or difficult to apply in a legal context.",
+  "reportLawOtherLabel": "Other Legal Concern",
+  "reportLawOtherDesc": "A concern not described by any category above.",
+  "reportAppBugLabel": "App Bug",
+  "reportAppBugDesc": "Something in the app is broken or behaving incorrectly.",
+  "reportAppWrongAiLabel": "Wrong AI Response",
+  "reportAppWrongAiDesc": "CLAiR gave an inaccurate, irrelevant, or harmful answer.",
+  "reportAppMisleadingLabel": "Misleading Content",
+  "reportAppMisleadingDesc": "Information was deceptive or presented out of context.",
+  "reportAppPrivacyLabel": "Privacy or Security Concern",
+  "reportAppPrivacyDesc": "An issue related to how your data is handled or stored.",
+  "reportAppFeatureLabel": "Feature Feedback",
+  "reportAppFeatureDesc": "Suggestions for new features or improvements to the app.",
+  "reportAppOtherLabel": "Other",
+  "reportAppOtherDesc": "An issue not covered by any of the categories above.",
+  "helpHeroTitle": "How can we help?",
+  "helpHeroSubtitle": "Browse common questions or search below.",
+  "helpSearchHint": "Search FAQs…",
+  "helpEmptyNoResults": "No results for \"{query}\"",
+  "@helpEmptyNoResults": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "helpEmptySuggest": "Try different keywords or browse the sections above.",
+  "helpSecUsing": "Using CLAiR",
+  "helpSecLawyers": "Lawyers & Appointments",
+  "helpSecPrivacy": "Privacy & Security",
+  "helpSecAccount": "Account & Settings",
+  "helpSecReporting": "Reporting & Feedback",
+  "helpFaqEnglishNotice": "Detailed FAQ answers below are in English for legal accuracy."
+}

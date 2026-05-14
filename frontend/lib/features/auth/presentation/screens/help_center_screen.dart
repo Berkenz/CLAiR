@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
-
-// ── FAQ data ──────────────────────────────────────────────────────────────────
+import 'package:clair/l10n/app_localizations.dart';
 
 class _FaqItem {
   final String question;
@@ -19,113 +18,121 @@ class _FaqSection {
   const _FaqSection(this.icon, this.title, this.color, this.items);
 }
 
-const _kFaqSections = [
-  _FaqSection(
-    Icons.chat_bubble_outline_rounded,
-    'Using CLAiR',
-    Color(0xFF3182CE),
-    [
-      _FaqItem(
-        'What is CLAiR?',
-        'CLAiR is an AI-powered legal assistant that helps you understand Philippine laws, get quick answers to legal questions, and connect with registered lawyers. It is not a substitute for formal legal advice.',
-      ),
-      _FaqItem(
-        'How do I start a conversation?',
-        'Tap the Chat tab at the bottom of the screen and type your legal question. CLAiR will respond based on current Philippine laws and legal resources.',
-      ),
-      _FaqItem(
-        'Can I save my conversations?',
-        'Yes. All conversations are saved automatically and accessible from the History tab. You can view, continue, or share any past conversation.',
-      ),
-      _FaqItem(
-        'Is CLAiR\'s advice legally binding?',
-        'No. CLAiR provides general legal information for educational purposes only. For formal legal advice, consult a licensed lawyer through the Lawyers tab.',
-      ),
-    ],
+const _faqUsingItems = [
+  _FaqItem(
+    'What is CLAiR?',
+    'CLAiR is an AI-powered legal assistant that helps you understand Philippine laws, get quick answers to legal questions, and connect with registered lawyers. It is not a substitute for formal legal advice.',
   ),
-  _FaqSection(
-    Icons.people_outline_rounded,
-    'Lawyers & Appointments',
-    Color(0xFF38A169),
-    [
-      _FaqItem(
-        'How do I find a lawyer?',
-        'Go to the Lawyers tab and browse by practice area, or search by name or specialty. Tap a lawyer\'s card to view their profile, then book an appointment.',
-      ),
-      _FaqItem(
-        'What information do I need to book an appointment?',
-        'Provide a brief title and description of your concern. You can optionally attach a CLAiR conversation or a file to give the lawyer more context.',
-      ),
-      _FaqItem(
-        'How does "Share to Lawyer" work?',
-        'Open any conversation in the History tab, tap the menu, and choose "Share to Lawyer." This takes you to the Lawyers screen with your conversation pre-attached — just tap a lawyer to book.',
-      ),
-      _FaqItem(
-        'Are the lawyers on CLAiR verified?',
-        'Lawyers listed on CLAiR are registered professionals. Look for the verified badge on their profile. Always verify credentials before engaging for formal legal work.',
-      ),
-    ],
+  _FaqItem(
+    'How do I start a conversation?',
+    'Tap the Chat tab at the bottom of the screen and type your legal question. CLAiR will respond based on current Philippine laws and legal resources.',
   ),
-  _FaqSection(
-    Icons.shield_outlined,
-    'Privacy & Security',
-    Color(0xFF805AD5),
-    [
-      _FaqItem(
-        'Is my data safe?',
-        'CLAiR uses industry-standard encryption for data in transit and at rest. We do not sell your personal information to third parties.',
-      ),
-      _FaqItem(
-        'Who can see my conversations?',
-        'Only you can see your conversations. If you choose to share a conversation with a lawyer via the booking feature, that lawyer will have access to the content you explicitly attached.',
-      ),
-      _FaqItem(
-        'How do I delete my account and data?',
-        'Go to Settings → Delete Account. This permanently removes your account and all associated data from our servers.',
-      ),
-    ],
+  _FaqItem(
+    'Can I save my conversations?',
+    'Yes. All conversations are saved automatically and accessible from the History tab. You can view, continue, or share any past conversation.',
   ),
-  _FaqSection(
-    Icons.tune_rounded,
-    'Account & Settings',
-    Color(0xFFD69E2E),
-    [
-      _FaqItem(
-        'How do I change my password?',
-        'Go to Settings → Security and follow the steps to update your password.',
-      ),
-      _FaqItem(
-        'Can I change the app appearance?',
-        'Yes. Go to Settings → Appearance to switch between Light, Dark, and System themes.',
-      ),
-      _FaqItem(
-        'How do I reset all settings to default?',
-        'Go to Settings and scroll to the bottom. Tap "Reset All to Default" and confirm. This restores all appearance and preferences to their original values.',
-      ),
-    ],
-  ),
-  _FaqSection(
-    Icons.flag_outlined,
-    'Reporting & Feedback',
-    Color(0xFFE53E3E),
-    [
-      _FaqItem(
-        'How do I report a problem with CLAiR?',
-        'Go to Settings → Report. Select the category that best describes the issue, add a description, and submit. Our team reviews all reports.',
-      ),
-      _FaqItem(
-        'What if CLAiR gives incorrect legal information?',
-        'Tap the dislike button on the message or go to Settings → Report and select "Wrong AI Response." Include a description so our team can review and improve the model.',
-      ),
-      _FaqItem(
-        'How do I report a concern about a lawyer?',
-        'Open the lawyer\'s profile and tap "Report Concern." Fill in the category and explanation. Reports are reviewed by our moderation team.',
-      ),
-    ],
+  _FaqItem(
+    'Is CLAiR\'s advice legally binding?',
+    'No. CLAiR provides general legal information for educational purposes only. For formal legal advice, consult a licensed lawyer through the Lawyers tab.',
   ),
 ];
 
-// ── Screen ────────────────────────────────────────────────────────────────────
+const _faqLawyerItems = [
+  _FaqItem(
+    'How do I find a lawyer?',
+    'Go to the Lawyers tab and browse by practice area, or search by name or specialty. Tap a lawyer\'s card to view their profile, then book an appointment.',
+  ),
+  _FaqItem(
+    'What information do I need to book an appointment?',
+    'Provide a brief title and description of your concern. You can optionally attach a CLAiR conversation or a file to give the lawyer more context.',
+  ),
+  _FaqItem(
+    'How does "Share to Lawyer" work?',
+    'Open any conversation in the History tab, tap the menu, and choose "Share to Lawyer." This takes you to the Lawyers screen with your conversation pre-attached — just tap a lawyer to book.',
+  ),
+  _FaqItem(
+    'Are the lawyers on CLAiR verified?',
+    'Lawyers listed on CLAiR are registered professionals. Look for the verified badge on their profile. Always verify credentials before engaging for formal legal work.',
+  ),
+];
+
+const _faqPrivacyItems = [
+  _FaqItem(
+    'Is my data safe?',
+    'CLAiR uses industry-standard encryption for data in transit and at rest. We do not sell your personal information to third parties.',
+  ),
+  _FaqItem(
+    'Who can see my conversations?',
+    'Only you can see your conversations. If you choose to share a conversation with a lawyer via the booking feature, that lawyer will have access to the content you explicitly attached.',
+  ),
+  _FaqItem(
+    'How do I delete my account and data?',
+    'Go to Settings → Delete Account. This permanently removes your account and all associated data from our servers.',
+  ),
+];
+
+const _faqAccountItems = [
+  _FaqItem(
+    'How do I change my password?',
+    'Go to Settings → Security and follow the steps to update your password.',
+  ),
+  _FaqItem(
+    'Can I change the app appearance?',
+    'Yes. Go to Settings → Appearance to switch between Light, Dark, and System themes.',
+  ),
+  _FaqItem(
+    'How do I reset all settings to default?',
+    'Go to Settings and scroll to the bottom. Tap "Reset All to Default" and confirm. This restores all appearance and preferences to their original values.',
+  ),
+];
+
+const _faqReportingItems = [
+  _FaqItem(
+    'How do I report a problem with CLAiR?',
+    'Go to Settings → Report. Select the category that best describes the issue, add a description, and submit. Our team reviews all reports.',
+  ),
+  _FaqItem(
+    'What if CLAiR gives incorrect legal information?',
+    'Tap the dislike button on the message or go to Settings → Report and select "Wrong AI Response." Include a description so our team can review and improve the model.',
+  ),
+  _FaqItem(
+    'How do I report a concern about a lawyer?',
+    'Open the lawyer\'s profile and tap "Report Concern." Fill in the category and explanation. Reports are reviewed by our moderation team.',
+  ),
+];
+
+List<_FaqSection> _faqSections(AppLocalizations l) => [
+      _FaqSection(
+        Icons.chat_bubble_outline_rounded,
+        l.helpSecUsing,
+        const Color(0xFF3182CE),
+        _faqUsingItems,
+      ),
+      _FaqSection(
+        Icons.people_outline_rounded,
+        l.helpSecLawyers,
+        const Color(0xFF38A169),
+        _faqLawyerItems,
+      ),
+      _FaqSection(
+        Icons.shield_outlined,
+        l.helpSecPrivacy,
+        const Color(0xFF805AD5),
+        _faqPrivacyItems,
+      ),
+      _FaqSection(
+        Icons.tune_rounded,
+        l.helpSecAccount,
+        const Color(0xFFD69E2E),
+        _faqAccountItems,
+      ),
+      _FaqSection(
+        Icons.flag_outlined,
+        l.helpSecReporting,
+        const Color(0xFFE53E3E),
+        _faqReportingItems,
+      ),
+    ];
 
 class HelpCenterScreen extends StatefulWidget {
   const HelpCenterScreen({super.key});
@@ -146,14 +153,16 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
   }
 
   List<({_FaqSection section, List<_FaqItem> items})> get _filtered {
+    final l10n = AppLocalizations.of(context)!;
+    final allSections = _faqSections(l10n);
     final q = _query.toLowerCase().trim();
     if (q.isEmpty) {
-      return _kFaqSections
+      return allSections
           .map((s) => (section: s, items: s.items))
           .toList();
     }
     final results = <({_FaqSection section, List<_FaqItem> items})>[];
-    for (final section in _kFaqSections) {
+    for (final section in allSections) {
       final matching = section.items
           .where((it) =>
               it.question.toLowerCase().contains(q) ||
@@ -169,6 +178,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     final sections = _filtered;
 
     return Scaffold(
@@ -183,7 +193,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'Help Center',
+          l10n.helpCenter,
           style: GoogleFonts.nunito(
             fontSize: 17,
             fontWeight: FontWeight.w700,
@@ -197,11 +207,11 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
       ),
       body: Column(
         children: [
-          _buildHero(cl),
-          _buildSearchBar(cl),
+          _buildHero(cl, l10n),
+          _buildSearchBar(cl, l10n),
           Expanded(
             child: sections.isEmpty
-                ? _buildEmpty(cl)
+                ? _buildEmpty(cl, l10n)
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                     itemCount: sections.length,
@@ -216,12 +226,13 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
     );
   }
 
-  Widget _buildHero(AppColorTheme cl) {
+  Widget _buildHero(AppColorTheme cl, AppLocalizations l10n) {
     return Container(
       width: double.infinity,
       color: cl.surface,
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 52,
@@ -244,7 +255,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'How can we help?',
+                  l10n.helpHeroTitle,
                   style: GoogleFonts.nunito(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -253,10 +264,20 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Browse common questions or search below.',
+                  l10n.helpHeroSubtitle,
                   style: GoogleFonts.nunito(
                     fontSize: 13,
                     color: cl.textMid,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  l10n.helpFaqEnglishNotice,
+                  style: GoogleFonts.nunito(
+                    fontSize: 11.5,
+                    fontStyle: FontStyle.italic,
+                    height: 1.35,
+                    color: cl.textLight,
                   ),
                 ),
               ],
@@ -267,7 +288,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
     );
   }
 
-  Widget _buildSearchBar(AppColorTheme cl) {
+  Widget _buildSearchBar(AppColorTheme cl, AppLocalizations l10n) {
     return Container(
       color: cl.surface,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -276,7 +297,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
         onChanged: (v) => setState(() => _query = v),
         style: GoogleFonts.nunito(fontSize: 14, color: cl.textDark),
         decoration: InputDecoration(
-          hintText: 'Search FAQs…',
+          hintText: l10n.helpSearchHint,
           hintStyle:
               GoogleFonts.nunito(fontSize: 14, color: cl.textLight),
           prefixIcon:
@@ -454,7 +475,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
     );
   }
 
-  Widget _buildEmpty(AppColorTheme cl) {
+  Widget _buildEmpty(AppColorTheme cl, AppLocalizations l10n) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(40),
@@ -464,7 +485,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
             Icon(Icons.search_off_rounded, size: 48, color: cl.textLight),
             const SizedBox(height: 16),
             Text(
-              'No results for "$_query"',
+              l10n.helpEmptyNoResults(_query),
               textAlign: TextAlign.center,
               style: GoogleFonts.nunito(
                   fontSize: 15,
@@ -473,7 +494,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Try different keywords or browse the sections above.',
+              l10n.helpEmptySuggest,
               textAlign: TextAlign.center,
               style: GoogleFonts.nunito(
                   fontSize: 13, color: cl.textMid),

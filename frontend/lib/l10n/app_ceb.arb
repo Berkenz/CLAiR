@@ -1,0 +1,438 @@
+{
+  "@@locale": "ceb",
+  "navHome": "Home",
+  "navChat": "Chat",
+  "navLibrary": "Library",
+  "navLawyers": "Lawyers",
+  "navAppointments": "Appointments",
+  "drawerRecent": "RECENT",
+  "drawerNoRecentChats": "No recent chats",
+  "drawerNavigate": "Navigate",
+  "drawerHome": "Home",
+  "drawerNewChat": "New Chat",
+  "drawerChatLibrary": "Chat Library",
+  "drawerFindLawyer": "Pangitag abogado",
+  "drawerNotifications": "Notifications",
+  "drawerAccount": "Account",
+  "drawerProfile": "Profile",
+  "drawerSignOut": "Sign Out",
+  "settingsTitle": "Settings",
+  "guestAccount": "Guest Account",
+  "editProfile": "Edit Profile",
+  "sectionAccount": "Account",
+  "email": "Email",
+  "notifications": "Notifications",
+  "security": "Security",
+  "sectionApp": "App",
+  "appearance": "Appearance",
+  "appLanguage": "Pinulongan sa app",
+  "sectionAbout": "About",
+  "report": "Pag-report",
+  "helpCenter": "Sentro sa Tabang",
+  "termsOfUse": "Mga Termino sa Paggamit",
+  "privacyPolicy": "Polisiya sa Privacy",
+  "resetAllToDefault": "Ibalik sa default",
+  "logOut": "Log out",
+  "deleteAccount": "Tangtangon ang account",
+  "settingsResetDialogTitle": "I-reset tanang setting?",
+  "settingsResetDialogBody": "Ang tema, accent, ug gidak-on sa font mobalik sa default.",
+  "settingsResetSnackbar": "Naibalik na ang mga setting sa default.",
+  "commonCancel": "Kanselahon",
+  "commonConfirm": "Kompirmahon",
+  "languageScreenTitle": "Pinulongan sa app",
+  "languageScreenSubtitle": "Pagpili og pinulongan alang sa menu ug label sa CLAiR.",
+  "languageEnglish": "Iningles",
+  "languageFilipino": "Filipino",
+  "languageCebuano": "Bisaya",
+  "languageUpdatedSnackbar": "Na-update ang pinulongan.",
+  "lawyerMap": "Mapa",
+  "lawyerList": "Lista",
+  "lawyerSearchHint": "Pangitaa pinaagi sa ngalan o specialty…",
+  "lawyerBrowseByPracticeArea": "Tan-awa sumala sa practice area",
+  "lawyerClearWithCount": "Kuhaa ({count})",
+  "@lawyerClearWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lawyerAllRegistered": "Tanang rehistradong abogado",
+  "lawyerResultsCount": "{count, plural, =1{1 ka resulta} other{{count} ka mga resulta}}",
+  "@lawyerResultsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lawyerClearAll": "Kuhaa tanan",
+  "lawyerLoadErrorTitle": "Dili ma-load ang mga abogado.",
+  "lawyerUnknownError": "Wala mailhing sayop.",
+  "lawyerRetry": "Suwayi pag-usab",
+  "lawyerEmptyState": "Walay rehistradong abogado karon.",
+  "lawyerNoMatches": "Walay abogadong match sa imong filter.",
+  "lawyerClearFilters": "Kuhaa ang mga filter",
+  "lawyerVerified": "Na-verify",
+  "lawyerViewProfile": "Tan-awa ang profile",
+  "lawyerExtraAreas": "+{count}",
+  "@lawyerExtraAreas": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lawyerSharingTitle": "Gipaambit ang panag-istorya sa abogado",
+  "lawyerSharingSubtitle": "\"{title}\" — i-tap ang abogado sa ubos aron mag-book nga adunay naka-attach",
+  "@lawyerSharingSubtitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "lawyerChipCriminal": "Kriminal",
+  "lawyerChipFamily": "Pamilya",
+  "lawyerChipCorporate": "Korporasyon",
+  "lawyerChipProperty": "Propiedad",
+  "lawyerChipFinance": "Pinansya",
+  "lawyerChipLabor": "Labor",
+  "lawyerChipCivil": "Sibil",
+  "lawyerChipImmigration": "Imigrasyon",
+  "lawyerChipContracts": "Kontrata",
+  "lawyerChipWills": "Testamento",
+  "lawyerChipAdministrative": "Administratibo",
+  "lawyerChipEnvironmental": "Kinaiyahan",
+  "lawyerPracticeAdministrativeLaw": "Administratibong balaod",
+  "lawyerPracticeBankingFinanceLaw": "Balaod sa bangko ug pinansya",
+  "lawyerPracticeCivilLaw": "Sibil nga balaod",
+  "lawyerPracticeConstitutionalLaw": "Konstitusyonal nga balaod",
+  "lawyerPracticeCorporateLaw": "Balaod sa korporasyon",
+  "lawyerPracticeCriminalLaw": "Kriminal nga balaod",
+  "lawyerPracticeEnvironmentalLaw": "Balaod sa kinaiyahan",
+  "lawyerPracticeFamilyLaw": "Balaod sa pamilya",
+  "lawyerPracticeImmigrationLaw": "Balaod sa imigrasyon",
+  "lawyerPracticeInsuranceLaw": "Balaod sa seguro",
+  "lawyerPracticeIntellectualPropertyLaw": "Balaod sa intellectual property",
+  "lawyerPracticeLaborLaw": "Balaod sa trabaho",
+  "lawyerPracticeRealEstateLaw": "Balaod sa real estate",
+  "lawyerPracticeTaxLaw": "Balaod sa buhis",
+  "lawyerPracticeContractLaw": "Balaod sa kontrata",
+  "lawyerPracticeEstateWills": "Katigayonan ug testamento",
+  "lawyerPracticeOther": "Uban",
+  "lawyerDesigAssociate": "Associate",
+  "lawyerDesigJuniorAssociate": "Junior Associate",
+  "lawyerDesigOfCounsel": "Of Counsel",
+  "lawyerDesigParalegal": "Paralegal",
+  "lawyerDesigSeniorAssociate": "Senior Associate",
+  "lawyerDesigSeniorPartner": "Senior Partner",
+  "lawyerDesigManagingPartner": "Managing Partner",
+  "lawyerDesigAssociatePartner": "Associate Partner",
+  "lawyerDesigOther": "Uban",
+  "brandAppName": "CLAiR",
+  "homeHelloGuest": "Kumusta",
+  "homeHelloName": "Kumusta, {name}",
+  "@homeHelloName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeTagline": "Unsaon ka matabangan sa CLAiR karon?",
+  "homeStartNewChatTitle": "Sugdi og bag-ong chat",
+  "homeStartNewChatSubtitle": "Pagpamangkot og legal nga pangutana sa CLAiR",
+  "homeQuickActions": "Paspas nga aksyon",
+  "homeSuggestedLawyers": "Gisugyot nga mga abogado",
+  "homeSeeAll": "Tan-awa tanan",
+  "homeGeneratedDocuments": "Mga dokumentong gihimo",
+  "homeViewAll": "Tan-awa tanan",
+  "homeConnect": "Konekta",
+  "homeRatingCasesLine": "{rating} · {count} ka mga kaso",
+  "@homeRatingCasesLine": {
+    "placeholders": {
+      "rating": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "authWelcomeBack": "Maayong\npagbalik",
+  "authPassword": "Password",
+  "authLogIn": "Sulod",
+  "authForgotPassword": "Nakalimtan ang password?",
+  "authNoAccountPrompt": "Walay account? ",
+  "authSignUpLink": "Mag-sign up",
+  "authGuest": "Guest",
+  "authGoogle": "Google",
+  "chatConversationsTitle": "Mga panag-istorya",
+  "chatNewChatButton": "Bag-ong chat",
+  "chatNoConversationsYet": "Walay panag-istorya pa",
+  "chatMenuSaveChat": "I-save ang chat",
+  "chatMenuUnsaveChat": "Kuhaa ang save sa chat",
+  "chatMenuShare": "Ipaambit",
+  "chatMenuDownloadPdf": "Download isip PDF",
+  "chatMenuReport": "Report",
+  "chatMenuShareToLawyer": "Ipaambit sa abogado",
+  "chatPdfGeneratingSummary": "Naghimo og PDF summary...",
+  "chatPdfSaveFailed": "Dili ma-save ang PDF: {error}",
+  "@chatPdfSaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "chatDisclaimerDismiss": "Sirhi",
+  "chatTitleNewChat": "Bag-ong chat",
+  "chatTitleCurrentConversation": "Karon nga panag-istorya",
+  "chatRagDisconnectedBanner": "Dili nakakonekta ang law library (RAG) sa server — mahimong gumamit og kinatibuk-ang kahibalo ang tubag.",
+  "chatNoLawExcerpts": "Walay law excerpt nga nakab-ot sa relevance threshold niini nga pangutana.",
+  "chatRetrievedForAnswer": "Gikuha alang niini nga tubag",
+  "chatSourceLabel": "Tinubdan",
+  "chatEmptyExploreTopic": "Pagsugod og bag-ong panag-istorya aron usbon ang lain nga hilisgutan.",
+  "chatCopiedClipboard": "Nakopya sa clipboard",
+  "chatEditMessageTitle": "Usba ang mensahe",
+  "chatEditMessageHint": "Usba ang imong mensahe",
+  "chatComposerHint": "Pagpamangkot og bisan unsa",
+  "chatAssistantGreeting": "Kumusta! Ako si CLAiR, unsa may akong matabangan kanimo karon?",
+  "chatLawyersNearYou": "Mga abogado duol nimo",
+  "chatMatchPercent": "{head} · {pct}% nga match",
+  "@chatMatchPercent": {
+    "placeholders": {
+      "head": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "notifMarkAllRead": "Markahi tanan nga nabasa na",
+  "notifEmpty": "Walay notification pa",
+  "libScreenTitle": "Library",
+  "libTabHistory": "History",
+  "libTabSaved": "Saved",
+  "libSearchChatsHint": "Pangitaa ang chat...",
+  "libPreviewEmpty": "Sugdi og bag-ong mensahe",
+  "libPreviewYou": "Ikaw",
+  "libPreviewRecent": "Bag-o lang: {text}",
+  "@libPreviewRecent": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "appearanceSectionTheme": "Tema",
+  "appearanceThemeLight": "Light",
+  "appearanceThemeDark": "Dark",
+  "appearanceThemeSystem": "System",
+  "appearanceAccentColor": "Accent color",
+  "appearanceFontSize": "Kadako sa font",
+  "appearanceSavedSnackbar": "Na-save ang panagway",
+  "appearanceSaveButton": "I-save ang panagway",
+  "appearanceFontSmall": "Gamay",
+  "appearanceFontDefault": "Default",
+  "appearanceFontLarge": "Dako",
+  "appearanceFontExtraLarge": "Labing dako",
+  "histTapToOpen": "I-tap aron ablihan ang panag-istorya",
+  "histRenameDialogTitle": "Usba ang ngalan sa panag-istorya",
+  "histRenameHint": "Isulod ang bag-ong pamagat",
+  "histRenameButton": "Usba ang ngalan",
+  "histDeleteTitle": "Tangtangon ang panag-istorya?",
+  "histDeleteBody": "Permanenteng matangtang kini nga panag-istorya ug tanang mensahe.",
+  "histGeneratingPdf": "Naghimo og PDF...",
+  "histDownloadFailed": "Dili ma-download: {error}",
+  "@histDownloadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "histEmptyTitle": "Walay panag-istorya pa",
+  "histEmptySubtitle": "Pagsugod og chat ug makita dinhi ang imong mga panag-istorya",
+  "convSave": "I-save",
+  "convUnsave": "Kuhaa ang save",
+  "convRename": "Usba ang ngalan",
+  "convShareToLawyer": "Ipaambit sa abogado",
+  "convDownload": "Download",
+  "convDelete": "Tangtangon",
+  "commonSave": "I-save",
+  "commonDelete": "Tangtangon",
+  "apptNotFoundSnackbar": "Dili makit-an kana nga appointment sa imong lista.",
+  "apptMyTitle": "Akong mga appointment",
+  "apptTotalCount": "{count, plural, =1{1 appointment sa kinatibuk-an} other{{count} ka mga appointment sa kinatibuk-an}}",
+  "@apptTotalCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "apptFilterAll": "Tanana",
+  "apptFilterPending": "Pending",
+  "apptFilterAccepted": "Accepted",
+  "apptFilterCancelled": "Cancelled",
+  "apptSortNewestFirst": "Petsa · Pinaka bag-o una",
+  "apptSortOldestFirst": "Petsa · Pinaka karaan una",
+  "apptSortChipNewest": "Ayos: pinaka bag-o una",
+  "apptSortChipOldest": "Ayos: pinaka karaan una",
+  "apptNoFilterMatch": "Walay appointment nga match niini nga filter",
+  "apptShowAll": "Ipakita tanan",
+  "apptSectionCancelledOrDeclined": "Gikanselar o gibalibaran",
+  "apptSectionActivePending": "Aktibo ug pending",
+  "apptSectionPastCancelled": "Kaniadto / gikanselar o gibalibaran",
+  "apptEmptyTitle": "Walay appointment pa",
+  "apptEmptySubtitle": "Mag-book og konsultasyon sa abogado ug\nsundaa ang status dinhi",
+  "apptCardChat": "Chat",
+  "apptStatusPending": "Pending",
+  "apptStatusAccepted": "Accepted",
+  "apptStatusCancelled": "Cancelled",
+  "apptStatusDeclined": "Gibalibaran",
+  "apptDetailLabelType": "Matang",
+  "apptDetailLabelDate": "Petsa",
+  "apptDetailLabelTime": "Oras",
+  "apptDetailLabelLawyer": "Abogado",
+  "apptDetailSectionDescription": "Deskripsyon",
+  "apptDetailReasonCancellation": "Pagkansela",
+  "apptDetailReasonDecline": "Rason sa pagdili",
+  "apptDetailLabelBooked": "Gi-book",
+  "apptDetailLabelUpdated": "Gi-update",
+  "apptDetailCancelAppointment": "Kanselaha ang appointment",
+  "apptDetailAttachedConversationTitle": "Naka-attach nga CLAiR conversation",
+  "apptDetailAttachedConversationSubtitle": "Ablihi ang chat nga imong gipaambit pag-book niini nga appointment.",
+  "apptDetailBannerCancelledByClientTitle": "Gikansela ang appointment",
+  "apptDetailBannerCancelledByClientSubtitle": "Ikaw ang nagkansela niini nga booking. Naabisuhan na ang abogado.",
+  "apptDetailBannerConfirmedTitle": "Gidawat ang appointment",
+  "apptDetailBannerConfirmedSubtitle": "Gikumpirma na sa abogado kini nga appointment.",
+  "apptDetailBannerPendingTitle": "Naghulat og kumpirmasyon",
+  "apptDetailBannerPendingSubtitle": "Gisusi pa sa abogado ang imong hangyo.",
+  "apptDetailBannerDeclinedTitle": "Gibalibaran ang hangyo",
+  "apptDetailBannerDeclinedSubtitle": "Dili madawat sa abogado kini nga hangyo.",
+  "apptDetailBannerUnknownTitle": "Wala mailhan nga status",
+  "apptDetailChatWithLawyer": "Makig-chat kang {lawyerName}",
+  "@apptDetailChatWithLawyer": {
+    "placeholders": {
+      "lawyerName": {
+        "type": "String"
+      }
+    }
+  },
+  "apptDetailChatLockedCancelledSelf": "Dili available ang chat — imong gikansela kini nga appointment.",
+  "apptDetailChatLockedCancelledDeclined": "Dili available ang chat — gibalibaran kini nga appointment.",
+  "apptDetailChatLockedPending": "Ma-unlock ang chat kon madawat na ang appointment.",
+  "apptDetailCancelOptionsFailed": "Dili ma-load ang mga opsyon sa pagkansela. Sulayi pag-usab unya.",
+  "apptDetailCancelledSuccess": "Gikansela ang appointment.",
+  "apptDetailCancelWhyTitle": "Nganong nagkansela ka?",
+  "apptDetailCancelWhySubtitle": "Makita sa abogado ang imong pilion nga rason.",
+  "apptDetailCancelTellMoreHint": "Pagpasabot gamay…",
+  "apptDetailCancelErrorPickReason": "Pagpili og rason.",
+  "apptDetailCancelErrorOtherDetails": "Palihug pagpasabot nganong nagkansela ka.",
+  "apptDetailKeepAppointment": "Padayon ang appointment",
+  "apptDetailConfirmCancel": "Kumpirmahi ang pagkansela",
+  "libSavedEmptyTitle": "Walay na-save nga chat",
+  "libSavedEmptySubtitle": "I-bookmark ang mga chat aron sayon\npangitaon unya",
+  "libSearchNoSaved": "Walay nakit-an nga saved chat",
+  "libSearchNoHistory": "Walay nakit-an nga chat",
+  "libSearchTryDifferent": "Suwayi ang laing keyword.",
+  "commonSubmit": "Submit",
+  "legalDocNoticeTitle": "Opisyal nga teksto",
+  "legalDocNoticeBody": "Aron legal nga tarong, ang tibuok teksto sa ubos anaa sa English.",
+  "signupTermsPrivacyRequired": "Kinahanglan nimong mouyon sa Mga Termino sa Paggamit ug Polisiya sa Privacy aron magpadayon.",
+  "signupAgreementLead": "Nabasa nako ug mouyon ko sa CLAiR ",
+  "signupAgreementMiddle": " ug ",
+  "signupAgreementTail": ". Nakasabot ko nga ang CLAiR naghatag lamang og legal nga impormasyon ug dili kini legal nga tambag o makahimo og attorney-client relationship.",
+  "signupTitle": "Pag-sign up",
+  "signupCompleteProfileTitle": "Kumpletuha ang imong profile",
+  "signupGoogleNameBanner": "Duol na! Idugang lang ang imong pangalan ug mouyon sa among mga termino aron makumpleto ang Google sign-up.",
+  "signupFirstNameLabel": "Pangalan",
+  "signupLastNameLabel": "Apelyido",
+  "signupFirstNameRequired": "Kinahanglan ang pangalan",
+  "signupLastNameRequired": "Kinahanglan ang apelyido",
+  "signupContinueButton": "Padayon",
+  "signupCompleteSignUpButton": "Kumpletuha ang sign up",
+  "reportScreenTitle": "Pag-report og isyu",
+  "reportScreenHeroTitle": "Pag-report og isyu sa CLAiR",
+  "reportScreenHeroBody": "Nakakita og bug, sayop nga tubag, o feedback? Gibasa namo ang matag report ug gamiton kini aron tarong ug kapuslanon ang CLAiR.",
+  "reportScreenAnonymousNote": "Anonymous ang mga report gawas kon naa kay gidungag nga detalye sa deskripsyon.",
+  "reportIssueCategoryStep": "Kategorya sa isyu",
+  "reportDescribeIssueHint": "Hulagway ang isyu nga detalyado. Unsa ang nahitabo, ug unsa ang imong gipaabot?",
+  "reportPrivacyNoteBody": "Kompederensyal nga gihandel ang mga report. Mahimo kami mag-follow aron i-verify ang isyu ug pagpaayo ang CLAiR.",
+  "reportSubmitButton": "Ipasa ang report",
+  "reportSuccessTitle": "Naipadala ang report",
+  "reportSuccessBody": "Salamat sa pagtabang pagpaayo sa CLAiR.\nSusihon sa among team ang imong report pag-ayo.",
+  "reportBackToSettings": "Balik sa settings",
+  "reportReplySheetTitle": "I-report ang tubag",
+  "reportReplySheetSubtitle": "Tabangi kami pagpaayo sa legal nga katukoran ug kaluwasan.",
+  "reportReplyExplainHint": "Unsa ang dili tarong o makalinghaw niini nga tubag? Lakip ang bisan unsang balaod o konsepto kon nagpakauyon.",
+  "reportReplySubmittedSnackbar": "Salamat — naipadala na ang imong report.",
+  "lawyerConcernTitle": "Pag-report og kabalaka",
+  "lawyerConcernAbout": "Bahin kang: {name}",
+  "@lawyerConcernAbout": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "lawyerConcernShareSnackbar": "Na-share ang report pinaagi sa share sheet.",
+  "reportFieldContentReported": "Kontento nga gi-report",
+  "reportFieldChooseQuestionLegal": "Unsa ang labing naglarawan niini nga isyu?",
+  "reportFieldChooseCategoryLegalIntro": "Pagpili og kategorya nga labing duol sa legal nga kabalaka.",
+  "reportFieldIssueCategory": "Kategorya sa isyu",
+  "reportFieldYourExplanation": "Imong pasabot",
+  "reportFieldExplanationBlurb": "Kinahanglan ang mubo nga pasabot aron masabtan sa team ang isyu.",
+  "reportHintBriefConcern": "Pagpasabot gamay kon unsay sayop o nakapabalaka…",
+  "reportValidationExplanationShort": "Pagdungag og mubo nga pasabot (bisan usa ka hukmol).",
+  "reportLawBadLegalLabel": "Sayop nga legal nga impormasyon",
+  "reportLawBadLegalDesc": "Adunay sayop nga balaod, kaso, o estatuto ang tubag.",
+  "reportLawOutdatedLabel": "Daan nga balaod o regulasyon",
+  "reportLawOutdatedDesc": "Na-amendar, na-repeal, o napulihan na ang gituki nga balaod.",
+  "reportLawMisleadingLabel": "Makapanlimbaw nga pagpasabot",
+  "reportLawMisleadingDesc": "Likido, kulang, o gikuha sa sayop nga konteksto ang legal nga panghunahuna.",
+  "reportLawJurisdictionLabel": "Sayop nga hurisdiksyon",
+  "reportLawJurisdictionDesc": "Mga balaod gikan sa laing nasud, estado, o rehiyon ang gigamit.",
+  "reportLawMissingContextLabel": "Kulang ang legal nga konteksto",
+  "reportLawMissingContextDesc": "Wala gilakip ang importante nga eksepsyon, kondisyon, o nuances.",
+  "reportLawHarmfulLabel": "Potensyal nga makapinsala nga tambag",
+  "reportLawHarmfulDesc": "Mahimong makadaot ug legal nga kapilde kon sundon kini nga tambag.",
+  "reportLawUnclearLabel": "Dimaalam o makalibog nga tubag",
+  "reportLawUnclearDesc": "Hapsay kaayo o lisod gamiton ang tubag sa legal nga konteksto.",
+  "reportLawOtherLabel": "Laing legal nga kabalaka",
+  "reportLawOtherDesc": "Kabalaka nga wala gihulagway sa mga kategorya sa ibabaw.",
+  "reportAppBugLabel": "Bug sa app",
+  "reportAppBugDesc": "Adunay buak o sayop nga pamatasan sa app.",
+  "reportAppWrongAiLabel": "Sayop nga tubag sa AI",
+  "reportAppWrongAiDesc": "Nihatag ang CLAiR og dili sakto, dili may kalabutan, o makapinsala nga tubag.",
+  "reportAppMisleadingLabel": "Makapanlimbaw nga sulod",
+  "reportAppMisleadingDesc": "Malimbungon ang impormasyon o gipakita nga walay husto nga konteksto.",
+  "reportAppPrivacyLabel": "Kabalaka sa privacy o seguridad",
+  "reportAppPrivacyDesc": "Isyu kon giunsa pagdumala o pagtipig ang imong data.",
+  "reportAppFeatureLabel": "Feedback sa feature",
+  "reportAppFeatureDesc": "Suhestyon alang sa bag-ong feature o pagpaayo sa app.",
+  "reportAppOtherLabel": "Uban pa",
+  "reportAppOtherDesc": "Isyu nga wala sakop sa mga kategorya sa ibabaw.",
+  "helpHeroTitle": "Unsa among matabangan nimo?",
+  "helpHeroSubtitle": "Tan-awa ang sagad mga pangutana o pangitaa sa ubos.",
+  "helpSearchHint": "Pangitaa ang mga FAQ…",
+  "helpEmptyNoResults": "Walay resulta alang sa \"{query}\"",
+  "@helpEmptyNoResults": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "helpEmptySuggest": "Suwayi ang laing keyword o tan-awa ang mga seksyon sa ibabaw.",
+  "helpSecUsing": "Paggamit sa CLAiR",
+  "helpSecLawyers": "Mga Abogado ug Appointment",
+  "helpSecPrivacy": "Privacy ug Seguridad",
+  "helpSecAccount": "Account ug Settings",
+  "helpSecReporting": "Pag-report ug Feedback",
+  "helpFaqEnglishNotice": "Ang mga detalyadong tubag sa FAQ sa ubos anaa sa English aron legal nga tarong."
+}

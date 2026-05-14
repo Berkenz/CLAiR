@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 APPOINTMENT_TYPES: list[str] = [
     "Initial Consultation",
@@ -15,6 +15,18 @@ APPOINTMENT_TYPES: list[str] = [
 ]
 
 APPOINTMENT_STATUSES: list[str] = ["pending", "confirmed", "cancelled"]
+
+# Mobile client cancellation — keys stored in API; labels shown in UI
+CLIENT_APPOINTMENT_CANCEL_REASONS: dict[str, str] = {
+    "schedule_conflict": "My schedule changed",
+    "no_longer_needed": "I no longer need this appointment",
+    "found_another_lawyer": "I am working with another lawyer",
+    "financial": "Cost or payment concerns",
+    "personal_emergency": "Personal or family emergency",
+    "other": "Other",
+}
+
+CLIENT_CANCEL_REASON_STORAGE_PREFIX = "Client cancelled:"
 
 
 # --- Mobile client: book an appointment ---
@@ -157,6 +169,40 @@ class AppointmentRejectRequest(BaseModel):
         if not v.strip():
             raise ValueError("Rejection reason cannot be blank")
         return v.strip()
+
+
+class AppointmentClientCancelRequest(BaseModel):
+    """Client cancels their own booking; reason is chosen from a fixed list (plus optional details for Other)."""
+
+    reason: str
+    other_details: str | None = None
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason_key(cls, v: str) -> str:
+        key = v.strip()
+        if key not in CLIENT_APPOINTMENT_CANCEL_REASONS:
+            raise ValueError("Invalid cancellation reason")
+        return key
+
+    @field_validator("other_details")
+    @classmethod
+    def strip_other(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        s = v.strip()
+        return s or None
+
+    @model_validator(mode="after")
+    def require_other_details(self) -> "AppointmentClientCancelRequest":
+        if self.reason == "other" and not (self.other_details or "").strip():
+            raise ValueError("Please add a short note when you choose Other")
+        return self
+
+
+class CancellationReasonOption(BaseModel):
+    id: str
+    label: str
 
 
 class AppointmentResponse(BaseModel):

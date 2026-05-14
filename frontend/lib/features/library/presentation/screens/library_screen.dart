@@ -12,28 +12,23 @@ import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/history/domain/entities/conversation_entity.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
+import 'package:clair/features/library/presentation/conversation_preview_line.dart';
 import 'package:clair/features/lawyer/presentation/providers/lawyer_sharing_provider.dart';
+import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
+
+final conversationPreviewProvider = FutureProvider.autoDispose
+    .family<ConversationPreviewLine, String>((ref, conversationId) async {
+  final repository = ref.read(historyRepositoryProvider);
+  final messages = await repository.getConversationMessages(conversationId);
+  return ConversationPreviewLine.fromMessages(messages);
+});
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
   @override
   ConsumerState<LibraryScreen> createState() => _LibraryScreenState();
 }
-
-final conversationPreviewProvider =
-    FutureProvider.autoDispose.family<String, String>((ref, conversationId) async {
-  final repository = ref.read(historyRepositoryProvider);
-  final messages = await repository.getConversationMessages(conversationId);
-  if (messages.isEmpty) {
-    return 'Start a new message';
-  }
-
-  final latest = messages.last;
-  final author = latest.isUser ? 'You' : 'CLAiR';
-  final text = latest.text.trim().isNotEmpty ? latest.text.trim() : '...';
-  return '$author: $text';
-});
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   int _segment = 0;
@@ -57,6 +52,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     ref.listen<int>(mainShellTabProvider, (prev, next) {
       if (next == 2) {
         ref.read(historyProvider.notifier).loadConversations();
@@ -120,7 +116,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
                   child: Text(
-                    'Library',
+                    l10n.libScreenTitle,
                     style: GoogleFonts.nunito(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
@@ -131,6 +127,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 _buildSegmentControl(
                   filteredHistoryChats.length,
                   filteredSavedChats.length,
+                  l10n,
                 ),
                 const SizedBox(height: 12),
                 Padding(
@@ -146,7 +143,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       onChanged: (_) => setState(() {}),
                       style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
                       decoration: InputDecoration(
-                        hintText: 'Search chats...',
+                        hintText: l10n.libSearchChatsHint,
                         hintStyle: GoogleFonts.nunito(fontSize: 13, color: cl.textLight),
                         prefixIcon: Icon(Icons.search_rounded, size: 18, color: cl.textLight),
                         suffixIcon: searchQuery.isNotEmpty
@@ -171,11 +168,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     child: _segment == 0
                         ? KeyedSubtree(
                             key: const ValueKey('history'),
-                            child: _buildHistoryContent(historyState, filteredHistoryChats, searchQuery),
+                            child: _buildHistoryContent(historyState, filteredHistoryChats, searchQuery, l10n),
                           )
                         : KeyedSubtree(
                             key: const ValueKey('saved'),
-                            child: _buildSavedContent(filteredSavedChats, searchQuery),
+                            child: _buildSavedContent(filteredSavedChats, searchQuery, l10n),
                           ),
                   ),
                 ),
@@ -189,7 +186,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   // ─── Segment control ───────────────────────────────────────────────
 
-  Widget _buildSegmentControl(int historyCount, int savedCount) {
+  Widget _buildSegmentControl(
+      int historyCount, int savedCount, AppLocalizations l10n) {
     final cl = context.c;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -202,8 +200,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         ),
         child: Row(
           children: [
-            _segmentTab('History', historyCount, 0, Icons.history_rounded),
-            _segmentTab('Saved', savedCount, 1, Icons.bookmark_rounded),
+            _segmentTab(l10n.libTabHistory, historyCount, 0, Icons.history_rounded),
+            _segmentTab(l10n.libTabSaved, savedCount, 1, Icons.bookmark_rounded),
           ],
         ),
       ),
@@ -282,6 +280,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     HistoryState state,
     List<ConversationEntity> chats,
     String searchQuery,
+    AppLocalizations l10n,
   ) {
     final cl = context.c;
     if (state.isLoading && state.conversations.isEmpty) {
@@ -291,8 +290,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     }
     if (chats.isEmpty) {
       return searchQuery.isNotEmpty
-          ? _buildSearchEmpty('history')
-          : _buildHistoryEmpty();
+          ? _buildSearchEmpty('history', l10n)
+          : _buildHistoryEmpty(l10n);
     }
 
     return RefreshIndicator(
@@ -302,23 +301,22 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         itemCount: chats.length,
         separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (_, i) => _historyCard(chats[i]),
+        itemBuilder: (_, i) => _historyCard(chats[i], l10n),
       ),
     );
   }
 
-  Widget _historyCard(ConversationEntity conversation) {
+  Widget _historyCard(ConversationEntity conversation, AppLocalizations l10n) {
     final cl = context.c;
     final chatDate = conversation.updatedAt ?? conversation.createdAt;
     final dateTimeStr = _formatDateTime(chatDate);
     final previewAsync = ref.watch(conversationPreviewProvider(conversation.id));
-    final fallbackPreview = conversation.lastMessage?.trim().isNotEmpty == true
-        ? 'Recent: ${conversation.lastMessage!.trim()}'
-        : 'Start a new message';
+    final fallbackStr =
+        conversationListFallbackPreview(conversation.lastMessage, l10n);
     final lastMessagePreview = previewAsync.when(
-      data: (value) => value,
-      loading: () => fallbackPreview,
-      error: (_, __) => fallbackPreview,
+      data: (line) => formatConversationPreviewLine(line, l10n),
+      loading: () => fallbackStr,
+      error: (_, __) => fallbackStr,
     );
 
     return GestureDetector(
@@ -413,7 +411,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        conversation.isPinned ? 'Unsave' : 'Save',
+                        conversation.isPinned ? l10n.convUnsave : l10n.convSave,
                         style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
                       ),
                     ],
@@ -426,7 +424,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       Icon(Icons.edit_outlined, size: 18, color: cl.textDark),
                       const SizedBox(width: 12),
                       Text(
-                        'Rename',
+                        l10n.convRename,
                         style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
                       ),
                     ],
@@ -439,7 +437,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       Icon(Icons.share_rounded, size: 18, color: cl.accent),
                       const SizedBox(width: 12),
                       Text(
-                        'Share to Lawyer',
+                        l10n.convShareToLawyer,
                         style: GoogleFonts.nunito(fontSize: 13, color: cl.accent),
                       ),
                     ],
@@ -452,7 +450,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       Icon(Icons.download_rounded, size: 18, color: cl.textDark),
                       const SizedBox(width: 12),
                       Text(
-                        'Download',
+                        l10n.convDownload,
                         style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
                       ),
                     ],
@@ -469,7 +467,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        'Delete',
+                        l10n.convDelete,
                         style: GoogleFonts.nunito(
                           fontSize: 13,
                           color: Colors.red.shade700,
@@ -486,7 +484,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _buildHistoryEmpty() {
+  Widget _buildHistoryEmpty(AppLocalizations l10n) {
     final cl = context.c;
     return Center(
       child: Column(
@@ -502,7 +500,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No conversations yet',
+            l10n.histEmptyTitle,
             style: GoogleFonts.nunito(
               fontSize: 18,
               fontWeight: FontWeight.w700,
@@ -511,7 +509,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Start a chat and your conversations\nwill appear here',
+            l10n.histEmptySubtitle,
             textAlign: TextAlign.center,
             style: GoogleFonts.nunito(fontSize: 13, color: cl.textMid),
           ),
@@ -522,33 +520,33 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   // ─── Saved content ─────────────────────────────────────────────────
 
-  Widget _buildSavedContent(List<ConversationEntity> saved, String searchQuery) {
+  Widget _buildSavedContent(List<ConversationEntity> saved, String searchQuery,
+      AppLocalizations l10n) {
     if (saved.isEmpty) {
       return searchQuery.isNotEmpty
-          ? _buildSearchEmpty('saved')
-          : _buildSavedEmpty();
+          ? _buildSearchEmpty('saved', l10n)
+          : _buildSavedEmpty(l10n);
     }
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
       itemCount: saved.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) => _savedCard(saved[i]),
+      itemBuilder: (_, i) => _savedCard(saved[i], l10n),
     );
   }
 
-  Widget _savedCard(ConversationEntity conversation) {
+  Widget _savedCard(ConversationEntity conversation, AppLocalizations l10n) {
     final cl = context.c;
     final chatDate = conversation.updatedAt ?? conversation.createdAt;
     final dateTimeStr = _formatDateTime(chatDate);
     final previewAsync = ref.watch(conversationPreviewProvider(conversation.id));
-    final fallbackPreview = conversation.lastMessage?.trim().isNotEmpty == true
-        ? 'Recent: ${conversation.lastMessage!.trim()}'
-        : 'Start a new message';
+    final fallbackStr =
+        conversationListFallbackPreview(conversation.lastMessage, l10n);
     final lastMessagePreview = previewAsync.when(
-      data: (value) => value,
-      loading: () => fallbackPreview,
-      error: (_, __) => fallbackPreview,
+      data: (line) => formatConversationPreviewLine(line, l10n),
+      loading: () => fallbackStr,
+      error: (_, __) => fallbackStr,
     );
 
     return GestureDetector(
@@ -623,7 +621,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       Icon(Icons.bookmark_rounded, size: 18, color: cl.textDark),
                       const SizedBox(width: 12),
                       Text(
-                        'Unsave',
+                        l10n.convUnsave,
                         style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
                       ),
                     ],
@@ -636,7 +634,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       Icon(Icons.edit_outlined, size: 18, color: cl.textDark),
                       const SizedBox(width: 12),
                       Text(
-                        'Rename',
+                        l10n.convRename,
                         style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
                       ),
                     ],
@@ -649,7 +647,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       Icon(Icons.share_rounded, size: 18, color: cl.accent),
                       const SizedBox(width: 12),
                       Text(
-                        'Share to Lawyer',
+                        l10n.convShareToLawyer,
                         style: GoogleFonts.nunito(fontSize: 13, color: cl.accent),
                       ),
                     ],
@@ -662,7 +660,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       Icon(Icons.download_rounded, size: 18, color: cl.textDark),
                       const SizedBox(width: 12),
                       Text(
-                        'Download',
+                        l10n.convDownload,
                         style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark),
                       ),
                     ],
@@ -679,7 +677,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        'Delete',
+                        l10n.convDelete,
                         style: GoogleFonts.nunito(
                           fontSize: 13,
                           color: Colors.red.shade700,
@@ -696,7 +694,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _buildSavedEmpty() {
+  Widget _buildSavedEmpty(AppLocalizations l10n) {
     final cl = context.c;
     return Center(
       child: Column(
@@ -712,7 +710,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No saved chats',
+            l10n.libSavedEmptyTitle,
             style: GoogleFonts.nunito(
               fontSize: 18,
               fontWeight: FontWeight.w700,
@@ -721,7 +719,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Bookmark chats to find\nthem easily later',
+            l10n.libSavedEmptySubtitle,
             textAlign: TextAlign.center,
             style: GoogleFonts.nunito(fontSize: 13, color: cl.textMid),
           ),
@@ -730,9 +728,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _buildSearchEmpty(String segment) {
+  Widget _buildSearchEmpty(String segment, AppLocalizations l10n) {
     final cl = context.c;
-    final title = segment == 'saved' ? 'No saved chats found' : 'No chats found';
+    final title = segment == 'saved'
+        ? l10n.libSearchNoSaved
+        : l10n.libSearchNoHistory;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -757,7 +757,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Try a different keyword.',
+            l10n.libSearchTryDifferent,
             style: GoogleFonts.nunito(fontSize: 13, color: cl.textMid),
           ),
         ],
@@ -807,9 +807,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   Future<void> _downloadConversation(ConversationEntity conversation) async {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Generating PDF...'),
+        content: Text(l10n.histGeneratingPdf),
         backgroundColor: cl.textDark,
         duration: const Duration(seconds: 10),
       ),
@@ -842,7 +843,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to download: $e'),
+          content: Text(l10n.histDownloadFailed(e.toString())),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -854,10 +855,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final controller = TextEditingController(text: conversation.title);
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) {
+        final dl = AppLocalizations.of(ctx)!;
+        return AlertDialog(
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Rename conversation',
+        title: Text(dl.histRenameDialogTitle,
             style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
         content: TextField(
           controller: controller,
@@ -865,7 +868,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           maxLength: 200,
           style: GoogleFonts.nunito(),
           decoration: InputDecoration(
-            hintText: 'Enter new title',
+            hintText: dl.histRenameHint,
             hintStyle: GoogleFonts.nunito(color: cl.textLight),
             border:
                 OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -879,7 +882,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
+            child: Text(dl.commonCancel,
                 style: GoogleFonts.nunito(color: cl.textMid)),
           ),
           TextButton(
@@ -892,12 +895,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               }
               Navigator.pop(ctx);
             },
-            child: Text('Rename',
+            child: Text(dl.histRenameButton,
                 style: GoogleFonts.nunito(
                     fontWeight: FontWeight.w700, color: cl.accent)),
           ),
         ],
-      ),
+      );
+      },
     );
   }
 
@@ -905,19 +909,21 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final cl = context.c;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) {
+        final dl = AppLocalizations.of(ctx)!;
+        return AlertDialog(
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Delete conversation?',
+        title: Text(dl.histDeleteTitle,
             style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
         content: Text(
-          'This will permanently delete this conversation and all its messages.',
+          dl.histDeleteBody,
           style: GoogleFonts.nunito(),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
+            child: Text(dl.commonCancel,
                 style: GoogleFonts.nunito(color: cl.textMid)),
           ),
           TextButton(
@@ -927,11 +933,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   .read(historyProvider.notifier)
                   .deleteConversation(conversation.id);
             },
-            child: Text('Delete',
+            child: Text(dl.commonDelete,
                 style: GoogleFonts.nunito(color: Colors.red.shade700)),
           ),
         ],
-      ),
+      );
+      },
     );
   }
 

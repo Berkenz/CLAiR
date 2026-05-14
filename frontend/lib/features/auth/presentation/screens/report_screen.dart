@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/widgets/law_report_issue_field_group.dart';
+import 'package:clair/features/auth/presentation/widgets/report_categories_localized.dart';
+import 'package:clair/l10n/app_localizations.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -19,8 +21,9 @@ class _ReportScreenState extends State<ReportScreen> {
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
 
-    if (_submitted) return _SuccessView(cl: cl);
+    if (_submitted) return _SuccessView(cl: cl, l10n: l10n);
 
     return Scaffold(
       backgroundColor: cl.bg,
@@ -33,7 +36,7 @@ class _ReportScreenState extends State<ReportScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Report an issue',
+          l10n.reportScreenTitle,
           style: GoogleFonts.nunito(
             fontSize: 17,
             fontWeight: FontWeight.w700,
@@ -47,7 +50,6 @@ class _ReportScreenState extends State<ReportScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Hero intro card ────────────────────────────────────────────
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
@@ -80,7 +82,7 @@ class _ReportScreenState extends State<ReportScreen> {
                       const SizedBox(width: 14),
                       Expanded(
                         child: Text(
-                          'Report an issue with CLAiR',
+                          l10n.reportScreenHeroTitle,
                           style: GoogleFonts.nunito(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
@@ -93,8 +95,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    'Found a bug, wrong answer, or have feedback? '
-                    'We read every report and use it to keep CLAiR accurate and useful.',
+                    l10n.reportScreenHeroBody,
                     style: GoogleFonts.nunito(
                         fontSize: 13, height: 1.5, color: cl.textMid),
                   ),
@@ -108,7 +109,7 @@ class _ReportScreenState extends State<ReportScreen> {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'Reports are anonymous unless you include details in your description.',
+                          l10n.reportScreenAnonymousNote,
                           style: GoogleFonts.nunito(
                               fontSize: 11.5, color: cl.textLight, height: 1.4),
                         ),
@@ -119,13 +120,8 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
             ),
             const SizedBox(height: 28),
-
-            // ── Step 1 ─────────────────────────────────────────────────────
-            _StepLabel(number: '1', label: 'Issue category', cl: cl),
+            _StepLabel(number: '1', label: l10n.reportIssueCategoryStep, cl: cl),
             const SizedBox(height: 12),
-
-            // ── Step 2 ─────────────────────────────────────────────────────
-            // (Category cards + explanation are bundled in the form group)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
@@ -137,15 +133,11 @@ class _ReportScreenState extends State<ReportScreen> {
               child: LawReportIssueFieldGroup(
                 key: _fieldsKey,
                 showIntro: false,
-                categories: kAppReportCategories,
-                explanationHint:
-                    'Describe the issue in detail. What happened, and what did you expect?',
+                categories: appReportCategoriesFor(l10n),
+                explanationHint: l10n.reportDescribeIssueHint,
               ),
             ),
-
             const SizedBox(height: 28),
-
-            // ── Privacy note ───────────────────────────────────────────────
             Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -162,8 +154,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Reports are handled confidentially. We may follow up to '
-                      'verify the issue and improve CLAiR.',
+                      l10n.reportPrivacyNoteBody,
                       style: GoogleFonts.nunito(
                           fontSize: 12, color: cl.textMid, height: 1.45),
                     ),
@@ -172,8 +163,6 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // ── Submit ─────────────────────────────────────────────────────
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -193,7 +182,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   setState(() => _submitted = true);
                 },
                 child: Text(
-                  'Submit report',
+                  l10n.reportSubmitButton,
                   style: GoogleFonts.nunito(
                       fontSize: 15, fontWeight: FontWeight.w800),
                 ),
@@ -205,8 +194,6 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 }
-
-// ── Step label ────────────────────────────────────────────────────────────────
 
 class _StepLabel extends StatelessWidget {
   const _StepLabel({
@@ -254,11 +241,10 @@ class _StepLabel extends StatelessWidget {
   }
 }
 
-// ── Success view ──────────────────────────────────────────────────────────────
-
 class _SuccessView extends StatelessWidget {
-  const _SuccessView({required this.cl});
+  const _SuccessView({required this.cl, required this.l10n});
   final AppColorTheme cl;
+  final AppLocalizations l10n;
 
   @override
   Widget build(BuildContext context) {
@@ -289,7 +275,7 @@ class _SuccessView extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                'Report submitted',
+                l10n.reportSuccessTitle,
                 style: GoogleFonts.nunito(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -298,8 +284,7 @@ class _SuccessView extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                'Thank you for helping improve CLAiR.\n'
-                'Our team will review your report carefully.',
+                l10n.reportSuccessBody,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.nunito(
                     fontSize: 14, height: 1.5, color: cl.textMid),
@@ -317,7 +302,7 @@ class _SuccessView extends StatelessWidget {
                   ),
                   onPressed: () => Navigator.pop(context),
                   child: Text(
-                    'Back to settings',
+                    l10n.reportBackToSettings,
                     style: GoogleFonts.nunito(fontWeight: FontWeight.w700),
                   ),
                 ),

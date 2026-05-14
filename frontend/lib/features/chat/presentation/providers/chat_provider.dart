@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:clair/core/locale/app_locale_provider.dart';
 import 'package:clair/core/services/location_service.dart';
 import 'package:clair/features/chat/data/datasources/chat_remote_datasource.dart';
 import 'package:clair/features/chat/data/repositories/chat_repository_impl.dart';
@@ -10,6 +11,7 @@ import 'package:clair/features/chat/domain/repositories/chat_repository.dart';
 import 'package:clair/features/history/data/datasources/history_remote_datasource.dart';
 import 'package:clair/features/history/data/repositories/history_repository_impl.dart';
 import 'package:clair/features/history/domain/repositories/history_repository.dart';
+import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/providers/shared_providers.dart';
 
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {
@@ -26,11 +28,45 @@ final _historyRepoProvider = Provider<HistoryRepository>((ref) {
 
 class ChatNotifier extends StateNotifier<ChatState> {
   ChatNotifier(this._repository, this._historyRepository, this._ref)
-      : super(ChatState.initial());
+      : super(_freshChatForRef(_ref));
 
   final ChatRepository _repository;
   final HistoryRepository _historyRepository;
   final Ref _ref;
+
+  static ChatState _freshChatForRef(Ref ref) {
+    final locale = ref.read(appLocaleProvider);
+    final greeting =
+        lookupAppLocalizations(locale).chatAssistantGreeting;
+    return ChatState.freshChat(greeting);
+  }
+
+  static String _chatApiLocale(String languageCode) {
+    switch (languageCode) {
+      case 'fil':
+      case 'ceb':
+        return languageCode;
+      default:
+        return 'en';
+    }
+  }
+
+  /// Syncs the placeholder greeting when the user changes app language (new chat only).
+  void refreshStarterGreetingIfApplicable() {
+    if (state.conversationId != null) return;
+    if (state.messages.length != 1) return;
+    final first = state.messages.first;
+    if (first.isUser) return;
+    final locale = _ref.read(appLocaleProvider);
+    final greeting =
+        lookupAppLocalizations(locale).chatAssistantGreeting;
+    if (first.text == greeting) return;
+    state = state.copyWith(
+      messages: [
+        ChatMessageEntity(text: greeting, isUser: false),
+      ],
+    );
+  }
 
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty || state.isLoading) return;
@@ -44,6 +80,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
     // Attach location if already available (no blocking permission request here)
     final loc = _ref.read(locationProvider);
+    final localeCode =
+        _chatApiLocale(_ref.read(appLocaleProvider).languageCode);
 
     try {
       final response = await _repository.sendMessage(
@@ -52,6 +90,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         conversationId: state.conversationId,
         userLat: loc.latitude,
         userLng: loc.longitude,
+        locale: localeCode,
       );
 
       final aiMessage = ChatMessageEntity(
@@ -138,7 +177,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     if (id == null) return;
     try {
       await _historyRepository.deleteConversation(id);
-      state = ChatState.initial();
+      state = _freshChatForRef(_ref);
     } catch (e) {
       state = state.copyWith(error: e.toString());
     }
@@ -168,7 +207,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
   }
 
   void reset() {
-    state = ChatState.initial();
+    state = _freshChatForRef(_ref);
   }
 }
 
@@ -191,10 +230,10 @@ class ChatState {
     this.isLoadedConversation = false,
   });
 
-  factory ChatState.initial() => const ChatState(
+  factory ChatState.freshChat(String assistantGreeting) => ChatState(
         messages: [
           ChatMessageEntity(
-            text: "Hi! I'm CLAiR, how may I assist you today?",
+            text: assistantGreeting,
             isUser: false,
           ),
         ],

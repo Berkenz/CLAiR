@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/l10n/app_localizations.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
@@ -9,6 +10,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: cl.bg,
@@ -17,7 +19,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
         elevation: 0,
         centerTitle: true,
         title: Text(
-          'Privacy Policy',
+          l10n.privacyPolicy,
           style: GoogleFonts.nunito(
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -30,6 +32,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _legalDocNotice(context),
             _header(context,
                 'CLAiR — Privacy Policy',
                 'Effective Date: April 24, 2026\nLast Updated: April 24, 2026'),
@@ -262,6 +265,43 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 '• As required by applicable law for rights requests'),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _legalDocNotice(BuildContext context) {
+    final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cl.accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cl.accent.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.legalDocNoticeTitle,
+            style: GoogleFonts.nunito(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: cl.textDark,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            l10n.legalDocNoticeBody,
+            style: GoogleFonts.nunito(
+              fontSize: 12,
+              color: cl.textMid,
+              height: 1.45,
+            ),
+          ),
+        ],
       ),
     );
   }

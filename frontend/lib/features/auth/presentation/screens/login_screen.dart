@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
+import 'package:clair/l10n/app_localizations.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -142,6 +143,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     final size = MediaQuery.of(context).size;
     final compact = size.height < 860;
     final logoSize = compact ? 150.0 : 180.0;
@@ -189,7 +191,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          'Welcome\nBack',
+                          l10n.authWelcomeBack,
                           style: TextStyle(
                             fontSize: 42,
                             fontWeight: FontWeight.w700,
@@ -205,7 +207,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       _buildAnimatedInputField(
                         controller: _emailController,
                         focusNode: _emailFocusNode,
-                        label: 'Email',
+                        label: l10n.email,
                         icon: Icons.email_outlined,
                       ),
 
@@ -214,7 +216,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       _buildAnimatedInputField(
                         controller: _passwordController,
                         focusNode: _passwordFocusNode,
-                        label: 'Password',
+                        label: l10n.authPassword,
                         icon: Icons.lock_outline,
                         isPassword: true,
                         obscureText: _obscurePassword,
@@ -263,8 +265,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                                 Colors.white),
                                       ),
                                     )
-                                  : const Text(
-                                      'Log in',
+                                  : Text(
+                                      l10n.authLogIn,
                                       style: TextStyle(
                                         fontSize: 17,
                                         fontWeight: FontWeight.w600,
@@ -300,7 +302,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       TextButton(
                         onPressed: () => context.push('/forgot-password'),
                         child: Text(
-                          'Forgot Password ?',
+                          l10n.authForgotPassword,
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -316,7 +318,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            'Don\'t have an account? ',
+                            l10n.authNoAccountPrompt,
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w400,
@@ -332,7 +334,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
                             child: Text(
-                              'Sign up',
+                              l10n.authSignUpLink,
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
@@ -479,6 +481,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Widget _buildGoogleButton({required VoidCallback onTap}) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -517,7 +520,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             const SizedBox(width: 8),
             Text(
-              'Google',
+              l10n.authGoogle,
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
@@ -533,6 +536,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Widget _buildGuestButton({required VoidCallback onTap}) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -563,7 +567,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             SizedBox(width: 8),
             Text(
-              'Guest',
+              l10n.authGuest,
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,

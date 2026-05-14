@@ -8,6 +8,7 @@ import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
+import 'package:clair/l10n/app_localizations.dart';
 
 class AppDrawer extends ConsumerStatefulWidget {
   const AppDrawer({super.key});
@@ -20,6 +21,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     final historyState = ref.watch(historyProvider);
     
     // Load conversations if not already loaded
@@ -58,7 +60,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
             child: Text(
-              'RECENT',
+              l10n.drawerRecent,
               style: GoogleFonts.nunito(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: cl.textLight),
             ),
           ),
@@ -67,7 +69,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Text(
-                'No recent chats',
+                l10n.drawerNoRecentChats,
                 style: GoogleFonts.nunito(fontSize: 13, color: cl.textLight),
               ),
             )
@@ -95,34 +97,34 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
           Expanded(child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             children: [
-              _label(context, 'Navigate'),
-              _item(context, Icons.home_outlined, 'Home', true, () {
+              _label(context, l10n.drawerNavigate),
+              _item(context, Icons.home_outlined, l10n.drawerHome, true, () {
                 Navigator.pop(context);
                 ref.read(mainShellTabProvider.notifier).state = 0;
               }),
-              _item(context, Icons.chat_bubble_outline, 'New Chat', false, () {
+              _item(context, Icons.chat_bubble_outline, l10n.drawerNewChat, false, () {
                 Navigator.pop(context);
                 ref.read(chatProvider.notifier).reset();
                 ref.read(mainShellTabProvider.notifier).state = 1;
               }),
-              _item(context, Icons.library_books_rounded, 'Chat Library', false, () {
+              _item(context, Icons.library_books_rounded, l10n.drawerChatLibrary, false, () {
                 Navigator.pop(context);
                 ref.read(mainShellTabProvider.notifier).state = 2;
               }),
-              _item(context, Icons.balance_rounded, 'Find a Lawyer', false, () {
+              _item(context, Icons.balance_rounded, l10n.drawerFindLawyer, false, () {
                 Navigator.pop(context);
                 ref.read(mainShellTabProvider.notifier).state = 3;
               }),
-              _item(context, Icons.notifications_none_rounded, 'Notifications', false, () { Navigator.pop(context); context.push('/notifications'); }),
+              _item(context, Icons.notifications_none_rounded, l10n.drawerNotifications, false, () { Navigator.pop(context); context.push('/notifications'); }),
               const SizedBox(height: 12),
-              _label(context, 'Account'),
-              _item(context, Icons.person_outline_rounded, 'Profile', false, () { Navigator.pop(context); context.push('/profile'); }),
+              _label(context, l10n.drawerAccount),
+              _item(context, Icons.person_outline_rounded, l10n.drawerProfile, false, () { Navigator.pop(context); context.push('/profile'); }),
             ],
           )),
           Divider(color: cl.border, indent: 20, endIndent: 20, height: 1),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
-            child: _item(context, Icons.logout_rounded, 'Sign Out', false, () async {
+            child: _item(context, Icons.logout_rounded, l10n.drawerSignOut, false, () async {
               Navigator.pop(context);
               await ref.read(authRepositoryProvider).signOut();
               ref.read(currentUserProvider.notifier).state = null;

@@ -1,5 +1,7 @@
 import uuid
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -14,6 +16,7 @@ class ChatRequest(BaseModel):
     conversation_id: uuid.UUID | None = None
     user_lat: float | None = None
     user_lng: float | None = None
+    locale: Literal["en", "fil", "ceb"] = "en"
 
 
 class SuggestedLawyer(BaseModel):

@@ -33,6 +33,13 @@ class AppointmentEntity {
 
   bool get canStartLawyerChat => status == 'confirmed';
 
+  /// Matches backend `CLIENT_CANCEL_REASON_STORAGE_PREFIX` + label.
+  static const String clientCancelReasonPrefix = 'Client cancelled:';
+
+  bool get isClientCancellation =>
+      status == 'cancelled' &&
+      (rejectionReason?.trim().startsWith(clientCancelReasonPrefix) ?? false);
+
   String get displayCaseTitle {
     final title = caseTitle?.trim();
     if (title == null || title.isEmpty) return appointmentType;
@@ -49,7 +56,7 @@ class AppointmentEntity {
     return switch (status) {
       'pending' => 'Pending',
       'confirmed' => 'Accepted',
-      'cancelled' => 'Rejected',
+      'cancelled' => isClientCancellation ? 'Cancelled' : 'Declined',
       _ => status,
     };
   }

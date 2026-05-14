@@ -11,6 +11,8 @@ import 'package:clair/features/lawyer/presentation/sheets/lawyer_booking_sheet.d
 import 'package:clair/features/lawyer/presentation/widgets/lawyer_map_view.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
+import 'package:clair/features/lawyer/presentation/lawyer_practice_l10n.dart';
+import 'package:clair/l10n/app_localizations.dart';
 
 // ── Category model ────────────────────────────────────────────────────────────
 
@@ -22,32 +24,35 @@ class _LegalCategory {
   const _LegalCategory(this.icon, this.label, this.practiceArea, this.color);
 }
 
-const _kCategories = [
-  _LegalCategory(Icons.gavel_rounded, 'Criminal', 'Criminal Law',
-      Color(0xFFE53E3E)),
-  _LegalCategory(Icons.family_restroom_rounded, 'Family', 'Family Law',
-      Color(0xFFD69E2E)),
-  _LegalCategory(Icons.business_rounded, 'Corporate', 'Corporate Law',
-      Color(0xFF3182CE)),
-  _LegalCategory(Icons.real_estate_agent_rounded, 'Property', 'Real Estate Law',
-      Color(0xFF38A169)),
-  _LegalCategory(Icons.account_balance_rounded, 'Finance', 'Banking & Finance Law',
-      Color(0xFF805AD5)),
-  _LegalCategory(Icons.work_outline_rounded, 'Labor', 'Labor Law',
-      Color(0xFFDD6B20)),
-  _LegalCategory(Icons.people_outline_rounded, 'Civil', 'Civil Law',
-      Color(0xFF00B5D8)),
-  _LegalCategory(Icons.flight_outlined, 'Immigration', 'Immigration Law',
-      Color(0xFF319795)),
-  _LegalCategory(Icons.inventory_2_outlined, 'Contracts', 'Contract Law',
-      Color(0xFFB7791F)),
-  _LegalCategory(Icons.favorite_border_rounded, 'Wills', 'Estate & Wills',
-      Color(0xFF9F7AEA)),
-  _LegalCategory(Icons.local_police_outlined, 'Administrative', 'Administrative Law',
-      Color(0xFF2B6CB0)),
-  _LegalCategory(Icons.eco_outlined, 'Environmental', 'Environmental Law',
-      Color(0xFF276749)),
-];
+List<_LegalCategory> _legalCategories(AppLocalizations l) {
+  return [
+    _LegalCategory(
+        Icons.gavel_rounded, l.lawyerChipCriminal, 'Criminal Law',
+        const Color(0xFFE53E3E)),
+    _LegalCategory(Icons.family_restroom_rounded, l.lawyerChipFamily,
+        'Family Law', const Color(0xFFD69E2E)),
+    _LegalCategory(Icons.business_rounded, l.lawyerChipCorporate,
+        'Corporate Law', const Color(0xFF3182CE)),
+    _LegalCategory(Icons.real_estate_agent_rounded, l.lawyerChipProperty,
+        'Real Estate Law', const Color(0xFF38A169)),
+    _LegalCategory(Icons.account_balance_rounded, l.lawyerChipFinance,
+        'Banking & Finance Law', const Color(0xFF805AD5)),
+    _LegalCategory(Icons.work_outline_rounded, l.lawyerChipLabor, 'Labor Law',
+        const Color(0xFFDD6B20)),
+    _LegalCategory(Icons.people_outline_rounded, l.lawyerChipCivil, 'Civil Law',
+        const Color(0xFF00B5D8)),
+    _LegalCategory(Icons.flight_outlined, l.lawyerChipImmigration,
+        'Immigration Law', const Color(0xFF319795)),
+    _LegalCategory(Icons.inventory_2_outlined, l.lawyerChipContracts,
+        'Contract Law', const Color(0xFFB7791F)),
+    _LegalCategory(Icons.favorite_border_rounded, l.lawyerChipWills,
+        'Estate & Wills', const Color(0xFF9F7AEA)),
+    _LegalCategory(Icons.local_police_outlined, l.lawyerChipAdministrative,
+        'Administrative Law', const Color(0xFF2B6CB0)),
+    _LegalCategory(Icons.eco_outlined, l.lawyerChipEnvironmental,
+        'Environmental Law', const Color(0xFF276749)),
+  ];
+}
 
 // ── Entry points ──────────────────────────────────────────────────────────────
 
@@ -115,10 +120,11 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
   bool get _isFiltered =>
       _selectedCats.isNotEmpty || _searchCtrl.text.trim().isNotEmpty;
 
-  List<LawyerEntity> _filtered(List<LawyerEntity> all) {
+  List<LawyerEntity> _filtered(
+      List<LawyerEntity> all, List<_LegalCategory> cats) {
     final q = _searchCtrl.text.trim().toLowerCase();
     final selectedAreas = _selectedCats
-        .map((i) => _kCategories[i].practiceArea.toLowerCase())
+        .map((i) => cats[i].practiceArea.toLowerCase())
         .toSet();
 
     return all.where((l) {
@@ -174,9 +180,11 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
+    final cats = _legalCategories(l10n);
     final state = ref.watch(lawyerProvider);
     final sharing = ref.watch(lawyerSharingProvider);
-    final filtered = _filtered(state.lawyers);
+    final filtered = _filtered(state.lawyers, cats);
 
     return Container(
       color: cl.bg,
@@ -184,14 +192,15 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Sharing banner ───────────────────────────────────────────────
-          if (sharing != null) _SharingBanner(data: sharing, cl: cl, ref: ref),
+          if (sharing != null)
+            _SharingBanner(data: sharing, cl: cl, ref: ref, l10n: l10n),
 
           // ── Map view ─────────────────────────────────────────────────────
           if (_showMap)
             Expanded(
               child: Column(
                 children: [
-                  _buildHeader(cl, state.isLoading),
+                  _buildHeader(cl, state.isLoading, l10n),
                   Expanded(
                     child: LawyerMapView(
                       lawyers: state.lawyers,
@@ -211,27 +220,27 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
               slivers: [
                 // Header + search
                 SliverToBoxAdapter(
-                    child: _buildHeader(cl, state.isLoading)),
+                    child: _buildHeader(cl, state.isLoading, l10n)),
 
                 // Category chips (hidden when searching)
                 if (!_searching)
                   SliverToBoxAdapter(
-                      child: _buildCategoryGrid(cl)),
+                      child: _buildCategoryGrid(cl, cats, l10n)),
 
                 // Active filter pill + results label
                 SliverToBoxAdapter(
-                    child: _buildResultsBar(cl, filtered.length, state)),
+                    child: _buildResultsBar(cl, filtered.length, state, l10n)),
 
                 // Lawyer list
                 if (state.error != null)
                   SliverFillRemaining(
-                      child: _buildError(cl, state.error!))
+                      child: _buildError(cl, state.error!, l10n))
                 else if (!state.isLoading && state.lawyers.isEmpty)
                   SliverFillRemaining(
-                      child: _buildEmpty(cl))
+                      child: _buildEmpty(cl, l10n))
                 else if (!state.isLoading && filtered.isEmpty)
                   SliverFillRemaining(
-                      child: _buildNoResults(cl))
+                      child: _buildNoResults(cl, l10n))
                 else
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
@@ -255,6 +264,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
                               padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                               child: _LawyerCard(
                                 lawyer: filtered[i],
+                                l10n: l10n,
                                 onTap: () => _openLawyer(filtered[i]),
                               ),
                             ),
@@ -276,7 +286,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
 
   // ── Header ─────────────────────────────────────────────────────────────────
 
-  Widget _buildHeader(AppColorTheme cl, bool loading) {
+  Widget _buildHeader(AppColorTheme cl, bool loading, AppLocalizations l10n) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
       child: Column(
@@ -292,7 +302,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
               const SizedBox(width: 12),
             ],
             Expanded(
-              child: Text('Find a Lawyer',
+              child: Text(l10n.drawerFindLawyer,
                   style: GoogleFonts.nunito(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
@@ -331,7 +341,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      _showMap ? 'List' : 'Map',
+                      _showMap ? l10n.lawyerList : l10n.lawyerMap,
                       style: GoogleFonts.nunito(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -367,7 +377,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
               onSubmitted: (_) => setState(() => _searching = false),
               decoration: InputDecoration(
                 border: InputBorder.none,
-                hintText: 'Search by name or specialty…',
+                hintText: l10n.lawyerSearchHint,
                 hintStyle: GoogleFonts.nunito(
                     color: cl.textLight, fontSize: 14),
                 prefixIcon: Icon(Icons.search_rounded,
@@ -394,7 +404,8 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
 
   // ── Category grid ──────────────────────────────────────────────────────────
 
-  Widget _buildCategoryGrid(AppColorTheme cl) {
+  Widget _buildCategoryGrid(
+      AppColorTheme cl, List<_LegalCategory> cats, AppLocalizations l10n) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
       child: Column(
@@ -403,7 +414,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
           Row(
             children: [
               Text(
-                'Browse by practice area',
+                l10n.lawyerBrowseByPracticeArea,
                 style: GoogleFonts.nunito(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -421,7 +432,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      'Clear (${_selectedCats.length})',
+                      l10n.lawyerClearWithCount(_selectedCats.length),
                       style: GoogleFonts.nunito(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
@@ -438,8 +449,8 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
             spacing: 8,
             runSpacing: 8,
             children: List.generate(
-              _kCategories.length,
-              (i) => _buildCategoryChip(cl, i),
+              cats.length,
+              (i) => _buildCategoryChip(cl, cats, i),
             ),
           ),
           const SizedBox(height: 16),
@@ -448,8 +459,9 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
     );
   }
 
-  Widget _buildCategoryChip(AppColorTheme cl, int i) {
-    final cat = _kCategories[i];
+  Widget _buildCategoryChip(
+      AppColorTheme cl, List<_LegalCategory> cats, int i) {
+    final cat = cats[i];
     final sel = _selectedCats.contains(i);
     return GestureDetector(
       onTap: () => _toggleCat(i),
@@ -499,7 +511,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
   // ── Results bar ────────────────────────────────────────────────────────────
 
   Widget _buildResultsBar(
-      AppColorTheme cl, int count, LawyerState state) {
+      AppColorTheme cl, int count, LawyerState state, AppLocalizations l10n) {
     if (state.isLoading) {
       return const Padding(
         padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -514,8 +526,8 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
           Expanded(
             child: Text(
               _isFiltered
-                  ? '$count result${count == 1 ? '' : 's'}'
-                  : 'All registered lawyers',
+                  ? l10n.lawyerResultsCount(count)
+                  : l10n.lawyerAllRegistered,
               style: GoogleFonts.nunito(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -526,7 +538,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
           if (_isFiltered)
             GestureDetector(
               onTap: _clearFilters,
-              child: Text('Clear all',
+              child: Text(l10n.lawyerClearAll,
                   style: GoogleFonts.nunito(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -539,7 +551,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
 
   // ── State views ────────────────────────────────────────────────────────────
 
-  Widget _buildError(AppColorTheme cl, String detail) {
+  Widget _buildError(AppColorTheme cl, String detail, AppLocalizations l10n) {
     final detailMaxHeight = MediaQuery.sizeOf(context).height * 0.32;
     return Center(
       child: Padding(
@@ -550,7 +562,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
             Icon(Icons.wifi_off_rounded, size: 48, color: cl.textLight),
             const SizedBox(height: 16),
             Text(
-              'Couldn\'t load lawyers.',
+              l10n.lawyerLoadErrorTitle,
               textAlign: TextAlign.center,
               style: GoogleFonts.nunito(
                 fontSize: 14,
@@ -563,7 +575,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
               constraints: BoxConstraints(maxHeight: detailMaxHeight),
               child: SingleChildScrollView(
                 child: SelectableText(
-                  detail.trim().isEmpty ? 'Unknown error.' : detail.trim(),
+                  detail.trim().isEmpty ? l10n.lawyerUnknownError : detail.trim(),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.nunito(
                     fontSize: 12.5,
@@ -583,7 +595,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
                 decoration: BoxDecoration(
                     color: cl.accent,
                     borderRadius: BorderRadius.circular(12)),
-                child: Text('Retry',
+                child: Text(l10n.lawyerRetry,
                     style: GoogleFonts.nunito(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -596,7 +608,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
     );
   }
 
-  Widget _buildEmpty(AppColorTheme cl) {
+  Widget _buildEmpty(AppColorTheme cl, AppLocalizations l10n) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -604,7 +616,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
           Icon(Icons.person_search_rounded,
               size: 48, color: cl.textLight),
           const SizedBox(height: 16),
-          Text('No registered lawyers yet.',
+          Text(l10n.lawyerEmptyState,
               style:
                   GoogleFonts.nunito(fontSize: 14, color: cl.textMid)),
         ]),
@@ -612,7 +624,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
     );
   }
 
-  Widget _buildNoResults(AppColorTheme cl) {
+  Widget _buildNoResults(AppColorTheme cl, AppLocalizations l10n) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -620,13 +632,13 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
           Icon(Icons.search_off_rounded,
               size: 48, color: cl.textLight),
           const SizedBox(height: 14),
-          Text('No lawyers match your filters.',
+          Text(l10n.lawyerNoMatches,
               style: GoogleFonts.nunito(
                   fontSize: 14, color: cl.textMid)),
           const SizedBox(height: 12),
           TextButton(
             onPressed: _clearFilters,
-            child: Text('Clear filters',
+            child: Text(l10n.lawyerClearFilters,
                 style: GoogleFonts.nunito(
                     fontWeight: FontWeight.w700, color: cl.accent)),
           ),
@@ -639,8 +651,13 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
 // ── Lawyer card ───────────────────────────────────────────────────────────────
 
 class _LawyerCard extends StatelessWidget {
-  const _LawyerCard({required this.lawyer, required this.onTap});
+  const _LawyerCard({
+    required this.lawyer,
+    required this.l10n,
+    required this.onTap,
+  });
   final LawyerEntity lawyer;
+  final AppLocalizations l10n;
   final VoidCallback onTap;
 
   @override
@@ -718,7 +735,7 @@ class _LawyerCard extends StatelessWidget {
                                   size: 10,
                                   color: Colors.green.shade600),
                               const SizedBox(width: 3),
-                              Text('Verified',
+                              Text(l10n.lawyerVerified,
                                   style: GoogleFonts.nunito(
                                       fontSize: 9,
                                       fontWeight: FontWeight.w700,
@@ -730,7 +747,7 @@ class _LawyerCard extends StatelessWidget {
                   if (lawyer.designation != null &&
                       lawyer.designation!.isNotEmpty) ...[
                     const SizedBox(height: 2),
-                    Text(lawyer.designation!,
+                    Text(localizeLawyerDesignation(l10n, lawyer.designation!),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.nunito(
@@ -742,11 +759,13 @@ class _LawyerCard extends StatelessWidget {
                       spacing: 6,
                       runSpacing: 4,
                       children: [
-                        ...areas.map((a) => _AreaPill(area: a, cl: cl)),
+                        ...areas.map((a) => _AreaPill(
+                              area: localizeLawyerPracticeArea(l10n, a),
+                              cl: cl)),
                         if (lawyer.practiceAreas.length > 2)
                           _AreaPill(
-                              area:
-                                  '+${lawyer.practiceAreas.length - 2}',
+                              area: l10n.lawyerExtraAreas(
+                                  lawyer.practiceAreas.length - 2),
                               cl: cl,
                               muted: true),
                       ],
@@ -796,11 +815,16 @@ class _AreaPill extends StatelessWidget {
 // ── Sharing banner ────────────────────────────────────────────────────────────
 
 class _SharingBanner extends StatelessWidget {
-  const _SharingBanner(
-      {required this.data, required this.cl, required this.ref});
+  const _SharingBanner({
+    required this.data,
+    required this.cl,
+    required this.ref,
+    required this.l10n,
+  });
   final ConversationSharingData data;
   final AppColorTheme cl;
   final WidgetRef ref;
+  final AppLocalizations l10n;
 
   @override
   Widget build(BuildContext context) {
@@ -829,14 +853,14 @@ class _SharingBanner extends StatelessWidget {
           child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Sharing conversation with a lawyer',
+                Text(l10n.lawyerSharingTitle,
                     style: GoogleFonts.nunito(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: cl.accent)),
                 const SizedBox(height: 1),
                 Text(
-                  '"${data.title}" — tap any lawyer below to book with this pre-attached',
+                  l10n.lawyerSharingSubtitle(data.title),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.nunito(

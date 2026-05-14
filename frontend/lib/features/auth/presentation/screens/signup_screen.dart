@@ -8,6 +8,7 @@ import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/auth/presentation/screens/terms_of_use_screen.dart';
 import 'package:clair/features/auth/presentation/screens/privacy_policy_screen.dart';
+import 'package:clair/l10n/app_localizations.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
@@ -35,6 +36,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   bool _agreedToTerms = false;
 
   Future<void> _signUp() async {
+    final l10n = AppLocalizations.of(context)!;
     final firstName = _firstNameController.text.trim();
     final lastName = _lastNameController.text.trim();
     final email = _emailController.text.trim();
@@ -46,7 +48,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       return;
     }
     if (!_agreedToTerms) {
-      _showError('You must agree to the Terms of Use and Privacy Policy to continue');
+      _showError(l10n.signupTermsPrivacyRequired);
       return;
     }
     if (!email.contains('@')) {
@@ -130,6 +132,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   Widget build(BuildContext context) {
     final cl = context.c;
     final size = MediaQuery.of(context).size;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: cl.surface,
@@ -262,7 +265,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       const SizedBox(height: 20),
 
                       // T&C Agreement Checkbox
-                      _buildTermsCheckbox(cl),
+                      _buildTermsCheckbox(cl, l10n),
 
                       const SizedBox(height: 20),
                       
@@ -362,7 +365,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     );                  // closes Scaffold
   }
 
-  Widget _buildTermsCheckbox(AppColorTheme cl) {
+  Widget _buildTermsCheckbox(AppColorTheme cl, AppLocalizations l10n) {
     return GestureDetector(
       onTap: () => setState(() => _agreedToTerms = !_agreedToTerms),
       child: Container(
@@ -413,9 +416,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     height: 1.5,
                   ),
                   children: [
-                    const TextSpan(text: 'I have read and agree to the CLAiR '),
+                    TextSpan(text: l10n.signupAgreementLead),
                     TextSpan(
-                      text: 'Terms of Use',
+                      text: l10n.termsOfUse,
                       style: TextStyle(
                         color: cl.accent,
                         fontWeight: FontWeight.w700,
@@ -431,9 +434,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                           );
                         },
                     ),
-                    const TextSpan(text: ' and '),
+                    TextSpan(text: l10n.signupAgreementMiddle),
                     TextSpan(
-                      text: 'Privacy Policy',
+                      text: l10n.privacyPolicy,
                       style: TextStyle(
                         color: cl.accent,
                         fontWeight: FontWeight.w700,
@@ -450,8 +453,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         },
                     ),
                     TextSpan(
-                      text: '. I understand that CLAiR provides legal information only '
-                          'and does not constitute legal advice or create an attorney-client relationship.',
+                      text: l10n.signupAgreementTail,
                       style: TextStyle(color: cl.textMid),
                     ),
                   ],

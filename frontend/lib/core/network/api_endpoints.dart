@@ -17,6 +17,14 @@ class ApiEndpoints {
 
   static const String appointments = '/appointments';
   static const String appointmentTypes = '/appointments/types';
+  static const String appointmentCancellationReasons =
+      '/appointments/cancellation-reasons';
+
+  static String appointmentCancel(String id) => '/appointments/$id/cancel';
+
+  static const String notifications = '/notifications';
+  static String notificationMarkRead(String id) => '/notifications/$id/read';
+  static const String notificationsReadAll = '/notifications/read-all';
 
   static const String conversations = '/conversations';
   static String conversationDetail(String id) => '/conversations/$id';

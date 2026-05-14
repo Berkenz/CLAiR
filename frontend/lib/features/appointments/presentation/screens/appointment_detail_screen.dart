@@ -4,26 +4,38 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import 'package:clair/app/main_shell_tab.dart';
+import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/appointments/domain/entities/appointment_entity.dart';
+import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
 import 'package:clair/features/appointments/presentation/screens/lawyer_chat_screen.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 
-class AppointmentDetailScreen extends ConsumerWidget {
+class AppointmentDetailScreen extends ConsumerStatefulWidget {
   const AppointmentDetailScreen({super.key, required this.appointment});
 
   final AppointmentEntity appointment;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AppointmentDetailScreen> createState() =>
+      _AppointmentDetailScreenState();
+}
+
+class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScreen> {
+  bool _cancelling = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final appointment = widget.appointment;
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     final statusColor = _statusColor(appointment.status);
 
     return Scaffold(
       backgroundColor: cl.bg,
       body: CustomScrollView(
         slivers: [
-          _buildAppBar(context, cl, statusColor),
+          _buildAppBar(context, cl, statusColor, appointment),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
@@ -31,17 +43,13 @@ class AppointmentDetailScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Status banner
-                  _StatusBanner(status: appointment.status),
+                  _StatusBanner(appointment: appointment),
                   const SizedBox(height: 20),
 
                   // Attached CLAiR conversation (from booking)
                   if (_hasAttachedConversation(appointment)) ...[
                     _AttachedConversationCard(
-                      onOpen: () => _openAttachedConversation(
-                        context,
-                        ref,
-                        appointment,
-                      ),
+                      onOpen: () => _openAttachedConversation(appointment),
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -51,26 +59,26 @@ class AppointmentDetailScreen extends ConsumerWidget {
                     children: [
                       _InfoRow(
                         icon: Icons.work_outline_rounded,
-                        label: 'Type',
+                        label: l10n.apptDetailLabelType,
                         value: appointment.appointmentType,
                       ),
                       _divider(cl),
                       _InfoRow(
                         icon: Icons.calendar_today_outlined,
-                        label: 'Date',
+                        label: l10n.apptDetailLabelDate,
                         value: DateFormat('EEEE, MMMM d, y')
                             .format(appointment.appointmentDate),
                       ),
                       _divider(cl),
                       _InfoRow(
                         icon: Icons.access_time_rounded,
-                        label: 'Time',
+                        label: l10n.apptDetailLabelTime,
                         value: _to12Hour(appointment.appointmentTime),
                       ),
                       _divider(cl),
                       _InfoRow(
                         icon: Icons.person_outline_rounded,
-                        label: 'Lawyer',
+                        label: l10n.apptDetailLabelLawyer,
                         value: appointment.displayLawyerName,
                       ),
                     ],
@@ -79,7 +87,7 @@ class AppointmentDetailScreen extends ConsumerWidget {
                   // Description
                   if (appointment.description?.trim().isNotEmpty ?? false) ...[
                     const SizedBox(height: 20),
-                    const _SectionLabel(label: 'Description'),
+                    _SectionLabel(label: l10n.apptDetailSectionDescription),
                     const SizedBox(height: 8),
                     Container(
                       width: double.infinity,
@@ -130,7 +138,9 @@ class AppointmentDetailScreen extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Rejection Reason',
+                                  appointment.isClientCancellation
+                                      ? l10n.apptDetailReasonCancellation
+                                      : l10n.apptDetailReasonDecline,
                                   style: GoogleFonts.nunito(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
@@ -161,7 +171,7 @@ class AppointmentDetailScreen extends ConsumerWidget {
                     children: [
                       _InfoRow(
                         icon: Icons.schedule_rounded,
-                        label: 'Booked',
+                        label: l10n.apptDetailLabelBooked,
                         value: DateFormat('MMM d, y · h:mm a')
                             .format(appointment.createdAt.toLocal()),
                         small: true,
@@ -170,7 +180,7 @@ class AppointmentDetailScreen extends ConsumerWidget {
                         _divider(cl),
                         _InfoRow(
                           icon: Icons.update_rounded,
-                          label: 'Updated',
+                          label: l10n.apptDetailLabelUpdated,
                           value: DateFormat('MMM d, y · h:mm a')
                               .format(appointment.updatedAt!.toLocal()),
                           small: true,
@@ -179,12 +189,48 @@ class AppointmentDetailScreen extends ConsumerWidget {
                     ],
                   ),
 
+                  // Cancel (client)
+                  if (_canClientCancel(appointment)) ...[
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed:
+                            _cancelling ? null : () => _onCancelAppointment(appointment),
+                        icon: _cancelling
+                            ? SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.red.shade700,
+                                ),
+                              )
+                            : Icon(
+                                Icons.event_busy_outlined,
+                                color: Colors.red.shade700,
+                              ),
+                        label: Text(
+                          l10n.apptDetailCancelAppointment,
+                          style: GoogleFonts.nunito(
+                            fontWeight: FontWeight.w700,
+                            color: Colors.red.shade700,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.red.shade200),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ),
+                  ],
+
                   // Chat CTA
                   const SizedBox(height: 28),
                   if (appointment.canStartLawyerChat)
                     _ChatButton(appointment: appointment)
                   else
-                    _ChatLockedBanner(status: appointment.status),
+                    _ChatLockedBanner(appointment: appointment),
                 ],
               ),
             ),
@@ -198,6 +244,7 @@ class AppointmentDetailScreen extends ConsumerWidget {
     BuildContext context,
     AppColorTheme cl,
     Color statusColor,
+    AppointmentEntity appointment,
   ) {
     return SliverAppBar(
       backgroundColor: cl.surface,
@@ -261,11 +308,7 @@ class AppointmentDetailScreen extends ConsumerWidget {
     return id != null && id.isNotEmpty;
   }
 
-  static void _openAttachedConversation(
-    BuildContext context,
-    WidgetRef ref,
-    AppointmentEntity appointment,
-  ) {
+  void _openAttachedConversation(AppointmentEntity appointment) {
     final id = appointment.attachedConversationId!.trim();
     Navigator.of(context).pop();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -277,6 +320,83 @@ class AppointmentDetailScreen extends ConsumerWidget {
           );
     });
   }
+
+  bool _canClientCancel(AppointmentEntity a) =>
+      a.status == 'pending' || a.status == 'confirmed';
+
+  Future<void> _onCancelAppointment(AppointmentEntity appointment) async {
+    final l10n = AppLocalizations.of(context)!;
+    List<({String id, String label})> reasons;
+    try {
+      reasons = await ref.read(appointmentDataSourceProvider).getCancellationReasons();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString(),
+            style: const TextStyle(fontFamily: 'Satoshi'),
+          ),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    if (reasons.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.apptDetailCancelOptionsFailed,
+            style: const TextStyle(fontFamily: 'Satoshi'),
+          ),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+      return;
+    }
+
+    final picked = await showModalBottomSheet<_AppointmentCancelPick>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _CancelAppointmentReasonSheet(reasons: reasons),
+    );
+    if (!mounted || picked == null) return;
+
+    setState(() => _cancelling = true);
+    try {
+      await ref.read(appointmentProvider.notifier).cancelAppointment(
+            appointment.id,
+            reason: picked.reason,
+            otherDetails: picked.otherDetails,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.apptDetailCancelledSuccess,
+            style: const TextStyle(fontFamily: 'Satoshi'),
+          ),
+          backgroundColor: const Color(0xFF22A64A),
+        ),
+      );
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString(),
+            style: const TextStyle(fontFamily: 'Satoshi'),
+          ),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _cancelling = false);
+    }
+  }
 }
 
 class _AttachedConversationCard extends StatelessWidget {
@@ -287,6 +407,7 @@ class _AttachedConversationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -328,7 +449,7 @@ class _AttachedConversationCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Attached CLAiR conversation',
+                        l10n.apptDetailAttachedConversationTitle,
                         style: GoogleFonts.nunito(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -337,7 +458,7 @@ class _AttachedConversationCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Open the chat you shared when you booked this appointment.',
+                        l10n.apptDetailAttachedConversationSubtitle,
                         style: TextStyle(
                           fontSize: 12,
                           color: cl.textMid,
@@ -365,46 +486,56 @@ class _AttachedConversationCard extends StatelessWidget {
 // ── Sub-widgets ───────────────────────────────────────────────────────────────
 
 class _StatusBanner extends StatelessWidget {
-  const _StatusBanner({required this.status});
-  final String status;
+  const _StatusBanner({required this.appointment});
+
+  final AppointmentEntity appointment;
 
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
-    final (Color bg, Color fg, Color iconBg, IconData icon, String title, String subtitle) = switch (status) {
-      'confirmed' => (
-          const Color(0xFFECFDF5),
-          const Color(0xFF065F46),
-          const Color(0xFF22A64A),
-          Icons.check_circle_rounded,
-          'Appointment Accepted',
-          'Your lawyer has confirmed this appointment.',
-        ),
-      'pending' => (
-          const Color(0xFFFFFBEB),
-          const Color(0xFF78350F),
-          const Color(0xFFE59300),
-          Icons.hourglass_empty_rounded,
-          'Awaiting Confirmation',
-          'Your request is pending review by the lawyer.',
-        ),
-      'cancelled' => (
-          const Color(0xFFFFF1F2),
-          const Color(0xFF881337),
-          const Color(0xFFD63031),
-          Icons.cancel_rounded,
-          'Appointment Rejected',
-          'The lawyer was unable to accept this request.',
-        ),
-      _ => (
-          cl.fieldBg,
-          cl.textMid,
-          cl.textLight,
-          Icons.info_outline_rounded,
-          'Unknown Status',
-          '',
-        ),
-    };
+    final l10n = AppLocalizations.of(context)!;
+    final s = appointment.status;
+
+    late final Color bg, fg, iconBg;
+    late final IconData icon;
+    late final String title, subtitle;
+
+    if (s == 'cancelled' && appointment.isClientCancellation) {
+      bg = const Color(0xFFFFF1F2);
+      fg = const Color(0xFF881337);
+      iconBg = const Color(0xFFD63031);
+      icon = Icons.event_busy_rounded;
+      title = l10n.apptDetailBannerCancelledByClientTitle;
+      subtitle = l10n.apptDetailBannerCancelledByClientSubtitle;
+    } else if (s == 'confirmed') {
+      bg = const Color(0xFFECFDF5);
+      fg = const Color(0xFF065F46);
+      iconBg = const Color(0xFF22A64A);
+      icon = Icons.check_circle_rounded;
+      title = l10n.apptDetailBannerConfirmedTitle;
+      subtitle = l10n.apptDetailBannerConfirmedSubtitle;
+    } else if (s == 'pending') {
+      bg = const Color(0xFFFFFBEB);
+      fg = const Color(0xFF78350F);
+      iconBg = const Color(0xFFE59300);
+      icon = Icons.hourglass_empty_rounded;
+      title = l10n.apptDetailBannerPendingTitle;
+      subtitle = l10n.apptDetailBannerPendingSubtitle;
+    } else if (s == 'cancelled') {
+      bg = const Color(0xFFFFF1F2);
+      fg = const Color(0xFF881337);
+      iconBg = const Color(0xFFD63031);
+      icon = Icons.cancel_rounded;
+      title = l10n.apptDetailBannerDeclinedTitle;
+      subtitle = l10n.apptDetailBannerDeclinedSubtitle;
+    } else {
+      bg = cl.fieldBg;
+      fg = cl.textMid;
+      iconBg = cl.textLight;
+      icon = Icons.info_outline_rounded;
+      title = l10n.apptDetailBannerUnknownTitle;
+      subtitle = '';
+    }
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -571,6 +702,7 @@ class _ChatButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
@@ -598,7 +730,7 @@ class _ChatButton extends StatelessWidget {
                 size: 20, color: Colors.white),
             const SizedBox(width: 10),
             Text(
-              'Chat with ${appointment.displayLawyerName}',
+              l10n.apptDetailChatWithLawyer(appointment.displayLawyerName),
               style: GoogleFonts.nunito(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
@@ -613,16 +745,24 @@ class _ChatButton extends StatelessWidget {
 }
 
 class _ChatLockedBanner extends StatelessWidget {
-  const _ChatLockedBanner({required this.status});
-  final String status;
+  const _ChatLockedBanner({required this.appointment});
+
+  final AppointmentEntity appointment;
 
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
+    final status = appointment.status;
 
-    final msg = status == 'cancelled'
-        ? 'Chat is unavailable — this appointment was rejected.'
-        : 'Chat will unlock once your appointment is accepted.';
+    final String msg;
+    if (status == 'cancelled' && appointment.isClientCancellation) {
+      msg = l10n.apptDetailChatLockedCancelledSelf;
+    } else if (status == 'cancelled') {
+      msg = l10n.apptDetailChatLockedCancelledDeclined;
+    } else {
+      msg = l10n.apptDetailChatLockedPending;
+    }
 
     return Container(
       width: double.infinity,
@@ -652,6 +792,223 @@ class _ChatLockedBanner extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AppointmentCancelPick {
+  const _AppointmentCancelPick({required this.reason, this.otherDetails});
+
+  final String reason;
+  final String? otherDetails;
+}
+
+class _CancelAppointmentReasonSheet extends StatefulWidget {
+  const _CancelAppointmentReasonSheet({required this.reasons});
+
+  final List<({String id, String label})> reasons;
+
+  @override
+  State<_CancelAppointmentReasonSheet> createState() =>
+      _CancelAppointmentReasonSheetState();
+}
+
+class _CancelAppointmentReasonSheetState
+    extends State<_CancelAppointmentReasonSheet> {
+  String? _selectedId;
+  final _other = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _other.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final l10n = AppLocalizations.of(context)!;
+    setState(() => _error = null);
+    final id = _selectedId;
+    if (id == null) {
+      setState(() => _error = l10n.apptDetailCancelErrorPickReason);
+      return;
+    }
+    if (id == 'other') {
+      final t = _other.text.trim();
+      if (t.isEmpty) {
+        setState(
+          () => _error = l10n.apptDetailCancelErrorOtherDetails,
+        );
+        return;
+      }
+      Navigator.of(context).pop(
+        _AppointmentCancelPick(reason: id, otherDetails: t),
+      );
+      return;
+    }
+    Navigator.of(context).pop(_AppointmentCancelPick(reason: id));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cl.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: cl.border,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  l10n.apptDetailCancelWhyTitle,
+                  style: GoogleFonts.nunito(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: cl.textDark,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  l10n.apptDetailCancelWhySubtitle,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: cl.textMid,
+                    fontFamily: 'Satoshi',
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ...widget.reasons.map((r) {
+                  final sel = _selectedId == r.id;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => setState(() => _selectedId = r.id),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Ink(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: sel ? cl.accent : cl.border,
+                              width: sel ? 2 : 1,
+                            ),
+                            color: sel
+                                ? cl.accent.withValues(alpha: 0.06)
+                                : cl.fieldBg,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                sel
+                                    ? Icons.radio_button_checked_rounded
+                                    : Icons.radio_button_off_rounded,
+                                size: 22,
+                                color: sel ? cl.accent : cl.textLight,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  r.label,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: cl.textDark,
+                                    fontFamily: 'Satoshi',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+                if (_selectedId == 'other') ...[
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _other,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      hintText: l10n.apptDetailCancelTellMoreHint,
+                      filled: true,
+                      fillColor: cl.fieldBg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: cl.border),
+                      ),
+                    ),
+                  ),
+                ],
+                if (_error != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.red.shade700,
+                      fontFamily: 'Satoshi',
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text(
+                          l10n.apptDetailKeepAppointment,
+                          style: GoogleFonts.nunito(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: _submit,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.red.shade700,
+                        ),
+                        child: Text(
+                          l10n.apptDetailConfirmCancel,
+                          style: GoogleFonts.nunito(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

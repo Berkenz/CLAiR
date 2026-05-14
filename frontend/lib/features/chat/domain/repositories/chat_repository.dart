@@ -8,5 +8,6 @@ abstract class ChatRepository {
     String? conversationId,
     double? userLat,
     double? userLng,
+    String locale = 'en',
   });
 }

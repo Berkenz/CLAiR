@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/widgets/law_report_issue_field_group.dart';
+import 'package:clair/features/auth/presentation/widgets/report_categories_localized.dart';
+import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 
@@ -48,6 +50,7 @@ class _MessageReportSheetState extends ConsumerState<_MessageReportSheet> {
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Padding(
@@ -89,7 +92,7 @@ class _MessageReportSheetState extends ConsumerState<_MessageReportSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Report reply',
+                          l10n.reportReplySheetTitle,
                           style: GoogleFonts.nunito(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
@@ -98,7 +101,7 @@ class _MessageReportSheetState extends ConsumerState<_MessageReportSheet> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Help us improve legal accuracy and safety.',
+                          l10n.reportReplySheetSubtitle,
                           style: GoogleFonts.nunito(fontSize: 12, color: cl.textMid),
                         ),
                       ],
@@ -119,9 +122,9 @@ class _MessageReportSheetState extends ConsumerState<_MessageReportSheet> {
                   children: [
                     LawReportIssueFieldGroup(
                       key: _fieldsKey,
+                      categories: lawReportCategoriesFor(l10n),
                       messageExcerpt: widget.excerpt,
-                      explanationHint:
-                          'What is inaccurate or misleading about this response? Include any statutes or concepts if relevant.',
+                      explanationHint: l10n.reportReplyExplainHint,
                     ),
                     const SizedBox(height: 20),
                     Row(
@@ -138,7 +141,7 @@ class _MessageReportSheetState extends ConsumerState<_MessageReportSheet> {
                               ),
                             ),
                             child: Text(
-                              'Cancel',
+                              l10n.commonCancel,
                               style: GoogleFonts.nunito(fontWeight: FontWeight.w700),
                             ),
                           ),
@@ -183,7 +186,7 @@ class _MessageReportSheetState extends ConsumerState<_MessageReportSheet> {
                               );
                             },
                             child: Text(
-                              'Submit',
+                              l10n.commonSubmit,
                               style: GoogleFonts.nunito(fontWeight: FontWeight.w700),
                             ),
                           ),

@@ -18,11 +18,13 @@ class ChatRemoteDataSource {
     String? conversationId,
     double? userLat,
     double? userLng,
+    String locale = 'en',
   }) async {
     try {
       final data = <String, dynamic>{
         'message': message,
         'history': history.map((m) => m.toHistoryJson()).toList(),
+        'locale': locale,
       };
       if (conversationId != null) {
         data['conversation_id'] = conversationId;

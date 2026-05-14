@@ -32,6 +32,39 @@ SYSTEM_INSTRUCTION = (
 # 8 messages = 4 back-and-forth turns — enough for context without runaway growth.
 _MAX_HISTORY_MESSAGES = 8
 
+_LOCALE_REPLY_RULES: dict[str, str] = {
+    "en": (
+        "\n\n## OUTPUT LANGUAGE\n"
+        "Reply entirely in English. Keep Markdown formatting as usual."
+    ),
+    "fil": (
+        "\n\n## OUTPUT LANGUAGE\n"
+        "Mag-reply nang buo sa Filipino (Tagalog). Panatilihin ang Markdown formatting. "
+        "Gumamit ng natural na legal vocabulary sa Filipino kung angkop."
+    ),
+    "ceb": (
+        "\n\n## OUTPUT LANGUAGE\n"
+        "Tubaga tanan sa Cebuano (Bisaya). Ipadayon ang Markdown formatting. "
+        "Gamita ang natural nga legal vocabulary sa Cebuano kung angayan."
+    ),
+}
+
+_FALLBACK_NO_REPLY: dict[str, str] = {
+    "en": "Sorry, I couldn't generate a response. Please try again.",
+    "fil": "Pasensya na, hindi ako makapagbigay ng sagot. Pakisubukan muli.",
+    "ceb": "Pasensya na, dili ko makahimo og tubag. Palihug sulayi pag-usab.",
+}
+
+_TITLE_LOCALE_LINE: dict[str, str] = {
+    "en": "Write the title in English.",
+    "fil": "Isulat ang pamagat sa Filipino.",
+    "ceb": "Isulat ang pamagat sa Cebuano.",
+}
+
+
+def _locale_rule(locale: str) -> str:
+    return _LOCALE_REPLY_RULES.get(locale, _LOCALE_REPLY_RULES["en"])
+
 # Title generation uses the fast 8B model — quality is fine for a short label.
 _CHAT_MODEL = "llama-3.3-70b-versatile"
 _TITLE_MODEL = "llama-3.1-8b-instant"
@@ -125,9 +158,10 @@ def _build_messages(
     message: str,
     history: list[dict[str, str]],
     rag_context: str,
+    locale: str,
 ) -> list[dict[str, str]]:
     """Convert CLAiR history format → Groq messages list, capping history length."""
-    system_content = SYSTEM_INSTRUCTION + rag_context
+    system_content = SYSTEM_INSTRUCTION + rag_context + _locale_rule(locale)
 
     messages: list[dict[str, str]] = [{"role": "system", "content": system_content}]
 
@@ -168,6 +202,7 @@ async def get_chat_response(
     db: AsyncSession | None = None,
     user_lat: float | None = None,
     user_lng: float | None = None,
+    locale: str = "en",
 ) -> tuple[str, list[dict], list[dict], bool, list[dict]]:
     """Returns (reply_text, suggested_lawyers, rag_sources, rag_enabled, tavily_sources).
 
@@ -197,7 +232,7 @@ async def get_chat_response(
         )
         rag_context = rag_context + location_context
 
-    messages = _build_messages(message, history, rag_context)
+    messages = _build_messages(message, history, rag_context, locale)
 
     client = _get_client()
     response = await client.chat.completions.create(
@@ -207,8 +242,8 @@ async def get_chat_response(
         temperature=0.7,
     )
 
-    content = response.choices[0].message.content or (
-        "Sorry, I couldn't generate a response. Please try again."
+    content = response.choices[0].message.content or _FALLBACK_NO_REPLY.get(
+        locale, _FALLBACK_NO_REPLY["en"]
     )
 
     # Strip the marker and decide whether to surface nearby lawyers.
@@ -242,11 +277,14 @@ async def generate_conversation_title(
     assistant_reply: str,
     *,
     fallback_title: str,
+    locale: str = "en",
 ) -> str:
     """Derive a descriptive history title from the first user turn and assistant reply."""
     um = user_message.strip()
     if not um:
         return fallback_title[:200]
+
+    lang_line = _TITLE_LOCALE_LINE.get(locale, _TITLE_LOCALE_LINE["en"])
 
     prompt = (
         f"User message:\n{um[:_TITLE_USER_MAX]}\n\n"
@@ -259,7 +297,10 @@ async def generate_conversation_title(
         response = await client.chat.completions.create(
             model=_TITLE_MODEL,
             messages=[
-                {"role": "system", "content": _TITLE_SYSTEM},
+                {
+                    "role": "system",
+                    "content": f"{_TITLE_SYSTEM}\n\n{lang_line}",
+                },
                 {"role": "user", "content": prompt},
             ],
             max_tokens=64,

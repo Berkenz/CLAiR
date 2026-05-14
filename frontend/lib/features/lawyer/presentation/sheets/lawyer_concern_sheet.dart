@@ -5,7 +5,9 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/widgets/law_report_issue_field_group.dart';
+import 'package:clair/features/auth/presentation/widgets/report_categories_localized.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
+import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
 
 Future<void> showLawyerConcernSheet(BuildContext context, LawyerEntity lawyer) {
@@ -35,6 +37,7 @@ class _LawyerConcernSheetState extends ConsumerState<LawyerConcernSheet> {
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
 
     return Padding(
       padding:
@@ -63,13 +66,13 @@ class _LawyerConcernSheetState extends ConsumerState<LawyerConcernSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Report a concern',
+                      Text(l10n.lawyerConcernTitle,
                           style: GoogleFonts.nunito(
                               fontSize: 17,
                               fontWeight: FontWeight.w800,
                               color: cl.textDark)),
                       const SizedBox(height: 2),
-                      Text('About: ${lawyer.name}',
+                      Text(l10n.lawyerConcernAbout(lawyer.name),
                           style: GoogleFonts.nunito(
                               fontSize: 12.5, color: cl.textMid)),
                     ],
@@ -83,6 +86,7 @@ class _LawyerConcernSheetState extends ConsumerState<LawyerConcernSheet> {
               const SizedBox(height: 18),
               LawReportIssueFieldGroup(
                 key: _fieldsKey,
+                categories: lawReportCategoriesFor(l10n),
                 messageExcerpt: null,
                 showIntro: true,
               ),
@@ -127,7 +131,7 @@ class _LawyerConcernSheetState extends ConsumerState<LawyerConcernSheet> {
                       color: cl.accent,
                       borderRadius: BorderRadius.circular(14)),
                   child: Center(
-                    child: Text('Submit report',
+                    child: Text(l10n.reportSubmitButton,
                         style: GoogleFonts.nunito(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,

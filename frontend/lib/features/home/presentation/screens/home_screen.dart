@@ -6,6 +6,7 @@ import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
+import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
 
@@ -35,16 +36,26 @@ const _documents = [
 
 class _QuickAction {
   final IconData icon;
-  final String label;
+  final String Function(AppLocalizations l) label;
   final Color color;
-  const _QuickAction(this.icon, this.label, this.color);
+  final int tabIndex;
+  final bool resetChat;
+  const _QuickAction(this.icon, this.label, this.color, this.tabIndex,
+      [this.resetChat = false]);
 }
 
 List<_QuickAction> _quickActions(Color accent) => [
-  _QuickAction(Icons.chat_bubble_outline_rounded, 'Chat', accent),
-  _QuickAction(Icons.balance_rounded, 'Lawyers', const Color(0xFF6B8A7A)),
-  _QuickAction(Icons.library_books_outlined, 'Library', const Color(0xFF8B7A6A)),
-];
+      _QuickAction(
+          Icons.chat_bubble_outline_rounded,
+          (l) => l.navChat,
+          accent,
+          1,
+          true),
+      _QuickAction(Icons.balance_rounded, (l) => l.navLawyers,
+          const Color(0xFF6B8A7A), 3),
+      _QuickAction(Icons.library_books_outlined, (l) => l.navLibrary,
+          const Color(0xFF8B7A6A), 2),
+    ];
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -76,10 +87,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
     final user = ref.watch(currentUserProvider);
     final firstName = user == null
-        ? 'there'
+        ? null
         : (user.firstName ?? user.displayName.split(' ').first);
+    final greeting =
+        firstName == null ? l10n.homeHelloGuest : l10n.homeHelloName(firstName);
     final quickActions = _quickActions(cl.accent);
 
     return Column(children: [
@@ -96,9 +110,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               const SizedBox(height: 16),
               _fadeSlide(
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Hello, $firstName', style: GoogleFonts.nunito(fontSize: 28, fontWeight: FontWeight.w800, color: cl.textDark)),
+                  Text(greeting, style: GoogleFonts.nunito(fontSize: 28, fontWeight: FontWeight.w800, color: cl.textDark)),
                   const SizedBox(height: 4),
-                  Text('How can CLAiR help you today?', style: GoogleFonts.nunito(fontSize: 14, color: cl.textMid)),
+                  Text(l10n.homeTagline, style: GoogleFonts.nunito(fontSize: 14, color: cl.textMid)),
                 ]),
                 0.0,
               ),
@@ -138,7 +152,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Start new chat',
+                                l10n.homeStartNewChatTitle,
                                 style: GoogleFonts.nunito(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w800,
@@ -146,7 +160,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                                 ),
                               ),
                               Text(
-                                'Ask CLAiR a legal question',
+                                l10n.homeStartNewChatSubtitle,
                                 style: GoogleFonts.nunito(fontSize: 12, color: cl.textMid),
                               ),
                             ],
@@ -165,7 +179,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                 Padding(
                   padding: const EdgeInsets.only(left: 2),
                   child: Text(
-                    'Quick Actions',
+                    l10n.homeQuickActions,
                     style: GoogleFonts.nunito(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -184,7 +198,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                   children: quickActions
                       .map((a) => SizedBox(
                             width: (MediaQuery.of(context).size.width - 60) / 3,
-                            child: _chip(a, context),
+                            child: _chip(a, context, ref),
                           ))
                       .toList(),
                 ),
@@ -192,16 +206,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               ),
               const SizedBox(height: 28),
 
-              _fadeSlide(_sectionHead('Suggested Lawyers', 'See All', () => ref.read(mainShellTabProvider.notifier).state = 3), 0.2),
+              _fadeSlide(_sectionHead(l10n.homeSuggestedLawyers, l10n.homeSeeAll, () => ref.read(mainShellTabProvider.notifier).state = 3), 0.2),
               const SizedBox(height: 12),
               _fadeSlide(Row(children: [
-                Expanded(child: _lawyerCard(_lawyers[0])),
+                Expanded(child: _lawyerCard(_lawyers[0], l10n)),
                 const SizedBox(width: 12),
-                Expanded(child: _lawyerCard(_lawyers[1])),
+                Expanded(child: _lawyerCard(_lawyers[1], l10n)),
               ]), 0.25),
               const SizedBox(height: 28),
 
-              _fadeSlide(_sectionHead('Generated Documents', 'View All', () {}), 0.35),
+              _fadeSlide(_sectionHead(l10n.homeGeneratedDocuments, l10n.homeViewAll, () {}), 0.35),
               const SizedBox(height: 10),
               ..._documents.asMap().entries.map((e) =>
                   _fadeSlide(_docRow(e.value), 0.4 + e.key * 0.05)),
@@ -213,20 +227,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     ]);
   }
 
-  Widget _chip(_QuickAction a, BuildContext ctx) {
+  Widget _chip(_QuickAction a, BuildContext ctx, WidgetRef ref) {
     final cl = ctx.c;
+    final l10n = AppLocalizations.of(ctx)!;
     return SpringButton(
       onTap: () {
-        if (a.label == 'Lawyers') {
-          ref.read(mainShellTabProvider.notifier).state = 3;
-        }
-        if (a.label == 'Chat') {
+        if (a.resetChat) {
           ref.read(chatProvider.notifier).reset();
-          ref.read(mainShellTabProvider.notifier).state = 1;
         }
-        if (a.label == 'Library') {
-          ref.read(mainShellTabProvider.notifier).state = 2;
-        }
+        ref.read(mainShellTabProvider.notifier).state = a.tabIndex;
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -246,7 +255,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             child: Icon(a.icon, color: a.color, size: 18),
           ),
           const SizedBox(height: 8),
-          Text(a.label, style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w600, color: cl.textDark)),
+          Text(a.label(l10n), style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w600, color: cl.textDark)),
         ]),
       ),
     );
@@ -273,7 +282,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     );
   }
 
-  Widget _lawyerCard(_Lawyer l) {
+  Widget _lawyerCard(_Lawyer l, AppLocalizations l10n) {
     final cl = context.c;
     return SpringButton(
       onTap: () {},
@@ -302,7 +311,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
           Row(children: [
             const Icon(Icons.star_rounded, size: 12, color: Color(0xFFE9A020)),
             const SizedBox(width: 3),
-            Text('${l.rating}  ·  ${l.cases} cases', style: GoogleFonts.nunito(fontSize: 11, color: cl.textMid)),
+            Text(l10n.homeRatingCasesLine('${l.rating}', l.cases),
+                style: GoogleFonts.nunito(fontSize: 11, color: cl.textMid)),
           ]),
           const SizedBox(height: 10),
           Container(
@@ -312,7 +322,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               borderRadius: BorderRadius.circular(10),
               boxShadow: [BoxShadow(color: cl.accent.withValues(alpha: 0.2), blurRadius: 6, offset: const Offset(0, 2))],
             ),
-            child: Text('Connect', textAlign: TextAlign.center,
+            child: Text(l10n.homeConnect, textAlign: TextAlign.center,
                 style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
           ),
         ]),
