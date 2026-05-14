@@ -48,6 +48,9 @@ class AppLocalizationsFil extends AppLocalizations {
   String get drawerNotifications => 'Notifications';
 
   @override
+  String get drawerAppointments => 'Appointments';
+
+  @override
   String get drawerAccount => 'Account';
 
   @override
@@ -693,6 +696,9 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get bookingAppointmentTypeRequired => 'Pumili ng uri ng appointment.';
+
+  @override
+  String get apptBadgeNew => 'BAGO';
 
   @override
   String get apptStatusPending => 'Pending';

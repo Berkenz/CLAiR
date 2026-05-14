@@ -48,6 +48,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get drawerNotifications => 'Notifications';
 
   @override
+  String get drawerAppointments => 'Appointments';
+
+  @override
   String get drawerAccount => 'Account';
 
   @override
@@ -692,6 +695,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get bookingAppointmentTypeRequired =>
       'Please select an appointment type.';
+
+  @override
+  String get apptBadgeNew => 'NEW';
 
   @override
   String get apptStatusPending => 'Pending';

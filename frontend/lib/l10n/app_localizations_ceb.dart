@@ -48,6 +48,9 @@ class AppLocalizationsCeb extends AppLocalizations {
   String get drawerNotifications => 'Notifications';
 
   @override
+  String get drawerAppointments => 'Appointments';
+
+  @override
   String get drawerAccount => 'Account';
 
   @override
@@ -694,6 +697,9 @@ class AppLocalizationsCeb extends AppLocalizations {
   @override
   String get bookingAppointmentTypeRequired =>
       'Palihug pagpili og matang sa appointment.';
+
+  @override
+  String get apptBadgeNew => 'BAG-O';
 
   @override
   String get apptStatusPending => 'Pending';

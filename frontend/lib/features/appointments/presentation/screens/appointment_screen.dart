@@ -108,16 +108,15 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
   }
 
   List<AppointmentEntity> _applyFilter(List<AppointmentEntity> list) {
-    switch (_filter) {
-      case _AppointmentListFilter.all:
-        return List<AppointmentEntity>.of(list);
-      case _AppointmentListFilter.pending:
-        return list.where((a) => a.status == 'pending').toList();
-      case _AppointmentListFilter.confirmed:
-        return list.where((a) => a.status == 'confirmed').toList();
-      case _AppointmentListFilter.cancelled:
-        return list.where((a) => a.status == 'cancelled').toList();
-    }
+    return switch (_filter) {
+      _AppointmentListFilter.all => List<AppointmentEntity>.of(list),
+      _AppointmentListFilter.pending =>
+        list.where((a) => a.status == 'pending').toList(),
+      _AppointmentListFilter.confirmed =>
+        list.where((a) => a.status == 'confirmed').toList(),
+      _AppointmentListFilter.cancelled =>
+        list.where((a) => a.status == 'cancelled').toList(),
+    };
   }
 
   void _applySort(List<AppointmentEntity> list) {
@@ -135,9 +134,7 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
     final cl = context.c;
 
     if (state.isLoading && state.appointments.isEmpty) {
-      return Center(
-        child: CircularProgressIndicator(color: cl.accent),
-      );
+      return Center(child: CircularProgressIndicator(color: cl.accent));
     }
 
     final raw = state.appointments;
@@ -162,39 +159,13 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    l10n.apptMyTitle,
-                    style: GoogleFonts.nunito(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: cl.textDark,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    l10n.apptTotalCount(raw.length),
-                    style: GoogleFonts.nunito(
-                      fontSize: 13,
-                      color: cl.textMid,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            child: _buildHeader(state, l10n, cl),
           ),
           SliverToBoxAdapter(child: _buildFilterSortRow(cl, l10n)),
-          if (_filter == _AppointmentListFilter.all) ...[
-            ..._buildGroupedAppointmentSlivers(cl, sorted, l10n),
-          ] else ...[
-            _buildSectionHeader(
-              _filterSectionTitle(l10n),
-              sorted.length,
-            ),
+          if (_filter == _AppointmentListFilter.all)
+            ..._buildGroupedSlivers(cl, sorted, l10n)
+          else ...[
+            _buildSectionHeader(_filterSectionTitle(l10n), sorted.length),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
               sliver: SliverList(
@@ -212,7 +183,73 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
               ),
             ),
           ],
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(
+      AppointmentState state, AppLocalizations l10n, AppColorTheme cl) {
+    final pendingCount = state.pendingCount;
+    final newCount = state.newCount;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.apptMyTitle,
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: cl.textDark,
+                        fontFamily: 'Satoshi',
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      l10n.apptTotalCount(state.appointments.length),
+                      style: GoogleFonts.nunito(
+                        fontSize: 13,
+                        color: cl.textMid,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (newCount > 0)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: cl.accent,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '$newCount new',
+                    style: GoogleFonts.nunito(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (pendingCount > 0) ...[
+            const SizedBox(height: 12),
+            _PendingBanner(pendingCount: pendingCount),
+          ],
         ],
       ),
     );
@@ -227,60 +264,76 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
     };
   }
 
-  List<Widget> _buildGroupedAppointmentSlivers(
+  List<Widget> _buildGroupedSlivers(
     AppColorTheme cl,
     List<AppointmentEntity> sorted,
     AppLocalizations l10n,
   ) {
-    final active = sorted
-        .where((a) => a.status == 'confirmed' || a.status == 'pending')
-        .toList();
-    final past = sorted.where((a) => a.status == 'cancelled').toList();
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+
+    final todayAppts = sorted.where((a) {
+      final d = a.appointmentDate;
+      final apptDay = DateTime(d.year, d.month, d.day);
+      return apptDay == todayDate && a.status != 'cancelled';
+    }).toList();
+
+    final upcoming = sorted.where((a) {
+      final d = a.appointmentDate;
+      final apptDay = DateTime(d.year, d.month, d.day);
+      return apptDay.isAfter(todayDate) && a.status != 'cancelled';
+    }).toList();
+
+    final past = sorted.where((a) {
+      final d = a.appointmentDate;
+      final apptDay = DateTime(d.year, d.month, d.day);
+      return apptDay.isBefore(todayDate) && a.status != 'cancelled';
+    }).toList();
+
+    final cancelled = sorted.where((a) => a.status == 'cancelled').toList();
 
     return [
-      if (active.isNotEmpty) ...[
-        _buildSectionHeader(l10n.apptSectionActivePending, active.length),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (_, i) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _AppointmentCard(
-                  appointment: active[i],
-                  onTap: () => _openDetail(active[i]),
-                ),
-              ),
-              childCount: active.length,
-            ),
-          ),
-        ),
+      if (todayAppts.isNotEmpty) ...[
+        _buildSectionHeader('Today', todayAppts.length, highlight: true),
+        _buildCardList(todayAppts),
+      ],
+      if (upcoming.isNotEmpty) ...[
+        _buildSectionHeader('Upcoming', upcoming.length),
+        _buildCardList(upcoming),
       ],
       if (past.isNotEmpty) ...[
-        _buildSectionHeader(l10n.apptSectionPastCancelled, past.length),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (_, i) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _AppointmentCard(
-                  appointment: past[i],
-                  onTap: () => _openDetail(past[i]),
-                  muted: true,
-                ),
-              ),
-              childCount: past.length,
-            ),
-          ),
-        ),
+        _buildSectionHeader('Past', past.length),
+        _buildCardList(past),
+      ],
+      if (cancelled.isNotEmpty) ...[
+        _buildSectionHeader(l10n.apptSectionCancelledOrDeclined, cancelled.length),
+        _buildCardList(cancelled, muted: true),
       ],
     ];
   }
 
+  Widget _buildCardList(List<AppointmentEntity> items, {bool muted = false}) {
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (_, i) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _AppointmentCard(
+              appointment: items[i],
+              onTap: () => _openDetail(items[i]),
+              muted: muted,
+            ),
+          ),
+          childCount: items.length,
+        ),
+      ),
+    );
+  }
+
   Widget _buildFilterSortRow(AppColorTheme cl, AppLocalizations l10n) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -288,74 +341,46 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                FilterChip(
-                  label: Text(l10n.apptFilterAll, style: GoogleFonts.nunito(fontSize: 13)),
+                _FilterChip(
+                  label: l10n.apptFilterAll,
                   selected: _filter == _AppointmentListFilter.all,
-                  onSelected: (_) =>
+                  onTap: () =>
                       setState(() => _filter = _AppointmentListFilter.all),
-                  selectedColor: cl.accent.withValues(alpha: 0.18),
-                  checkmarkColor: cl.accent,
-                  labelStyle: TextStyle(
-                    color: _filter == _AppointmentListFilter.all
-                        ? cl.textDark
-                        : cl.textMid,
-                    fontWeight: FontWeight.w600,
-                  ),
                 ),
                 const SizedBox(width: 8),
-                FilterChip(
-                  label: Text(l10n.apptFilterPending, style: GoogleFonts.nunito(fontSize: 13)),
+                _FilterChip(
+                  label: l10n.apptFilterPending,
                   selected: _filter == _AppointmentListFilter.pending,
-                  onSelected: (_) =>
+                  onTap: () =>
                       setState(() => _filter = _AppointmentListFilter.pending),
-                  selectedColor: cl.accent.withValues(alpha: 0.18),
-                  checkmarkColor: cl.accent,
-                  labelStyle: TextStyle(
-                    color: _filter == _AppointmentListFilter.pending
-                        ? cl.textDark
-                        : cl.textMid,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  dotColor: const Color(0xFFE59300),
                 ),
                 const SizedBox(width: 8),
-                FilterChip(
-                  label: Text(l10n.apptFilterAccepted, style: GoogleFonts.nunito(fontSize: 13)),
+                _FilterChip(
+                  label: l10n.apptFilterAccepted,
                   selected: _filter == _AppointmentListFilter.confirmed,
-                  onSelected: (_) => setState(
-                      () => _filter = _AppointmentListFilter.confirmed),
-                  selectedColor: cl.accent.withValues(alpha: 0.18),
-                  checkmarkColor: cl.accent,
-                  labelStyle: TextStyle(
-                    color: _filter == _AppointmentListFilter.confirmed
-                        ? cl.textDark
-                        : cl.textMid,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  onTap: () =>
+                      setState(() => _filter = _AppointmentListFilter.confirmed),
+                  dotColor: const Color(0xFF22A64A),
                 ),
                 const SizedBox(width: 8),
-                FilterChip(
-                  label:
-                      Text(l10n.apptFilterCancelled, style: GoogleFonts.nunito(fontSize: 13)),
+                _FilterChip(
+                  label: l10n.apptFilterCancelled,
                   selected: _filter == _AppointmentListFilter.cancelled,
-                  onSelected: (_) => setState(
-                      () => _filter = _AppointmentListFilter.cancelled),
-                  selectedColor: cl.accent.withValues(alpha: 0.18),
-                  checkmarkColor: cl.accent,
-                  labelStyle: TextStyle(
-                    color: _filter == _AppointmentListFilter.cancelled
-                        ? cl.textDark
-                        : cl.textMid,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  onTap: () =>
+                      setState(() => _filter = _AppointmentListFilter.cancelled),
+                  dotColor: const Color(0xFFD63031),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Align(
             alignment: Alignment.centerRight,
             child: PopupMenuButton<_AppointmentListSort>(
               onSelected: (v) => setState(() => _sort = v),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
               itemBuilder: (ctx) => [
                 PopupMenuItem(
                   value: _AppointmentListSort.dateNewest,
@@ -383,26 +408,27 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.sort_rounded, size: 18, color: cl.accent),
+                    Icon(Icons.sort_rounded, size: 16, color: cl.accent),
                     const SizedBox(width: 6),
                     Text(
                       _sort == _AppointmentListSort.dateNewest
                           ? l10n.apptSortChipNewest
                           : l10n.apptSortChipOldest,
                       style: GoogleFonts.nunito(
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: cl.textDark,
                       ),
                     ),
+                    const SizedBox(width: 2),
                     Icon(Icons.expand_more_rounded,
-                        color: cl.textMid, size: 20),
+                        color: cl.textMid, size: 18),
                   ],
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
         ],
       ),
     );
@@ -415,26 +441,44 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.filter_alt_off_rounded, size: 48, color: cl.textLight),
-            const SizedBox(height: 12),
+            Container(
+              width: 68,
+              height: 68,
+              decoration: BoxDecoration(
+                color: cl.fieldBg,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.filter_alt_off_rounded,
+                  size: 30, color: cl.textLight),
+            ),
+            const SizedBox(height: 16),
             Text(
               l10n.apptNoFilterMatch,
               textAlign: TextAlign.center,
-              style: GoogleFonts.nunito(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: cl.textDark,
+                fontFamily: 'Satoshi',
               ),
             ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () =>
-                  setState(() => _filter = _AppointmentListFilter.all),
-              child: Text(
-                l10n.apptShowAll,
-                style: GoogleFonts.nunito(
-                  fontWeight: FontWeight.w700,
-                  color: cl.accent,
+            const SizedBox(height: 10),
+            GestureDetector(
+              onTap: () => setState(() => _filter = _AppointmentListFilter.all),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: cl.accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  l10n.apptShowAll,
+                  style: GoogleFonts.nunito(
+                    fontWeight: FontWeight.w700,
+                    color: cl.accent,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ),
@@ -444,26 +488,42 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title, int count) {
+  Widget _buildSectionHeader(String title, int count,
+      {bool highlight = false}) {
     final cl = context.c;
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
         child: Row(
           children: [
+            if (highlight)
+              Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.only(right: 6),
+                decoration: BoxDecoration(
+                  color: cl.accent,
+                  shape: BoxShape.circle,
+                ),
+              ),
             Text(
               title,
-              style: GoogleFonts.nunito(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: cl.textMid,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: highlight ? cl.accent : cl.textMid,
+                fontFamily: 'Satoshi',
+                letterSpacing: 0.6,
               ),
             ),
             const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
-                color: cl.fieldBg,
+                color: highlight
+                    ? cl.accent.withValues(alpha: 0.12)
+                    : cl.fieldBg,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
@@ -471,7 +531,7 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
                 style: GoogleFonts.nunito(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: cl.textMid,
+                  color: highlight ? cl.accent : cl.textMid,
                 ),
               ),
             ),
@@ -488,49 +548,148 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
       ),
     );
     if (changed == true && mounted) {
-      await ref.read(appointmentProvider.notifier).loadAppointments(force: true);
+      await ref
+          .read(appointmentProvider.notifier)
+          .loadAppointments(force: true);
     }
   }
 
   Widget _buildEmptyState(AppLocalizations l10n) {
     final cl = context.c;
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 84,
+              height: 84,
+              decoration: BoxDecoration(
+                color: cl.accent.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.event_note_rounded, size: 38, color: cl.accent),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              l10n.apptEmptyTitle,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: cl.textDark,
+                fontFamily: 'Satoshi',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.apptEmptySubtitle,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.nunito(
+                fontSize: 14,
+                color: cl.textMid,
+                height: 1.55,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Pending banner ────────────────────────────────────────────────────────────
+
+class _PendingBanner extends StatelessWidget {
+  const _PendingBanner({required this.pendingCount});
+  final int pendingCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4DE),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE59300).withValues(alpha: 0.3)),
+      ),
+      child: Row(
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: cl.accent.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.event_note_rounded,
-              size: 38,
-              color: cl.accent,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            l10n.apptEmptyTitle,
-            style: GoogleFonts.nunito(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: cl.textDark,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            l10n.apptEmptySubtitle,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.nunito(
-              fontSize: 13,
-              color: cl.textMid,
-              height: 1.5,
+          const Icon(Icons.hourglass_top_rounded,
+              size: 16, color: Color(0xFFB26A00)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              pendingCount == 1
+                  ? '1 appointment awaiting confirmation'
+                  : '$pendingCount appointments awaiting confirmation',
+              style: GoogleFonts.nunito(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFFB26A00),
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Custom filter chip ────────────────────────────────────────────────────────
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.dotColor,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Color? dotColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final cl = context.c;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? cl.accent : cl.fieldBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? cl.accent : cl.border,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (dotColor != null && !selected) ...[
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: dotColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              label,
+              style: GoogleFonts.nunito(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: selected ? Colors.white : cl.textMid,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -558,6 +717,7 @@ class _AppointmentCard extends StatelessWidget {
     final bookedDate = DateFormat('MMM d, y').format(bookedLocal);
     final bookedTime = DateFormat('h:mm a').format(bookedLocal);
     final bookedLine = l10n.apptCardBookedAt(bookedDate, bookedTime);
+    final isNew = appointment.isNew;
 
     return SpringButton(
       onTap: onTap,
@@ -565,7 +725,11 @@ class _AppointmentCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: cl.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: cl.border),
+          border: Border.all(
+            color: isNew && !muted
+                ? cl.accent.withValues(alpha: 0.35)
+                : cl.border,
+          ),
           boxShadow: [
             BoxShadow(
               color: cl.cardShadow,
@@ -576,129 +740,141 @@ class _AppointmentCard extends StatelessWidget {
         ),
         child: IntrinsicHeight(
           child: Row(
-          children: [
-            // Colored status strip
-            Container(
-              width: 4,
-              constraints: const BoxConstraints(minHeight: 72),
-              decoration: BoxDecoration(
-                color: muted
-                    ? statusColor.withValues(alpha: 0.35)
-                    : statusColor,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  bottomLeft: Radius.circular(16),
+            children: [
+              // Colored status strip
+              Container(
+                width: 4,
+                constraints: const BoxConstraints(minHeight: 80),
+                decoration: BoxDecoration(
+                  color: muted
+                      ? statusColor.withValues(alpha: 0.3)
+                      : statusColor,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    bottomLeft: Radius.circular(16),
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 14, 12, 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                appointment.displayCaseTitle,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: muted
-                                      ? cl.textDark.withValues(alpha: 0.5)
-                                      : cl.textDark,
-                                  fontFamily: 'Satoshi',
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                appointment.displayLawyerName,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: cl.textMid,
-                                  fontFamily: 'Satoshi',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        _StatusPill(
-                          appointment: appointment,
-                          muted: muted,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.schedule_outlined,
-                          size: 12,
-                          color: cl.textLight,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          bookedLine,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: cl.textMid,
-                            fontFamily: 'Satoshi',
-                          ),
-                        ),
-                        const Spacer(),
-                        if (appointment.canStartLawyerChat)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: cl.accent.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(
-                                  Icons.chat_bubble_rounded,
-                                  size: 11,
-                                  color: cl.accent,
-                                ),
-                                const SizedBox(width: 4),
                                 Text(
-                                  l10n.apptCardChat,
-                                  style: GoogleFonts.nunito(
-                                    fontSize: 11,
+                                  appointment.displayCaseTitle,
+                                  style: TextStyle(
+                                    fontSize: 15,
                                     fontWeight: FontWeight.w700,
-                                    color: cl.accent,
+                                    color: muted
+                                        ? cl.textDark.withValues(alpha: 0.45)
+                                        : cl.textDark,
+                                    fontFamily: 'Satoshi',
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  appointment.displayLawyerName,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: muted
+                                        ? cl.textMid.withValues(alpha: 0.55)
+                                        : cl.textMid,
+                                    fontFamily: 'Satoshi',
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                      ],
-                    ),
-                  ],
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              _StatusPill(
+                                  appointment: appointment, muted: muted),
+                              if (isNew && !muted) ...[
+                                const SizedBox(height: 4),
+                                _NewBadge(l10n: l10n),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule_outlined,
+                            size: 12,
+                            color: cl.textLight,
+                          ),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: Text(
+                              bookedLine,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: muted
+                                    ? cl.textMid.withValues(alpha: 0.55)
+                                    : cl.textMid,
+                                fontFamily: 'Satoshi',
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (!muted && appointment.canStartLawyerChat)
+                            _ChatBadge(l10n: l10n),
+                        ],
+                      ),
+                      // Appointment type tag
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            appointment.appointmentType
+                                        .toLowerCase()
+                                        .contains('online') ||
+                                    appointment.appointmentType
+                                        .toLowerCase()
+                                        .contains('video')
+                                ? Icons.videocam_outlined
+                                : Icons.place_outlined,
+                            size: 12,
+                            color: cl.textLight,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            appointment.appointmentType,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: muted
+                                  ? cl.textLight.withValues(alpha: 0.55)
+                                  : cl.textLight,
+                              fontFamily: 'Satoshi',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(right: 10),
-              child: Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: cl.textLight,
+              Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Icon(Icons.chevron_right_rounded,
+                    size: 20, color: cl.textLight),
               ),
-            ),
-          ],
+            ],
           ),
         ),
       ),
@@ -715,6 +891,68 @@ class _AppointmentCard extends StatelessWidget {
   }
 }
 
+// ── New badge ─────────────────────────────────────────────────────────────────
+
+class _NewBadge extends StatelessWidget {
+  const _NewBadge({required this.l10n});
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final cl = context.c;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: cl.accent,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        l10n.apptBadgeNew,
+        style: GoogleFonts.nunito(
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Chat badge ────────────────────────────────────────────────────────────────
+
+class _ChatBadge extends StatelessWidget {
+  const _ChatBadge({required this.l10n});
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final cl = context.c;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: cl.accent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.chat_bubble_rounded, size: 11, color: cl.accent),
+          const SizedBox(width: 4),
+          Text(
+            l10n.apptCardChat,
+            style: GoogleFonts.nunito(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: cl.accent,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Status pill ───────────────────────────────────────────────────────────────
 
 class _StatusPill extends StatelessWidget {
@@ -725,7 +963,6 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cl = context.c;
     final l10n = AppLocalizations.of(context)!;
     final status = appointment.status;
     final (Color bg, Color fg, String label) = switch (status) {
@@ -750,7 +987,7 @@ class _StatusPill extends StatelessWidget {
               const Color(0xFFB02A37),
               l10n.apptStatusDeclined,
             ),
-      _ => (cl.fieldBg, cl.textMid, status),
+      _ => (const Color(0xFFF3F4F6), const Color(0xFF6B7280), status),
     };
 
     return Container(
@@ -764,7 +1001,7 @@ class _StatusPill extends StatelessWidget {
         style: GoogleFonts.nunito(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: muted ? fg.withValues(alpha: 0.6) : fg,
+          color: muted ? fg.withValues(alpha: 0.55) : fg,
         ),
       ),
     );

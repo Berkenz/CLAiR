@@ -5,9 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
+import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
 import 'package:clair/l10n/app_localizations.dart';
 
 class AppDrawer extends ConsumerStatefulWidget {
@@ -115,7 +117,26 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 Navigator.pop(context);
                 ref.read(mainShellTabProvider.notifier).state = 3;
               }),
-              _item(context, Icons.notifications_none_rounded, l10n.drawerNotifications, false, () { Navigator.pop(context); context.push('/notifications'); }),
+              _itemWithBadge(
+                context,
+                Icons.event_note_outlined,
+                l10n.drawerAppointments,
+                badge: ref.watch(appointmentProvider).pendingCount,
+                onTap: () {
+                  Navigator.pop(context);
+                  ref.read(mainShellTabProvider.notifier).state = 4;
+                },
+              ),
+              _itemWithBadge(
+                context,
+                Icons.notifications_none_rounded,
+                l10n.drawerNotifications,
+                badge: ref.watch(notificationInboxProvider).unreadCount,
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/notifications');
+                },
+              ),
               const SizedBox(height: 12),
               _label(context, l10n.drawerAccount),
               _item(context, Icons.person_outline_rounded, l10n.drawerProfile, false, () { Navigator.pop(context); context.push('/profile'); }),
@@ -230,6 +251,85 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
             Icon(icon, size: 19, color: color),
             const SizedBox(width: 14),
             Text(label, style: GoogleFonts.nunito(fontSize: 14, fontWeight: active ? FontWeight.w700 : FontWeight.w500, color: active ? cl.textDark : color)),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _itemWithBadge(
+    BuildContext context,
+    IconData icon,
+    String label, {
+    required int badge,
+    required VoidCallback onTap,
+  }) {
+    final cl = context.c;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          child: Row(children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(icon, size: 19, color: cl.textMid),
+                if (badge > 0)
+                  Positioned(
+                    right: -6,
+                    top: -6,
+                    child: Container(
+                      constraints: const BoxConstraints(minWidth: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade600,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: cl.surface, width: 1.2),
+                      ),
+                      child: Text(
+                        badge > 99 ? '99+' : '$badge',
+                        style: GoogleFonts.nunito(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                label,
+                style: GoogleFonts.nunito(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: cl.textMid,
+                ),
+              ),
+            ),
+            if (badge > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  badge > 99 ? '99+' : '$badge',
+                  style: GoogleFonts.nunito(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.red.shade700,
+                  ),
+                ),
+              ),
           ]),
         ),
       ),

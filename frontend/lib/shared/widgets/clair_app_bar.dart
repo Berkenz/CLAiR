@@ -106,15 +106,29 @@ class ClairAppBar extends ConsumerWidget {
                       ),
                       if (inbox.unreadCount > 0)
                         Positioned(
-                          right: 0,
-                          top: 0,
+                          right: -2,
+                          top: -2,
                           child: Container(
-                            width: 10,
-                            height: 10,
+                            constraints: const BoxConstraints(minWidth: 16),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 4, vertical: 1),
                             decoration: BoxDecoration(
                               color: Colors.red.shade600,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: cl.surface, width: 1.5),
+                              borderRadius: BorderRadius.circular(8),
+                              border:
+                                  Border.all(color: cl.surface, width: 1.5),
+                            ),
+                            child: Text(
+                              inbox.unreadCount > 99
+                                  ? '99+'
+                                  : '${inbox.unreadCount}',
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                height: 1.2,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                           ),
                         ),
