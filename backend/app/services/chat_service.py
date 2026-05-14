@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.services.lawyer_service import lawyer_service
+from app.services.tavily_service import format_tavily_context, search_philippine_law
 from app.services.vector_service import format_rag_context, get_relevant_chunks
 
 # Compact but complete system prompt — every sentence earns its tokens.
@@ -167,8 +168,8 @@ async def get_chat_response(
     db: AsyncSession | None = None,
     user_lat: float | None = None,
     user_lng: float | None = None,
-) -> tuple[str, list[dict], list[dict], bool]:
-    """Returns (reply_text, suggested_lawyers, rag_sources, rag_enabled).
+) -> tuple[str, list[dict], list[dict], bool, list[dict]]:
+    """Returns (reply_text, suggested_lawyers, rag_sources, rag_enabled, tavily_sources).
 
     suggested_lawyers is non-empty only when the model included the
     [[SUGGEST_LAWYERS]] marker in its reply and nearby lawyers exist.
@@ -176,11 +177,18 @@ async def get_chat_response(
     rag_sources lists retrieved law chunks (same as injected into the prompt).
     rag_enabled is True when SUPABASE_DB_URL and EMBED_SERVICE_URL are set
     (retrieval was attempted; rag_sources may still be empty).
+
+    tavily_sources lists real-time web results from trusted PH legal domains,
+    injected when the query is time-sensitive or RAG returned no chunks.
     """
     rag_enabled = bool(settings.SUPABASE_DB_URL and settings.EMBED_SERVICE_URL)
     chunks = await get_relevant_chunks(message)
     rag_sources = _rag_sources_from_chunks(chunks)
     rag_context = format_rag_context(chunks)
+
+    # Supplement with real-time search from trusted Philippine legal domains.
+    tavily_results = await search_philippine_law(message, rag_chunk_count=len(chunks))
+    rag_context = rag_context + format_tavily_context(tavily_results)
 
     nearby_lawyers: list[dict] = []
     if db is not None and user_lat is not None and user_lng is not None:
@@ -209,7 +217,7 @@ async def get_chat_response(
         content = content.replace(_SUGGEST_MARKER, "").strip()
         suggested = nearby_lawyers
 
-    return content, suggested, rag_sources, rag_enabled
+    return content, suggested, rag_sources, rag_enabled, tavily_results
 
 
 _TITLE_SYSTEM = (

@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str | None = None
     SUPABASE_DB_URL: str | None = None
     EMBED_SERVICE_URL: str | None = None  # e.g. http://34.143.181.61:8001
+    TAVILY_API_KEY: str | None = None
     # Lawyer portal (Vite) runs on 5173; include 127.0.0.1 — browsers treat it separately from localhost.
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",

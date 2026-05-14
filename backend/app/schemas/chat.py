@@ -41,6 +41,14 @@ class RagSourceItem(BaseModel):
     source_url: str | None = None
 
 
+class TavilySourceItem(BaseModel):
+    """One real-time result from a trusted Philippine legal/government website."""
+
+    title: str = ""
+    url: str = ""
+    score: float = 0.0
+
+
 class ChatResponse(BaseModel):
     reply: str
     conversation_id: uuid.UUID
@@ -49,3 +57,5 @@ class ChatResponse(BaseModel):
     # RAG transparency: same retrieval as injected into the LLM prompt.
     rag_enabled: bool = False
     rag_sources: list[RagSourceItem] = Field(default_factory=list)
+    # Real-time web search results from trusted PH legal domains (Tavily).
+    tavily_sources: list[TavilySourceItem] = Field(default_factory=list)
