@@ -3,8 +3,11 @@ Appointment endpoints:
   - POST   /appointments            → mobile user books an appointment
   - GET    /appointments            → mobile user sees their own appointments
   - GET    /lawyer/appointments     → lawyer sees their own appointments
+  - GET    /lawyer/appointments/types → valid appointment types (portal forms)
   - POST   /lawyer/appointments     → lawyer manually creates an appointment
   - PUT    /lawyer/appointments/{id}→ lawyer edits an appointment
+  - PUT    /lawyer/appointments/portal-order → drag-reorder cases (same status)
+  - POST   /lawyer/appointments/{id}/case-documents → upload file (manual cases only)
   - DELETE /lawyer/appointments/{id}→ lawyer deletes an appointment
 """
 
@@ -29,6 +32,7 @@ from app.schemas.appointment import (
     APPOINTMENT_TYPES,
     AppointmentBookRequest,
     AppointmentClientCancelRequest,
+    CasePortalReorderRequest,
     AppointmentCreateRequest,
     AppointmentListResponse,
     AppointmentRejectRequest,
@@ -184,6 +188,28 @@ async def get_appointment_types(
 lawyer_router = APIRouter(prefix="/lawyer/appointments", tags=["lawyer-appointments"])
 
 
+@lawyer_router.get("/types", response_model=list[str])
+async def lawyer_list_appointment_types(
+    _: Annotated[tuple[User, LawyerProfile], Depends(get_current_lawyer)],
+):
+    """Same type list as mobile booking — for lawyer portal forms."""
+    return APPOINTMENT_TYPES
+
+
+@lawyer_router.put("/portal-order", status_code=status.HTTP_204_NO_CONTENT)
+async def reorder_portal_appointments(
+    body: CasePortalReorderRequest,
+    current: Annotated[tuple[User, LawyerProfile], Depends(get_current_lawyer)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Persist case list order for one status group (lawyer portal drag-and-drop)."""
+    _, profile = current
+    await appointment_service.reorder_portal_appointments(
+        db, profile.id, body.appointment_ids
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @lawyer_router.get("", response_model=AppointmentListResponse)
 async def list_appointments(
     current: Annotated[tuple[User, LawyerProfile], Depends(get_current_lawyer)],
@@ -221,8 +247,67 @@ async def update_appointment(
     if not appt or appt.lawyer_profile_id != profile.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
     await appointment_service._persist_legacy_split_if_needed(db, appt)
+    prev_status = appt.status
     updated = await appointment_service.update_appointment(db, appt, body)
+    if (
+        body.status == "resolved"
+        and prev_status == "confirmed"
+        and updated.client_user_id
+    ):
+        try:
+            lawyer_name = (profile.display_name or "").strip() or "Your lawyer"
+            case_label = ((updated.case_title or "").strip() or updated.appointment_type)
+            await notification_service.create_notification(
+                db,
+                user_id=updated.client_user_id,
+                notification_type="appointment_resolved",
+                title="Case marked resolved",
+                body=f"{lawyer_name} marked your appointment for {case_label} as resolved.",
+                payload={"appointment_id": str(updated.id)},
+            )
+        except Exception:
+            logger.exception("Failed to record client notification for resolved appointment")
     return updated
+
+
+@lawyer_router.post(
+    "/{appointment_id}/case-documents",
+    response_model=AppointmentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_manual_case_document(
+    appointment_id: uuid.UUID,
+    file: Annotated[UploadFile, File()],
+    current: Annotated[tuple[User, LawyerProfile], Depends(get_current_lawyer)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Upload a document for a manually added case (lawyer portal only)."""
+    _, profile = current
+    appt = await appointment_service.get_appointment_by_id(db, appointment_id)
+    if not appt or appt.lawyer_profile_id != profile.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
+    await appointment_service._persist_legacy_split_if_needed(db, appt)
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file")
+    filename = file.filename or "attachment"
+    content_type = file.content_type or "application/octet-stream"
+    try:
+        return await appointment_service.add_manual_case_document(
+            db,
+            appt,
+            filename=filename,
+            content=raw,
+            content_type=content_type,
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Manual case document upload failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Upload failed",
+        ) from None
 
 
 @lawyer_router.post("/{appointment_id}/accept", response_model=AppointmentResponse)

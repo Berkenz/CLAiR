@@ -1354,6 +1354,12 @@ abstract class AppLocalizations {
   /// **'Accepted'**
   String get apptFilterAccepted;
 
+  /// No description provided for @apptFilterResolved.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolved'**
+  String get apptFilterResolved;
+
   /// No description provided for @apptFilterCancelled.
   ///
   /// In en, this message translates to:
@@ -1600,6 +1606,18 @@ abstract class AppLocalizations {
   /// **'The lawyer was unable to accept this request.'**
   String get apptDetailBannerDeclinedSubtitle;
 
+  /// No description provided for @apptDetailBannerResolvedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Case resolved'**
+  String get apptDetailBannerResolvedTitle;
+
+  /// No description provided for @apptDetailBannerResolvedSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your lawyer marked this case as closed. You can still message them for 24 hours after it was resolved.'**
+  String get apptDetailBannerResolvedSubtitle;
+
   /// No description provided for @apptDetailBannerUnknownTitle.
   ///
   /// In en, this message translates to:
@@ -1629,6 +1647,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Chat will unlock once your appointment is accepted.'**
   String get apptDetailChatLockedPending;
+
+  /// No description provided for @apptDetailChatLockedResolved.
+  ///
+  /// In en, this message translates to:
+  /// **'This case is resolved and the messaging period has ended. Ask your lawyer to reopen the case if you need to chat again.'**
+  String get apptDetailChatLockedResolved;
 
   /// No description provided for @apptDetailCancelOptionsFailed.
   ///

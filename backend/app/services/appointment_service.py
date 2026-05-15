@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -179,12 +179,46 @@ class AppointmentService:
         await db.refresh(appt)
         return await self.reload_appointment_for_response(db, appt.id)
 
+    def _validate_lawyer_portal_status_change(self, appt: Appointment, new_status: str) -> None:
+        """Allow resolve / reopen from portal; block other arbitrary status edits."""
+        if new_status == appt.status:
+            return
+        if new_status == "resolved":
+            if appt.status != "confirmed":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Only an active (confirmed) case can be marked resolved.",
+                )
+            return
+        if new_status == "confirmed" and appt.status == "resolved":
+            return
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This status change is not supported. Use accept or reject for client requests.",
+        )
+
     async def update_appointment(
         self,
         db: AsyncSession,
         appt: Appointment,
         data: AppointmentUpdateRequest,
     ) -> Appointment:
+        # Resolved case: only allow reopen (status → confirmed), alone — app or manual.
+        if appt.status == "resolved":
+            dump = data.model_dump(exclude_unset=True)
+            if not dump:
+                return await self.reload_appointment_for_response(db, appt.id)
+            if set(dump.keys()) != {"status"} or dump.get("status") != "confirmed":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="This case is resolved. Reopen it (set status to confirmed) to make other changes.",
+                )
+            appt.status = "confirmed"
+            appt.resolved_at = None
+            await db.flush()
+            await db.refresh(appt)
+            return await self.reload_appointment_for_response(db, appt.id)
+
         if data.client_name is not None:
             appt.client_name = data.client_name
         if data.appointment_date is not None:
@@ -198,8 +232,62 @@ class AppointmentService:
             appt.case_title = t[:500] if t else None
         if data.description is not None:
             appt.description = data.description
-        if data.status is not None:
+        if data.lawyer_notes is not None:
+            if appt.client_user_id is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Case notes are only stored for manually added cases.",
+                )
+            appt.lawyer_notes = data.lawyer_notes
+        if data.status is not None and data.status != appt.status:
+            self._validate_lawyer_portal_status_change(appt, data.status)
             appt.status = data.status
+            if data.status == "resolved":
+                appt.resolved_at = datetime.now(timezone.utc)
+        await db.flush()
+        await db.refresh(appt)
+        return await self.reload_appointment_for_response(db, appt.id)
+
+    async def add_manual_case_document(
+        self,
+        db: AsyncSession,
+        appt: Appointment,
+        *,
+        filename: str,
+        content: bytes,
+        content_type: str,
+    ) -> Appointment:
+        """Append one attachment to a manual (lawyer-created) case."""
+        if appt.client_user_id is not None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Case documents can only be uploaded for manually added cases.",
+            )
+        if appt.status != "confirmed":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Upload is only allowed while the case is active. Reopen the case to add files.",
+            )
+        from app.services.storage_service import upload_manual_case_document
+
+        try:
+            url = upload_manual_case_document(
+                appointment_id=str(appt.id),
+                filename=filename,
+                content=content,
+                content_type=content_type,
+            )
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            ) from e
+
+        ct = (content_type or "application/octet-stream").split(";")[0].strip() or None
+        fn = (filename or "attachment").strip() or "attachment"
+        row = {"filename": fn, "url": url, "content_type": ct}
+        base = list(appt.attachments) if appt.attachments else []
+        appt.attachments = base + [row]
         await db.flush()
         await db.refresh(appt)
         return await self.reload_appointment_for_response(db, appt.id)
@@ -268,6 +356,52 @@ class AppointmentService:
         if appt.consultation_summary_pdf_path:
             delete_storage_object(appt.consultation_summary_pdf_path)
         await db.delete(appt)
+        await db.flush()
+
+    async def reorder_portal_appointments(
+        self,
+        db: AsyncSession,
+        lawyer_profile_id: uuid.UUID,
+        appointment_ids: list[uuid.UUID],
+    ) -> None:
+        """Assign portal_list_order 0..n-1 to the given appointments (same lawyer, same status)."""
+        if not appointment_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="appointment_ids must not be empty",
+            )
+        seen: set[uuid.UUID] = set()
+        ordered_unique: list[uuid.UUID] = []
+        for aid in appointment_ids:
+            if aid in seen:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Duplicate appointment id in reorder list",
+                )
+            seen.add(aid)
+            ordered_unique.append(aid)
+
+        result = await db.execute(
+            select(Appointment).where(
+                Appointment.lawyer_profile_id == lawyer_profile_id,
+                Appointment.id.in_(ordered_unique),
+            )
+        )
+        rows = list(result.scalars().all())
+        if len(rows) != len(ordered_unique):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="One or more appointments were not found",
+            )
+        by_id = {r.id: r for r in rows}
+        statuses = {by_id[i].status for i in ordered_unique}
+        if len(statuses) != 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="All reordered cases must share the same status",
+            )
+        for i, aid in enumerate(ordered_unique):
+            by_id[aid].portal_list_order = i
         await db.flush()
 
 

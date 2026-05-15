@@ -1,5 +1,6 @@
 """
-Direct messaging between clients and their lawyers, tied to a confirmed appointment.
+Direct messaging between clients and their lawyers, tied to an appointment
+(confirmed, or resolved within 24 hours of resolve time).
 
 Client routes  (Firebase user token):
   GET    /appointments/{id}/messages           → list messages (polling)
@@ -16,7 +17,7 @@ Lawyer routes  (Firebase lawyer token):
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
@@ -35,6 +36,41 @@ logger = logging.getLogger(__name__)
 # ── Shared helpers ─────────────────────────────────────────────────────────────
 
 _MAX_UPLOAD_BYTES = 12 * 1024 * 1024  # 12 MB
+_MESSAGING_AFTER_RESOLVE = timedelta(hours=24)
+
+
+def _resolved_messaging_closes_at_utc(appt) -> datetime | None:
+    """End of the post-resolve window for new messages (UTC), or None if not applicable."""
+    if getattr(appt, "status", None) != "resolved":
+        return None
+    ref = getattr(appt, "resolved_at", None) or getattr(appt, "updated_at", None)
+    if ref is None:
+        return None
+    if ref.tzinfo is None:
+        ref = ref.replace(tzinfo=timezone.utc)
+    else:
+        ref = ref.astimezone(timezone.utc)
+    return ref + _MESSAGING_AFTER_RESOLVE
+
+
+def _require_messaging_open(appt) -> None:
+    """Allow messaging for confirmed cases, and for 24 hours after resolve."""
+    st = getattr(appt, "status", None)
+    if st == "confirmed":
+        return
+    if st == "resolved":
+        deadline = _resolved_messaging_closes_at_utc(appt)
+        now = datetime.now(timezone.utc)
+        if deadline is not None and now <= deadline:
+            return
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This case is resolved and the 24-hour messaging window has ended.",
+        )
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Messaging is not available for this appointment.",
+    )
 
 
 def _to_response(msg) -> DirectMessageResponse:
@@ -62,7 +98,7 @@ async def client_list_messages(
     if appt is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Appointment not found or not yet confirmed.",
+            detail="Appointment not found or not available for messaging.",
         )
 
     messages = await direct_message_service.list_messages(db, appointment_id, since=since)
@@ -88,7 +124,9 @@ async def client_send_message(
         db, appointment_id, current_user.id
     )
     if appt is None:
-        raise HTTPException(status_code=404, detail="Appointment not found or not yet confirmed.")
+        raise HTTPException(status_code=404, detail="Appointment not found or not available for messaging.")
+
+    _require_messaging_open(appt)
 
     msg = await direct_message_service.send_message(
         db,
@@ -131,7 +169,9 @@ async def client_upload_attachment(
         db, appointment_id, current_user.id
     )
     if appt is None:
-        raise HTTPException(status_code=404, detail="Appointment not found or not yet confirmed.")
+        raise HTTPException(status_code=404, detail="Appointment not found or not available for messaging.")
+
+    _require_messaging_open(appt)
 
     raw = await file.read()
     if len(raw) > _MAX_UPLOAD_BYTES:
@@ -211,7 +251,7 @@ async def lawyer_list_messages(
         db, appointment_id, profile.id
     )
     if appt is None:
-        raise HTTPException(status_code=404, detail="Appointment not found or not yet confirmed.")
+        raise HTTPException(status_code=404, detail="Appointment not found or not available for messaging.")
 
     messages = await direct_message_service.list_messages(db, appointment_id, since=since)
     unread = await direct_message_service.count_unread(db, appointment_id, reader_type="lawyer")
@@ -237,7 +277,9 @@ async def lawyer_send_message(
         db, appointment_id, profile.id
     )
     if appt is None:
-        raise HTTPException(status_code=404, detail="Appointment not found or not yet confirmed.")
+        raise HTTPException(status_code=404, detail="Appointment not found or not available for messaging.")
+
+    _require_messaging_open(appt)
 
     msg = await direct_message_service.send_message(
         db,
@@ -283,7 +325,9 @@ async def lawyer_upload_attachment(
         db, appointment_id, profile.id
     )
     if appt is None:
-        raise HTTPException(status_code=404, detail="Appointment not found or not yet confirmed.")
+        raise HTTPException(status_code=404, detail="Appointment not found or not available for messaging.")
+
+    _require_messaging_open(appt)
 
     raw = await file.read()
     if len(raw) > _MAX_UPLOAD_BYTES:

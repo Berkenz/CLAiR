@@ -30,7 +30,8 @@ Future<void> handleInAppNotificationTap(
   }
   if (apptId != null &&
       (n.notificationType == 'appointment_accepted' ||
-          n.notificationType == 'appointment_rejected')) {
+          n.notificationType == 'appointment_rejected' ||
+          n.notificationType == 'appointment_resolved')) {
     ref.read(mainShellTabProvider.notifier).state = 4;
     await ref.read(appointmentProvider.notifier).loadAppointments(force: true);
     if (!context.mounted) return;

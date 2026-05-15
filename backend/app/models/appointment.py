@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, DateTime, ForeignKey, String, Text
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -46,9 +46,11 @@ class Appointment(Base):
     # Client-chosen title; lawyer may rename (case name in portal).
     case_title: Mapped[str | None] = mapped_column(String(500), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Internal notes for lawyer-created (manual) cases; not used for mobile-linked bookings.
+    lawyer_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     # [{ "filename": str, "url": str | null, "content_type": str | null }, ...]
     attachments: Mapped[list | None] = mapped_column(JSONB, nullable=True)
-    # "pending" (booked by client), "confirmed", "cancelled"
+    # "pending" (booked by client), "confirmed", "cancelled", "resolved" (manual case closed)
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending", server_default="pending"
     )
@@ -68,6 +70,14 @@ class Appointment(Base):
     )
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    # When status became "resolved"; cleared on reopen. Used for post-resolve messaging window.
+    resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # Lawyer portal: order within a status bucket (pending / confirmed / …). Lower = higher in list.
+    portal_list_order: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
     )
 
     lawyer_profile: Mapped["LawyerProfile"] = relationship(

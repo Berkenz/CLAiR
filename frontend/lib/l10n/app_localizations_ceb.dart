@@ -683,6 +683,9 @@ class AppLocalizationsCeb extends AppLocalizations {
   String get apptFilterAccepted => 'Accepted';
 
   @override
+  String get apptFilterResolved => 'Resolved';
+
+  @override
   String get apptFilterCancelled => 'Cancelled';
 
   @override
@@ -819,6 +822,13 @@ class AppLocalizationsCeb extends AppLocalizations {
       'Dili madawat sa abogado kini nga hangyo.';
 
   @override
+  String get apptDetailBannerResolvedTitle => 'Natapos na ang kaso';
+
+  @override
+  String get apptDetailBannerResolvedSubtitle =>
+      'Gimarkahan sa abogado ang kaso nga sarado na. Makapamessage gihapon ka sulod sa 24 ka oras human kini mare-resolve.';
+
+  @override
   String get apptDetailBannerUnknownTitle => 'Wala mailhan nga status';
 
   @override
@@ -837,6 +847,10 @@ class AppLocalizationsCeb extends AppLocalizations {
   @override
   String get apptDetailChatLockedPending =>
       'Ma-unlock ang chat kon madawat na ang appointment.';
+
+  @override
+  String get apptDetailChatLockedResolved =>
+      'Natapos na ang kaso ug nahuman na ang panahon sa pag-chat. Pangayoa ang abogado nga i-reopen ang kaso kon kinahanglan ka mag-chat pag-usab.';
 
   @override
   String get apptDetailCancelOptionsFailed =>

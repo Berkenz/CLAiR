@@ -346,6 +346,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
     return switch (status) {
       'confirmed' => const Color(0xFF22A64A),
       'pending' => const Color(0xFFE59300),
+      'resolved' => const Color(0xFF64748B),
       'cancelled' => const Color(0xFFD63031),
       _ => const Color(0xFF6B7280),
     };
@@ -473,6 +474,8 @@ class _StatusChip extends StatelessWidget {
       label = l10n.apptStatusAccepted;
     } else if (status == 'pending') {
       label = l10n.apptStatusPending;
+    } else if (status == 'resolved') {
+      label = l10n.apptFilterResolved;
     } else if (status == 'cancelled') {
       label = appointment.isClientCancellation
           ? l10n.apptStatusCancelled
@@ -733,6 +736,13 @@ class _StatusBanner extends StatelessWidget {
       icon = Icons.hourglass_empty_rounded;
       title = l10n.apptDetailBannerPendingTitle;
       subtitle = l10n.apptDetailBannerPendingSubtitle;
+    } else if (s == 'resolved') {
+      bg = isDark ? const Color(0xFF0F1419) : const Color(0xFFF1F5F9);
+      fg = isDark ? const Color(0xFF94A3B8) : const Color(0xFF334155);
+      iconBg = const Color(0xFF64748B);
+      icon = Icons.flag_rounded;
+      title = l10n.apptDetailBannerResolvedTitle;
+      subtitle = l10n.apptDetailBannerResolvedSubtitle;
     } else if (s == 'cancelled') {
       bg = isDark ? const Color(0xFF1A0D0E) : const Color(0xFFFFF1F2);
       fg = isDark ? const Color(0xFF8B3040) : const Color(0xFF881337);
@@ -1033,6 +1043,8 @@ class _ChatLockedBanner extends StatelessWidget {
       msg = l10n.apptDetailChatLockedCancelledSelf;
     } else if (status == 'cancelled') {
       msg = l10n.apptDetailChatLockedCancelledDeclined;
+    } else if (status == 'resolved') {
+      msg = l10n.apptDetailChatLockedResolved;
     } else {
       msg = l10n.apptDetailChatLockedPending;
     }

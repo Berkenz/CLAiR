@@ -16,6 +16,7 @@ class AppointmentEntity {
     this.description,
     this.rejectionReason,
     this.updatedAt,
+    this.resolvedAt,
   });
 
   final String id;
@@ -34,14 +35,25 @@ class AppointmentEntity {
   final String? rejectionReason;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final DateTime? resolvedAt;
 
-  bool get canStartLawyerChat => status == 'confirmed';
+  /// Direct messages: active when accepted, or for 24 hours after the case was marked resolved.
+  bool get canStartLawyerChat {
+    if (status == 'confirmed') return true;
+    if (status == 'resolved') {
+      final ref = resolvedAt ?? updatedAt;
+      if (ref == null) return false;
+      final deadline = ref.toUtc().add(const Duration(hours: 24));
+      return DateTime.now().toUtc().isBefore(deadline);
+    }
+    return false;
+  }
 
   /// "New" list badge: not cancelled, still within 48h of last activity, and either
   /// the user has never opened this appointment's detail for this version, or the
   /// row changed since they last did ([lastSeenAppointmentVersionAt] from prefs).
   bool showsNewAppointmentBadge(DateTime? lastSeenAppointmentVersionAt) {
-    if (status == 'cancelled') return false;
+    if (status == 'cancelled' || status == 'resolved') return false;
     final ref = updatedAt ?? createdAt;
     if (DateTime.now().difference(ref) >= const Duration(hours: 48)) {
       return false;
@@ -73,6 +85,7 @@ class AppointmentEntity {
     return switch (status) {
       'pending' => 'Pending',
       'confirmed' => 'Accepted',
+      'resolved' => 'Resolved',
       'cancelled' => isClientCancellation ? 'Cancelled' : 'Declined',
       _ => status,
     };
@@ -100,7 +113,7 @@ class AppointmentEntity {
       throw const FormatException('Appointment missing created_at');
     }
 
-    final status = '${json['status'] ?? ''}'.trim();
+    final status = '${json['status'] ?? ''}'.trim().toLowerCase();
     if (status.isEmpty) {
       throw const FormatException('Appointment missing status');
     }
@@ -123,6 +136,9 @@ class AppointmentEntity {
       createdAt: DateTime.parse(createdRaw),
       updatedAt: json['updated_at'] != null
           ? DateTime.parse('${json['updated_at']}')
+          : null,
+      resolvedAt: json['resolved_at'] != null
+          ? DateTime.parse('${json['resolved_at']}')
           : null,
     );
   }

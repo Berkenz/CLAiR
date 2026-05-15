@@ -682,6 +682,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apptFilterAccepted => 'Accepted';
 
   @override
+  String get apptFilterResolved => 'Resolved';
+
+  @override
   String get apptFilterCancelled => 'Cancelled';
 
   @override
@@ -816,6 +819,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'The lawyer was unable to accept this request.';
 
   @override
+  String get apptDetailBannerResolvedTitle => 'Case resolved';
+
+  @override
+  String get apptDetailBannerResolvedSubtitle =>
+      'Your lawyer marked this case as closed. You can still message them for 24 hours after it was resolved.';
+
+  @override
   String get apptDetailBannerUnknownTitle => 'Unknown status';
 
   @override
@@ -834,6 +844,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get apptDetailChatLockedPending =>
       'Chat will unlock once your appointment is accepted.';
+
+  @override
+  String get apptDetailChatLockedResolved =>
+      'This case is resolved and the messaging period has ended. Ask your lawyer to reopen the case if you need to chat again.';
 
   @override
   String get apptDetailCancelOptionsFailed =>

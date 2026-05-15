@@ -14,7 +14,7 @@ APPOINTMENT_TYPES: list[str] = [
     "Other",
 ]
 
-APPOINTMENT_STATUSES: list[str] = ["pending", "confirmed", "cancelled"]
+APPOINTMENT_STATUSES: list[str] = ["pending", "confirmed", "cancelled", "resolved"]
 
 # Mobile client cancellation — keys stored in API; labels shown in UI
 CLIENT_APPOINTMENT_CANCEL_REASONS: dict[str, str] = {
@@ -120,6 +120,12 @@ class AppointmentCreateRequest(BaseModel):
         return v
 
 
+class CasePortalReorderRequest(BaseModel):
+    """Lawyer portal: set display order for cases that share the same status."""
+
+    appointment_ids: list[uuid.UUID]
+
+
 class AppointmentUpdateRequest(BaseModel):
     client_name: str | None = None
     appointment_date: date | None = None
@@ -127,7 +133,18 @@ class AppointmentUpdateRequest(BaseModel):
     appointment_type: str | None = None
     case_title: str | None = None
     description: str | None = None
+    lawyer_notes: str | None = None
     status: str | None = None
+
+    @field_validator("lawyer_notes", mode="before")
+    @classmethod
+    def normalize_lawyer_notes(cls, v: object) -> str | None:
+        if v is None:
+            return None
+        if not isinstance(v, str):
+            return None
+        s = v.strip()
+        return s or None
 
     @field_validator("case_title")
     @classmethod
@@ -221,11 +238,14 @@ class AppointmentResponse(BaseModel):
     appointment_type: str
     case_title: str | None = None
     description: str | None
+    lawyer_notes: str | None = None
     attachments: list[AppointmentAttachmentItem] = []
     status: str
     rejection_reason: str | None
     created_at: datetime
     updated_at: datetime | None
+    resolved_at: datetime | None = None
+    portal_list_order: int = 0
 
     @field_validator("attachments", mode="before")
     @classmethod

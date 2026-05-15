@@ -683,6 +683,9 @@ class AppLocalizationsFil extends AppLocalizations {
   String get apptFilterAccepted => 'Accepted';
 
   @override
+  String get apptFilterResolved => 'Resolved';
+
+  @override
   String get apptFilterCancelled => 'Cancelled';
 
   @override
@@ -817,6 +820,13 @@ class AppLocalizationsFil extends AppLocalizations {
       'Hindi tinanggap ng abogado ang request na ito.';
 
   @override
+  String get apptDetailBannerResolvedTitle => 'Natapos na ang kaso';
+
+  @override
+  String get apptDetailBannerResolvedSubtitle =>
+      'Minarkahan ng abogado ang kasong ito bilang sarado. Maaari ka pa ring mag-message sa kanila sa loob ng 24 oras matapos itong mare-resolve.';
+
+  @override
   String get apptDetailBannerUnknownTitle => 'Di-alam na status';
 
   @override
@@ -835,6 +845,10 @@ class AppLocalizationsFil extends AppLocalizations {
   @override
   String get apptDetailChatLockedPending =>
       'Mag-uunlock ang chat kapag tinanggap na ang appointment.';
+
+  @override
+  String get apptDetailChatLockedResolved =>
+      'Natapos na ang kaso at tapos na ang panahon ng pagmemensahe. Hilingin sa abogado na buksan muli ang kaso kung kailangan mong mag-chat.';
 
   @override
   String get apptDetailCancelOptionsFailed =>

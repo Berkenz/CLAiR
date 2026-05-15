@@ -14,7 +14,7 @@ import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
 
-enum _AppointmentListFilter { all, pending, confirmed, cancelled }
+enum _AppointmentListFilter { all, pending, confirmed, resolved, cancelled }
 
 enum _AppointmentListSort { dateNewest, dateOldest }
 
@@ -195,6 +195,8 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
         list.where((a) => a.status == 'pending').toList(),
       _AppointmentListFilter.confirmed =>
         list.where((a) => a.status == 'confirmed').toList(),
+      _AppointmentListFilter.resolved =>
+        list.where((a) => a.status == 'resolved').toList(),
       _AppointmentListFilter.cancelled =>
         list.where((a) => a.status == 'cancelled').toList(),
     };
@@ -258,7 +260,8 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
                       appointment: sorted[i],
                       seenRefs: seenRefs,
                       onTap: () => _openDetail(sorted[i]),
-                      muted: sorted[i].status == 'cancelled',
+                      muted: sorted[i].status == 'cancelled' ||
+                          sorted[i].status == 'resolved',
                     ),
                   ),
                   childCount: sorted.length,
@@ -351,6 +354,7 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
     return switch (_filter) {
       _AppointmentListFilter.pending => l10n.apptFilterPending,
       _AppointmentListFilter.confirmed => l10n.apptFilterAccepted,
+      _AppointmentListFilter.resolved => l10n.apptFilterResolved,
       _AppointmentListFilter.cancelled => l10n.apptSectionCancelledOrDeclined,
       _AppointmentListFilter.all => '',
     };
@@ -368,20 +372,28 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
     final todayAppts = sorted.where((a) {
       final d = a.appointmentDate;
       final apptDay = DateTime(d.year, d.month, d.day);
-      return apptDay == todayDate && a.status != 'cancelled';
+      return apptDay == todayDate &&
+          a.status != 'cancelled' &&
+          a.status != 'resolved';
     }).toList();
 
     final upcoming = sorted.where((a) {
       final d = a.appointmentDate;
       final apptDay = DateTime(d.year, d.month, d.day);
-      return apptDay.isAfter(todayDate) && a.status != 'cancelled';
+      return apptDay.isAfter(todayDate) &&
+          a.status != 'cancelled' &&
+          a.status != 'resolved';
     }).toList();
 
     final past = sorted.where((a) {
       final d = a.appointmentDate;
       final apptDay = DateTime(d.year, d.month, d.day);
-      return apptDay.isBefore(todayDate) && a.status != 'cancelled';
+      return apptDay.isBefore(todayDate) &&
+          a.status != 'cancelled' &&
+          a.status != 'resolved';
     }).toList();
+
+    final resolved = sorted.where((a) => a.status == 'resolved').toList();
 
     final cancelled = sorted.where((a) => a.status == 'cancelled').toList();
 
@@ -397,6 +409,10 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
       if (past.isNotEmpty) ...[
         _buildSectionHeader('Past', past.length),
         _buildCardList(past, seenRefs: seenRefs),
+      ],
+      if (resolved.isNotEmpty) ...[
+        _buildSectionHeader(l10n.apptFilterResolved, resolved.length),
+        _buildCardList(resolved, seenRefs: seenRefs, muted: true),
       ],
       if (cancelled.isNotEmpty) ...[
         _buildSectionHeader(l10n.apptSectionCancelledOrDeclined, cancelled.length),
@@ -460,6 +476,14 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
                   onTap: () =>
                       setState(() => _filter = _AppointmentListFilter.confirmed),
                   dotColor: const Color(0xFF22A64A),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: l10n.apptFilterResolved,
+                  selected: _filter == _AppointmentListFilter.resolved,
+                  onTap: () =>
+                      setState(() => _filter = _AppointmentListFilter.resolved),
+                  dotColor: const Color(0xFF64748B),
                 ),
                 const SizedBox(width: 8),
                 _FilterChip(
@@ -1082,6 +1106,7 @@ class _AppointmentCardState extends ConsumerState<_AppointmentCard> {
     return switch (status) {
       'confirmed' => const Color(0xFF22A64A),
       'pending' => const Color(0xFFE59300),
+      'resolved' => const Color(0xFF64748B),
       'cancelled' => const Color(0xFFD63031),
       _ => const Color(0xFF6B7280),
     };
@@ -1141,6 +1166,10 @@ class _StatusPill extends StatelessWidget {
       pillBg = isDark ? const Color(0xFF0D1A10) : const Color(0xFFE9F9EE);
       pillFg = isDark ? const Color(0xFF2D7A48) : const Color(0xFF1E7E34);
       label = l10n.apptStatusAccepted;
+    } else if (status == 'resolved') {
+      pillBg = isDark ? const Color(0xFF1A1D24) : const Color(0xFFF1F5F9);
+      pillFg = isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569);
+      label = l10n.apptFilterResolved;
     } else if (status == 'cancelled') {
       pillBg = isDark ? const Color(0xFF1A0D0E) : const Color(0xFFFFEAEA);
       pillFg = isDark ? const Color(0xFF8B3040) : const Color(0xFFB02A37);

@@ -107,6 +107,45 @@ def upload_appointment_attachment(
     return client.storage.from_(APPOINTMENT_BUCKET).get_public_url(path)
 
 
+def upload_manual_case_document(
+    *,
+    appointment_id: str,
+    filename: str,
+    content: bytes,
+    content_type: str,
+) -> str:
+    """
+    Upload a document for a lawyer-created (manual) case.
+    Stored under ``manual-cases/{appointment_id}/`` in ``appointment-attachments``.
+    """
+    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
+        raise ValueError("Supabase is not configured for file uploads")
+
+    ct = (content_type or "application/octet-stream").split(";")[0].strip().lower()
+    if ct not in _APPOINTMENT_TYPES:
+        raise ValueError(
+            f"Unsupported file type for appointments: {content_type!r}. "
+            f"Allowed: {sorted(_APPOINTMENT_TYPES)}"
+        )
+
+    if len(content) > _MAX_APPOINTMENT_FILE:
+        raise ValueError(f"File too large (max {_MAX_APPOINTMENT_FILE // (1024 * 1024)} MB)")
+
+    safe = "".join(c if c.isalnum() or c in "._-" else "_" for c in filename)[:180]
+    if not safe:
+        safe = "attachment"
+
+    uniq = uuid.uuid4().hex[:12]
+    path = f"manual-cases/{appointment_id}/{uniq}_{safe}"
+    client = _get_client()
+    client.storage.from_(APPOINTMENT_BUCKET).upload(
+        path,
+        content,
+        file_options={"content-type": content_type.split(";")[0].strip(), "upsert": "true"},
+    )
+    return client.storage.from_(APPOINTMENT_BUCKET).get_public_url(path)
+
+
 def upload_consultation_summary_pdf(*, appointment_id: str, content: bytes) -> str:
     """
     Persist a generated CLAiR consultation PDF for an appointment (upsert).

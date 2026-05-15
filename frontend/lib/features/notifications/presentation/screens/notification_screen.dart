@@ -311,6 +311,7 @@ class _NotificationTile extends StatelessWidget {
     final unread = !notification.isRead;
     final icon = switch (notification.notificationType) {
       'appointment_accepted' => Icons.check_circle_outline_rounded,
+      'appointment_resolved' => Icons.task_alt_rounded,
       'appointment_rejected' => Icons.cancel_outlined,
       'new_direct_message' => Icons.chat_bubble_outline_rounded,
       _ => Icons.notifications_none_rounded,
@@ -419,7 +420,9 @@ class _NotificationTile extends StatelessWidget {
                                   (notification.notificationType ==
                                           'appointment_accepted' ||
                                       notification.notificationType ==
-                                          'appointment_rejected')) ...[
+                                          'appointment_rejected' ||
+                                      notification.notificationType ==
+                                          'appointment_resolved')) ...[
                                 const SizedBox(height: 6),
                                 Text(
                                   'Tap to view appointment',

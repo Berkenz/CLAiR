@@ -1,10 +1,28 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent, type ChangeEvent } from "react";
 import {
   Check, X, RefreshCw, Loader2, Smartphone, CalendarClock,
   FileText, ChevronDown, ChevronUp, WifiOff, Download, Bot, User,
   ThumbsUp, Flag, AlertTriangle, Send, MessageCircle, Info,
-  MessageSquare, Search, Pencil, Paperclip, ExternalLink,
+  MessageSquare, Search, Pencil, Paperclip, ExternalLink, Plus,
+  StickyNote, FolderOpen, CircleCheck,
 } from "lucide-react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { api } from "@/lib/api";
 import { getApiErrorMessage, isApiNetworkError } from "@/lib/api-error";
 import { cn } from "@/lib/cn";
@@ -29,11 +47,28 @@ interface Appointment {
   appointment_type: string;
   case_title: string | null;
   description: string | null;
+  lawyer_notes: string | null;
   attachments: AppointmentAttachment[];
-  status: "pending" | "confirmed" | "cancelled";
+  status: "pending" | "confirmed" | "cancelled" | "resolved";
   rejection_reason: string | null;
   attached_conversation_id: string | null;
   created_at: string;
+  updated_at?: string | null;
+  resolved_at?: string | null;
+  portal_list_order?: number;
+}
+
+/** List/send DMs: confirmed, or resolved but still within 24h after resolve. */
+function appointmentDirectMessagingOpen(appt: Appointment): boolean {
+  if (appt.status === "confirmed") return true;
+  if (appt.status === "resolved") {
+    const raw = appt.resolved_at ?? appt.updated_at;
+    if (!raw) return false;
+    const t = Date.parse(raw);
+    if (Number.isNaN(t)) return false;
+    return Date.now() < t + 24 * 60 * 60 * 1000;
+  }
+  return false;
 }
 
 interface AssessmentMessage {
@@ -79,7 +114,7 @@ interface MsgFeedback {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-type DetailTab = "overview" | "conversation" | "pdf" | "chat";
+type DetailTab = "overview" | "notes" | "documents" | "conversation" | "pdf" | "chat";
 
 const REPORT_ISSUES = [
   { id: "incorrect",    label: "Incorrect information",    desc: "The AI stated legally inaccurate facts" },
@@ -155,6 +190,7 @@ const STATUS_BADGE: Record<string, string> = {
   pending:   "bg-amber-50 text-amber-700 border-amber-200",
   confirmed: "bg-emerald-50 text-emerald-700 border-emerald-200",
   cancelled: "bg-red-50 text-red-600 border-red-200",
+  resolved:  "bg-slate-100 text-slate-700 border-slate-200",
 };
 
 const AVATAR_BG = ["bg-[#703d57]", "bg-[#957186]", "bg-[#402a2c]", "bg-[#5a3046]", "bg-[#7e5069]"];
@@ -165,11 +201,567 @@ function displayCaseTitle(appt: Pick<Appointment, "case_title" | "client_name">)
   return "Untitled case";
 }
 
+function normalizeAppointment(a: Appointment): Appointment {
+  const po = a.portal_list_order;
+  const portal =
+    typeof po === "number" && !Number.isNaN(po)
+      ? po
+      : parseInt(String(po ?? "0"), 10) || 0;
+  return {
+    ...a,
+    attachments: Array.isArray(a.attachments) ? a.attachments : [],
+    case_title: a.case_title ?? null,
+    lawyer_notes: a.lawyer_notes ?? null,
+    description: a.description ?? null,
+    portal_list_order: portal,
+  };
+}
+
 function matchesCaseSearch(appt: Appointment, q: string): boolean {
   if (!q) return true;
   return (
     appt.client_name.toLowerCase().includes(q) ||
-    (appt.case_title ?? "").toLowerCase().includes(q)
+    (appt.case_title ?? "").toLowerCase().includes(q) ||
+    (appt.lawyer_notes ?? "").toLowerCase().includes(q)
+  );
+}
+
+type PortalCaseVariant = "pending" | "confirmed" | "resolved" | "cancelled";
+
+function caseCardMetaLine(variant: PortalCaseVariant, appt: Appointment) {
+  if (variant === "resolved") {
+    return `Resolved · recorded ${fmtBookedAt(appt.updated_at ?? appt.created_at)}`;
+  }
+  if (variant === "cancelled") {
+    return appt.rejection_reason ?? "Rejected";
+  }
+  return `Booked ${fmtBookedAt(appt.created_at)}`;
+}
+
+function CaseDragOverlayCard({
+  appt,
+  index,
+  variant,
+}: {
+  appt: Appointment;
+  index: number;
+  variant: PortalCaseVariant;
+}) {
+  const metaClass =
+    variant === "cancelled"
+      ? "text-[11px] text-red-500/90 truncate mt-0.5"
+      : variant === "resolved"
+        ? "text-[11px] text-slate-600/90 mt-0.5"
+        : "text-[11px] text-[#957186]/90 mt-0.5";
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border p-3.5 bg-white shadow-2xl ring-2 ring-[#703d57]/20 scale-[1.02] will-change-transform",
+        variant === "resolved" && "opacity-95",
+        variant === "cancelled" && "opacity-90",
+      )}
+    >
+      <div className="flex items-center gap-2.5">
+        <ProfileAvatar
+          photoUrl={appt.client_photo_url}
+          name={appt.client_name}
+          className="h-8 w-8 text-xs"
+          fallbackBgClass={AVATAR_BG[index % AVATAR_BG.length]}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-[15px] font-bold text-[#241715] truncate leading-snug min-w-0">{displayCaseTitle(appt)}</p>
+            <CaseSourceBadge appt={appt} className="shrink-0 mt-0.5" />
+          </div>
+          <p className="text-xs text-[#957186] truncate mt-0.5">{appt.client_name}</p>
+          <p className={metaClass}>{caseCardMetaLine(variant, appt)}</p>
+        </div>
+        {variant === "pending" && (
+          <span className="text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full shrink-0">
+            pending
+          </span>
+        )}
+      </div>
+      {variant !== "cancelled" && (
+        <div className="flex flex-wrap items-center gap-1.5 mt-1.5 pl-10">
+          <span className="text-[11px] text-gray-500">{appt.appointment_type}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SortablePortalCaseRow({
+  appt,
+  index,
+  variant,
+  selected,
+  dragDisabled,
+  onSelect,
+  onAccept,
+  openReject,
+  acceptingId,
+}: {
+  appt: Appointment;
+  index: number;
+  variant: PortalCaseVariant;
+  selected: boolean;
+  dragDisabled: boolean;
+  onSelect: () => void;
+  onAccept?: (a: Appointment) => void;
+  openReject?: (a: Appointment) => void;
+  acceptingId: string | null;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: appt.id,
+    disabled: dragDisabled,
+  });
+  const style: CSSProperties = {
+    transform: transform != null ? CSS.Transform.toString(transform) : undefined,
+    transition: transition ?? "transform 220ms cubic-bezier(0.2, 0, 0, 1)",
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  const outer = cn(
+    "rounded-2xl border overflow-hidden transition-[box-shadow,opacity] duration-200",
+    variant === "resolved" && "opacity-90",
+    variant === "cancelled" && "opacity-60",
+    selected
+      ? "border-[#703d57] bg-[#f7f0f4] shadow-sm"
+      : "border-[#d9b8c4]/40 bg-white hover:border-[#703d57]/40 hover:bg-[#f7f0f4]",
+    variant === "resolved" && selected && "opacity-100",
+    variant === "cancelled" && selected && "opacity-100",
+  );
+
+  const metaClass =
+    variant === "cancelled"
+      ? "text-[11px] text-red-500/90 truncate mt-0.5"
+      : variant === "resolved"
+        ? "text-[11px] text-slate-600/90 mt-0.5"
+        : "text-[11px] text-[#957186]/90 mt-0.5";
+
+  const mainBlock = (
+    <>
+      <div className="flex items-center gap-2.5">
+        <ProfileAvatar
+          photoUrl={appt.client_photo_url}
+          name={appt.client_name}
+          className="h-8 w-8 text-xs"
+          fallbackBgClass={AVATAR_BG[index % AVATAR_BG.length]}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-[15px] font-bold text-[#241715] truncate leading-snug min-w-0">{displayCaseTitle(appt)}</p>
+            <CaseSourceBadge appt={appt} className="shrink-0 mt-0.5" />
+          </div>
+          <p className="text-xs text-[#957186] truncate mt-0.5">{appt.client_name}</p>
+          <p className={metaClass}>{caseCardMetaLine(variant, appt)}</p>
+        </div>
+        {variant === "pending" && (
+          <span className="text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full shrink-0">
+            pending
+          </span>
+        )}
+      </div>
+      {variant !== "cancelled" && (
+        <div className="flex flex-wrap items-center gap-1.5 mt-1.5 pl-10">
+          <span className="text-[11px] text-gray-500">{appt.appointment_type}</span>
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <div ref={setNodeRef} style={style} className={outer}>
+      {variant === "pending" ? (
+        <>
+          <div
+            className={cn(!dragDisabled && "cursor-grab active:cursor-grabbing touch-none")}
+            {...(!dragDisabled ? { ...attributes, ...listeners } : {})}
+          >
+            <button type="button" onClick={onSelect} className="w-full text-left p-3.5 transition-all bg-transparent">
+              {mainBlock}
+            </button>
+          </div>
+          <div className="flex gap-2 mt-0 px-3.5 pb-3.5 pl-10">
+            <button
+              type="button"
+              onClick={() => onAccept?.(appt)}
+              disabled={acceptingId === appt.id}
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 transition"
+            >
+              {acceptingId === appt.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+              Accept
+            </button>
+            <button
+              type="button"
+              onClick={() => openReject?.(appt)}
+              disabled={acceptingId === appt.id}
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg border border-red-200 text-[11px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60 transition"
+            >
+              <X className="h-3 w-3" />
+              Reject
+            </button>
+          </div>
+        </>
+      ) : (
+        <div
+          className={cn(!dragDisabled && "cursor-grab active:cursor-grabbing touch-none")}
+          {...(!dragDisabled ? { ...attributes, ...listeners } : {})}
+        >
+          <button type="button" onClick={onSelect} className="w-full text-left p-3.5 transition-all bg-transparent">
+            {mainBlock}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PortalCaseSectionDnd({
+  items,
+  reorderDisabled,
+  selectedId,
+  onReorder,
+  onSelect,
+  variant,
+  onAccept,
+  openReject,
+  acceptingId,
+}: {
+  items: Appointment[];
+  reorderDisabled: boolean;
+  selectedId: string | null;
+  onReorder: (ordered: Appointment[]) => void | Promise<void>;
+  onSelect: (a: Appointment) => void;
+  variant: PortalCaseVariant;
+  onAccept?: (a: Appointment) => void;
+  openReject?: (a: Appointment) => void;
+  acceptingId: string | null;
+}) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+  );
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const activeAppt = activeId ? items.find((x) => x.id === activeId) : undefined;
+  const activeIndex = activeAppt ? items.findIndex((x) => x.id === activeAppt.id) : 0;
+
+  const dragDisabled = reorderDisabled || items.length < 2;
+
+  function handleDragStart(e: DragStartEvent) {
+    setActiveId(String(e.active.id));
+  }
+
+  function handleDragEnd(e: DragEndEvent) {
+    setActiveId(null);
+    if (dragDisabled) return;
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIndex = items.findIndex((x) => x.id === active.id);
+    const newIndex = items.findIndex((x) => x.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    void onReorder(arrayMove(items, oldIndex, newIndex));
+  }
+
+  function handleDragCancel() {
+    setActiveId(null);
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      <SortableContext items={items.map((x) => x.id)} strategy={verticalListSortingStrategy}>
+        <div className="space-y-2">
+          {items.map((a, i) => (
+            <SortablePortalCaseRow
+              key={a.id}
+              appt={a}
+              index={i}
+              variant={variant}
+              selected={selectedId === a.id}
+              dragDisabled={dragDisabled}
+              onSelect={() => onSelect(a)}
+              onAccept={onAccept}
+              openReject={openReject}
+              acceptingId={acceptingId}
+            />
+          ))}
+        </div>
+      </SortableContext>
+      <DragOverlay dropAnimation={{ duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" }}>
+        {activeAppt ? (
+          <div className="pointer-events-none w-[min(100%,22rem)]">
+            <CaseDragOverlayCard appt={activeAppt} index={activeIndex >= 0 ? activeIndex : 0} variant={variant} />
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
+  );
+}
+
+function portalThenDateAsc(a: Appointment, b: Appointment): number {
+  const ao = a.portal_list_order ?? 0;
+  const bo = b.portal_list_order ?? 0;
+  if (ao !== bo) return ao - bo;
+  const dc = a.appointment_date.localeCompare(b.appointment_date);
+  if (dc !== 0) return dc;
+  return (a.appointment_time ?? "").localeCompare(b.appointment_time ?? "");
+}
+
+function portalThenDateDesc(a: Appointment, b: Appointment): number {
+  const ao = a.portal_list_order ?? 0;
+  const bo = b.portal_list_order ?? 0;
+  if (ao !== bo) return ao - bo;
+  const dc = b.appointment_date.localeCompare(a.appointment_date);
+  if (dc !== 0) return dc;
+  return (b.appointment_time ?? "").localeCompare(a.appointment_time ?? "");
+}
+
+function isManualCase(appt: Pick<Appointment, "client_user_id">): boolean {
+  return !isFromClairAppClient(appt as Appointment);
+}
+
+/** Linked CLAiR mobile user — app booking. Otherwise lawyer-entered / portal-only. */
+function isFromClairAppClient(appt: Appointment): boolean {
+  return Boolean((appt.client_user_id ?? "").trim());
+}
+
+function CaseSourceBadge({ appt, className }: { appt: Appointment; className?: string }) {
+  const fromApp = isFromClairAppClient(appt);
+  if (fromApp) {
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center gap-0.5 rounded-md border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-800",
+          className,
+        )}
+        title="Client booked through the CLAiR mobile app"
+      >
+        <Smartphone className="h-3 w-3 shrink-0" aria-hidden />
+        CLAiR app
+      </span>
+    );
+  }
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700",
+        className,
+      )}
+      title="Recorded manually from the lawyer portal (no linked app user)"
+    >
+      <Pencil className="h-3 w-3 shrink-0" aria-hidden />
+      Manual
+    </span>
+  );
+}
+
+function AddCaseModal({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: (a: Appointment) => void;
+}) {
+  const [types, setTypes] = useState<string[]>([]);
+  const [typesError, setTypesError] = useState<string | null>(null);
+  const [clientName, setClientName] = useState("");
+  const [caseTitle, setCaseTitle] = useState("");
+  const [appointmentDate, setAppointmentDate] = useState("");
+  const [appointmentTime, setAppointmentTime] = useState("09:00");
+  const [appointmentType, setAppointmentType] = useState("");
+  const [description, setDescription] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setClientName("");
+    setCaseTitle("");
+    setDescription("");
+    setAppointmentDate(new Date().toISOString().slice(0, 10));
+    setAppointmentTime("09:00");
+    setAppointmentType("");
+    setFormError(null);
+    setTypesError(null);
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get<string[]>("/lawyer/appointments/types");
+        if (!cancelled) {
+          setTypes(Array.isArray(data) ? data : []);
+          if (data?.length) setAppointmentType((t) => (t && data.includes(t) ? t : data[0]));
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setTypes([]);
+          setTypesError(getApiErrorMessage(err, "Could not load appointment types."));
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open]);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    const name = clientName.trim();
+    if (!name) { setFormError("Client name is required."); return; }
+    if (!appointmentDate) { setFormError("Choose an appointment date."); return; }
+    if (!appointmentTime || !/^\d{1,2}:\d{2}$/.test(appointmentTime)) {
+      setFormError("Time must be in HH:MM format.");
+      return;
+    }
+    const [th, tm] = appointmentTime.split(":");
+    const timeNormalized = `${String(parseInt(th, 10)).padStart(2, "0")}:${String(parseInt(tm, 10)).padStart(2, "0")}`;
+    if (!appointmentType) { setFormError("Select an appointment type."); return; }
+
+    setCreating(true);
+    setFormError(null);
+    try {
+      const { data } = await api.post<Appointment>("/lawyer/appointments", {
+        client_name: name,
+        appointment_date: appointmentDate,
+        appointment_time: timeNormalized,
+        appointment_type: appointmentType,
+        case_title: caseTitle.trim() || null,
+        description: description.trim() || null,
+      });
+      onCreated({
+        ...data,
+        attachments: Array.isArray(data.attachments) ? data.attachments : [],
+        case_title: data.case_title ?? null,
+      });
+      onClose();
+    } catch (err: unknown) {
+      setFormError(getApiErrorMessage(err, "Could not create case."));
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl">
+        <form onSubmit={(e) => void handleSubmit(e)} className="p-6">
+          <div className="flex items-start justify-between gap-3 mb-5">
+            <div>
+              <h2 className="font-bold text-[#241715] text-lg">Add case</h2>
+              <p className="text-sm text-[#957186] mt-0.5">
+                Record a matter that did not come from the CLAiR app. It appears as an active case immediately.
+              </p>
+            </div>
+            <button type="button" onClick={onClose} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 shrink-0">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide mb-1.5">Client name *</label>
+              <input
+                required
+                className="w-full rounded-xl border border-[#d9b8c4]/60 px-3 py-2.5 text-sm text-[#241715] focus:outline-none focus:ring-2 focus:ring-[#703d57]/30"
+                placeholder="e.g. Maria Santos"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide mb-1.5">Case title <span className="normal-case font-normal text-[#957186]">(optional)</span></label>
+              <input
+                className="w-full rounded-xl border border-[#d9b8c4]/60 px-3 py-2.5 text-sm text-[#241715] focus:outline-none focus:ring-2 focus:ring-[#703d57]/30"
+                placeholder="Short label for your list"
+                value={caseTitle}
+                onChange={(e) => setCaseTitle(e.target.value)}
+                maxLength={500}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide mb-1.5">Date *</label>
+                <input
+                  type="date"
+                  required
+                  className="w-full rounded-xl border border-[#d9b8c4]/60 px-3 py-2.5 text-sm text-[#241715] focus:outline-none focus:ring-2 focus:ring-[#703d57]/30"
+                  value={appointmentDate}
+                  onChange={(e) => setAppointmentDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide mb-1.5">Time *</label>
+                <input
+                  type="time"
+                  required
+                  step={60}
+                  className="w-full rounded-xl border border-[#d9b8c4]/60 px-3 py-2.5 text-sm text-[#241715] focus:outline-none focus:ring-2 focus:ring-[#703d57]/30"
+                  value={appointmentTime}
+                  onChange={(e) => setAppointmentTime(e.target.value)}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide mb-1.5">Appointment type *</label>
+              <select
+                required
+                className="w-full rounded-xl border border-[#d9b8c4]/60 px-3 py-2.5 text-sm text-[#241715] bg-white focus:outline-none focus:ring-2 focus:ring-[#703d57]/30"
+                value={appointmentType}
+                onChange={(e) => setAppointmentType(e.target.value)}
+                disabled={types.length === 0}
+              >
+                {types.length === 0 ? (
+                  <option value="">Loading types…</option>
+                ) : (
+                  types.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))
+                )}
+              </select>
+              {typesError && <p className="mt-1.5 text-xs text-amber-800">{typesError}</p>}
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide mb-1.5">Notes <span className="normal-case font-normal text-[#957186]">(optional)</span></label>
+              <textarea
+                rows={3}
+                className="w-full rounded-xl border border-[#d9b8c4]/60 px-3 py-2.5 text-sm text-[#241715] focus:outline-none focus:ring-2 focus:ring-[#703d57]/30 resize-none"
+                placeholder="Internal notes or matter summary"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {formError && (
+            <p className="mt-4 text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{formError}</p>
+          )}
+
+          <div className="flex gap-3 mt-6">
+            <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-[#d9b8c4]/60 py-2.5 text-sm font-semibold text-[#402a2c] hover:bg-[#f7f0f4] transition">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={creating || types.length === 0}
+              className="flex-1 rounded-xl bg-[#703d57] py-2.5 text-sm font-semibold text-white hover:bg-[#5a3046] disabled:opacity-60 flex items-center justify-center gap-2 transition"
+            >
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Create case
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 
@@ -190,7 +782,10 @@ export function CasesPage() {
   const [selected, setSelected] = useState<Appointment | null>(null);
   const [search, setSearch] = useState("");
   const [pendingCollapsed, setPendingCollapsed] = useState(false);
+  const [resolvedCollapsed, setResolvedCollapsed] = useState(true);
   const [closedCollapsed, setClosedCollapsed] = useState(true);
+  const [addCaseOpen, setAddCaseOpen] = useState(false);
+  const [reorderSaving, setReorderSaving] = useState(false);
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true);
@@ -199,11 +794,12 @@ export function CasesPage() {
     try {
       const { data } = await api.get<{ appointments: Appointment[] }>("/lawyer/appointments");
       setAppointments(
-        data.appointments.map((a) => ({
-          ...a,
-          attachments: Array.isArray(a.attachments) ? a.attachments : [],
-          case_title: a.case_title ?? null,
-        })),
+        data.appointments.map((a) =>
+          normalizeAppointment({
+            ...(a as Appointment),
+            attachments: Array.isArray(a.attachments) ? a.attachments : [],
+          }),
+        ),
       );
     } catch (err: unknown) {
       if (isApiNetworkError(err)) setBackendDown(true);
@@ -228,8 +824,9 @@ export function CasesPage() {
     setAccepting(appt.id);
     try {
       const { data } = await api.post<Appointment>(`/lawyer/appointments/${appt.id}/accept`);
-      setAppointments((prev) => prev.map((a) => a.id === appt.id ? data : a));
-      setSelected(data);
+      const n = normalizeAppointment(data);
+      setAppointments((prev) => prev.map((a) => a.id === appt.id ? n : a));
+      setSelected(n);
     } catch {
       // silent — user can retry
     } finally {
@@ -249,8 +846,9 @@ export function CasesPage() {
     setRejectError(null);
     try {
       const { data } = await api.post<Appointment>(`/lawyer/appointments/${rejectTarget.id}/reject`, { reason: rejectReason.trim() });
-      setAppointments((prev) => prev.map((a) => a.id === rejectTarget.id ? data : a));
-      if (selected?.id === rejectTarget.id) setSelected(data);
+      const n = normalizeAppointment(data);
+      setAppointments((prev) => prev.map((a) => a.id === rejectTarget.id ? n : a));
+      if (selected?.id === rejectTarget.id) setSelected(n);
       setRejectTarget(null);
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
@@ -260,17 +858,50 @@ export function CasesPage() {
     }
   }
 
+  const persistPortalOrder = useCallback(async (ordered: Appointment[]) => {
+    setReorderSaving(true);
+    setLoadError(null);
+    try {
+      await api.put("/lawyer/appointments/portal-order", {
+        appointment_ids: ordered.map((a) => a.id),
+      });
+      setAppointments((prev) => {
+        const pos = new Map(ordered.map((a, i) => [a.id, i]));
+        return prev.map((row) => {
+          const p = pos.get(row.id);
+          if (p === undefined) return row;
+          return { ...row, portal_list_order: p };
+        });
+      });
+    } catch (err: unknown) {
+      setLoadError(getApiErrorMessage(err, "Could not save case order."));
+    } finally {
+      setReorderSaving(false);
+    }
+  }, []);
+
   const q = search.toLowerCase();
+  const canReorderCases = !search.trim() && !reorderSaving;
+
   const pending   = appointments.filter((a) => a.status === "pending"   && matchesCaseSearch(a, q))
-    .sort((a, b) => a.appointment_date.localeCompare(b.appointment_date));
+    .sort(portalThenDateAsc);
   const confirmed = appointments.filter((a) => a.status === "confirmed" && matchesCaseSearch(a, q))
-    .sort((a, b) => a.appointment_date.localeCompare(b.appointment_date));
+    .sort(portalThenDateAsc);
+  const resolvedList = appointments.filter((a) => a.status === "resolved" && matchesCaseSearch(a, q))
+    .sort(portalThenDateDesc);
   const cancelled = appointments.filter((a) => a.status === "cancelled" && matchesCaseSearch(a, q))
-    .sort((a, b) => b.appointment_date.localeCompare(a.appointment_date));
+    .sort(portalThenDateDesc);
 
   function handleApptUpdated(next: Appointment) {
-    setAppointments((prev) => prev.map((a) => (a.id === next.id ? next : a)));
-    setSelected(next);
+    const normalized = normalizeAppointment(next);
+    setAppointments((prev) => prev.map((a) => (a.id === normalized.id ? normalized : a)));
+    setSelected(normalized);
+  }
+
+  function handleCaseCreated(created: Appointment) {
+    const normalized = normalizeAppointment(created);
+    setAppointments((prev) => [normalized, ...prev]);
+    setSelected(normalized);
   }
 
   if (loading) return (
@@ -293,38 +924,60 @@ export function CasesPage() {
   );
 
   return (
-    <div className="flex gap-5 max-w-7xl mx-auto h-[calc(100vh-8rem)]">
+    <div className="flex gap-5 max-w-7xl mx-auto h-[calc(100vh-8rem)] min-h-0">
 
       {/* ── Left panel: list ── */}
-      <div className="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto pr-1">
+      <div className="w-full min-w-0 sm:w-[22rem] shrink-0 flex flex-col min-h-0 sm:border-r sm:border-[#e8d4dc]/60 sm:pr-3">
 
-        {/* Header */}
-        <div className="flex items-center justify-between pt-1">
-          <div>
-            <h1 className="text-xl font-bold text-[#241715]">Cases</h1>
-            <p className="text-xs text-[#957186] mt-0.5">{pending.length} pending · {confirmed.length} active</p>
+        <div className="shrink-0 space-y-3 pb-3 border-b border-[#e8d4dc]/50 mb-3">
+          <div className="flex items-start justify-between gap-2 pt-1">
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold text-[#241715] tracking-tight">Cases</h1>
+              <p className="text-xs text-[#957186] mt-0.5">{pending.length} pending · {confirmed.length} active · {resolvedList.length} resolved</p>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => setAddCaseOpen(true)}
+                className="flex items-center gap-1 rounded-xl bg-[#703d57] px-2.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#5a3046] transition"
+                title="Add a case manually"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Add case</span>
+              </button>
+              <button type="button" onClick={fetchAppointments} className="p-2 rounded-xl border border-[#d9b8c4]/60 text-[#703d57] hover:bg-[#f7f0f4] transition" title="Refresh">
+                <RefreshCw className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-          <button onClick={fetchAppointments} className="p-2 rounded-xl border border-[#d9b8c4]/60 text-[#703d57] hover:bg-[#f7f0f4] transition" title="Refresh">
-            <RefreshCw className="h-4 w-4" />
-          </button>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+            <input
+              className="w-full rounded-xl border border-[#d9b8c4]/60 bg-white pl-8 pr-3 py-2 text-sm text-[#241715] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#703d57]/30"
+              placeholder="Search by client or case title…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          {!search.trim() && (
+            <p className="text-[10px] text-[#957186] px-0.5 leading-snug">
+              Drag a case card to reorder within each section. Reorder is hidden while searching.
+            </p>
+          )}
+          {reorderSaving && (
+            <p className="text-[10px] text-[#703d57] font-semibold px-0.5 flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin shrink-0" aria-hidden />
+              Saving order…
+            </p>
+          )}
+
+          {loadError && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">{loadError}</div>
+          )}
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-          <input
-            className="w-full rounded-xl border border-[#d9b8c4]/60 bg-white pl-8 pr-3 py-2 text-sm text-[#241715] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#703d57]/30"
-            placeholder="Search clients…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        {loadError && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">{loadError}</div>
-        )}
-
-        {/* Pending requests */}
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-5 pr-0.5">
         <div>
           <button
             onClick={() => setPendingCollapsed((v) => !v)}
@@ -337,57 +990,22 @@ export function CasesPage() {
             <span className="ml-auto text-gray-400">{pendingCollapsed ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}</span>
           </button>
           {!pendingCollapsed && (
-            <div className="space-y-2">
+            <div>
               {pending.length === 0 ? (
                 <p className="text-xs text-gray-400 px-1 py-3">No pending requests.</p>
-              ) : pending.map((a, i) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  onClick={() => setSelected(a)}
-                  className={cn(
-                    "w-full text-left rounded-2xl border p-3.5 transition-all",
-                    selected?.id === a.id
-                      ? "border-[#703d57] bg-[#f7f0f4]"
-                      : "border-[#d9b8c4]/40 bg-white hover:border-[#703d57]/40 hover:bg-[#f7f0f4]"
-                  )}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <ProfileAvatar
-                      photoUrl={a.client_photo_url}
-                      name={a.client_name}
-                      className="h-8 w-8 text-xs"
-                      fallbackBgClass={AVATAR_BG[i % AVATAR_BG.length]}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[15px] font-bold text-[#241715] truncate leading-snug">{displayCaseTitle(a)}</p>
-                      <p className="text-xs text-[#957186] truncate mt-0.5">{a.client_name}</p>
-                      <p className="text-[11px] text-[#957186]/90 mt-0.5">Booked {fmtBookedAt(a.created_at)}</p>
-                    </div>
-                    <span className="text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full shrink-0">pending</span>
-                  </div>
-                  <p className="text-[11px] text-gray-400 mt-1.5 truncate pl-10">{a.appointment_type}</p>
-                  {/* Quick accept/reject inline */}
-                  <div className="flex gap-2 mt-2.5 pl-10" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => handleAccept(a)}
-                      disabled={accepting === a.id}
-                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 transition"
-                    >
-                      {accepting === a.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                      Accept
-                    </button>
-                    <button
-                      onClick={() => openReject(a)}
-                      disabled={accepting === a.id}
-                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg border border-red-200 text-[11px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60 transition"
-                    >
-                      <X className="h-3 w-3" />
-                      Reject
-                    </button>
-                  </div>
-                </button>
-              ))}
+              ) : (
+                <PortalCaseSectionDnd
+                  items={pending}
+                  reorderDisabled={!canReorderCases || !!accepting}
+                  selectedId={selected?.id ?? null}
+                  onReorder={persistPortalOrder}
+                  onSelect={setSelected}
+                  variant="pending"
+                  onAccept={handleAccept}
+                  openReject={openReject}
+                  acceptingId={accepting}
+                />
+              )}
             </div>
           )}
         </div>
@@ -400,39 +1018,58 @@ export function CasesPage() {
               <span className="ml-2 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold px-1.5 py-0.5">{confirmed.length}</span>
             )}
           </p>
-          <div className="space-y-2">
-            {confirmed.length === 0 ? (
-              <p className="text-xs text-gray-400 px-1 py-3">No active cases yet. Accept a request to create one.</p>
-            ) : confirmed.map((a, i) => (
-              <button
-                key={a.id}
-                type="button"
-                onClick={() => setSelected(a)}
-                className={cn(
-                  "w-full text-left rounded-2xl border p-3.5 transition-all",
-                  selected?.id === a.id
-                    ? "border-[#703d57] bg-[#f7f0f4]"
-                    : "border-[#d9b8c4]/40 bg-white hover:border-[#703d57]/40 hover:bg-[#f7f0f4]"
-                )}
-              >
-                <div className="flex items-center gap-2.5">
-                  <ProfileAvatar
-                    photoUrl={a.client_photo_url}
-                    name={a.client_name}
-                    className="h-8 w-8 text-xs"
-                    fallbackBgClass={AVATAR_BG[i % AVATAR_BG.length]}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[15px] font-bold text-[#241715] truncate leading-snug">{displayCaseTitle(a)}</p>
-                    <p className="text-xs text-[#957186] truncate mt-0.5">{a.client_name}</p>
-                    <p className="text-[11px] text-[#957186]/90 mt-0.5">Booked {fmtBookedAt(a.created_at)}</p>
-                  </div>
-                </div>
-                <p className="text-[11px] text-gray-400 mt-1 truncate pl-10">{a.appointment_type}</p>
-              </button>
-            ))}
-          </div>
+          {confirmed.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[#d9b8c4]/80 bg-[#fdf9fb]/80 px-3 py-4 text-xs text-[#957186] leading-relaxed">
+                <p>No active cases yet.</p>
+                <p className="mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setAddCaseOpen(true)}
+                    className="font-semibold text-[#703d57] hover:underline"
+                  >
+                    Add a case
+                  </button>
+                  {" "}manually, or accept a pending request from the list above.
+                </p>
+              </div>
+            ) : (
+              <PortalCaseSectionDnd
+                items={confirmed}
+                reorderDisabled={!canReorderCases}
+                selectedId={selected?.id ?? null}
+                onReorder={persistPortalOrder}
+                onSelect={setSelected}
+                variant="confirmed"
+                acceptingId={accepting}
+              />
+            )}
         </div>
+
+        {/* Resolved (manual cases) */}
+        {resolvedList.length > 0 && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setResolvedCollapsed((v) => !v)}
+              className="flex items-center gap-2 w-full mb-2"
+            >
+              <span className="text-xs font-bold text-[#241715] uppercase tracking-wide">Resolved</span>
+              <span className="rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold px-1.5 py-0.5">{resolvedList.length}</span>
+              <span className="ml-auto text-gray-400">{resolvedCollapsed ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}</span>
+            </button>
+            {!resolvedCollapsed && (
+              <PortalCaseSectionDnd
+                items={resolvedList}
+                reorderDisabled={!canReorderCases}
+                selectedId={selected?.id ?? null}
+                onReorder={persistPortalOrder}
+                onSelect={setSelected}
+                variant="resolved"
+                acceptingId={accepting}
+              />
+            )}
+          </div>
+        )}
 
         {/* Closed */}
         {cancelled.length > 0 && (
@@ -443,42 +1080,23 @@ export function CasesPage() {
               <span className="ml-auto text-gray-400">{closedCollapsed ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}</span>
             </button>
             {!closedCollapsed && (
-              <div className="space-y-2">
-                {cancelled.map((a, i) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    onClick={() => setSelected(a)}
-                    className={cn(
-                      "w-full text-left rounded-2xl border p-3.5 opacity-60 transition-all",
-                      selected?.id === a.id
-                        ? "border-[#703d57] bg-[#f7f0f4] opacity-100"
-                        : "border-[#d9b8c4]/40 bg-white hover:opacity-80"
-                    )}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <ProfileAvatar
-                        photoUrl={a.client_photo_url}
-                        name={a.client_name}
-                        className="h-8 w-8 text-xs"
-                        fallbackBgClass={AVATAR_BG[i % AVATAR_BG.length]}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[15px] font-bold text-[#241715] truncate leading-snug">{displayCaseTitle(a)}</p>
-                        <p className="text-xs text-[#957186] truncate mt-0.5">{a.client_name}</p>
-                        <p className="text-[11px] text-red-500/90 truncate mt-0.5">{a.rejection_reason ?? "Rejected"}</p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              <PortalCaseSectionDnd
+                items={cancelled}
+                reorderDisabled={!canReorderCases}
+                selectedId={selected?.id ?? null}
+                onReorder={persistPortalOrder}
+                onSelect={setSelected}
+                variant="cancelled"
+                acceptingId={accepting}
+              />
             )}
           </div>
         )}
+        </div>
       </div>
 
       {/* ── Right panel: case detail ── */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col min-h-0">
         {selected ? (
           <CaseDetail
             appt={selected}
@@ -494,11 +1112,17 @@ export function CasesPage() {
             </div>
             <p className="text-sm font-semibold text-[#241715]">Select a case</p>
             <p className="text-xs text-[#957186] mt-1 max-w-xs">
-              Choose a pending request or active case from the list to view its details.
+              Choose a pending request or active case from the list, or use{" "}
+              <button type="button" onClick={() => setAddCaseOpen(true)} className="font-semibold text-[#703d57] hover:underline">
+                Add case
+              </button>
+              {" "}to record a matter manually.
             </p>
           </div>
         )}
       </div>
+
+      <AddCaseModal open={addCaseOpen} onClose={() => setAddCaseOpen(false)} onCreated={handleCaseCreated} />
 
       {/* Reject modal */}
       {rejectTarget && (
@@ -547,14 +1171,52 @@ function CaseDetail({ appt, onAccept, accepting, onReject, onApptUpdated }: {
   onReject: () => void;
   onApptUpdated: (a: Appointment) => void;
 }) {
+  const manual = isManualCase(appt);
   const [tab, setTab] = useState<DetailTab>("overview");
+  const [resolveBusy, setResolveBusy] = useState(false);
 
-  const tabs: { key: DetailTab; label: string; icon: React.ReactNode }[] = [
-    { key: "overview",      label: "Overview",         icon: <Info className="h-3.5 w-3.5" /> },
-    { key: "conversation",  label: "CLAiR Chat",        icon: <Bot className="h-3.5 w-3.5" /> },
-    { key: "pdf",           label: "PDF Summary",       icon: <Download className="h-3.5 w-3.5" /> },
-    { key: "chat",          label: "Client Chat",       icon: <MessageCircle className="h-3.5 w-3.5" /> },
-  ];
+  useEffect(() => {
+    setTab("overview");
+  }, [appt.id]);
+
+  const tabs: { key: DetailTab; label: string; icon: React.ReactNode }[] = manual
+    ? [
+        { key: "overview", label: "Overview", icon: <Info className="h-3.5 w-3.5" /> },
+        { key: "notes", label: "Notes", icon: <StickyNote className="h-3.5 w-3.5" /> },
+        { key: "documents", label: "Documents", icon: <FolderOpen className="h-3.5 w-3.5" /> },
+      ]
+    : [
+        { key: "overview", label: "Overview", icon: <Info className="h-3.5 w-3.5" /> },
+        { key: "conversation", label: "CLAiR Chat", icon: <Bot className="h-3.5 w-3.5" /> },
+        { key: "pdf", label: "PDF Summary", icon: <Download className="h-3.5 w-3.5" /> },
+        { key: "chat", label: "Client Chat", icon: <MessageCircle className="h-3.5 w-3.5" /> },
+      ];
+
+  async function resolveCase() {
+    if (resolveBusy || appt.status !== "confirmed") return;
+    setResolveBusy(true);
+    try {
+      const { data } = await api.put<Appointment>(`/lawyer/appointments/${appt.id}`, { status: "resolved" });
+      onApptUpdated(data);
+    } catch {
+      /* user can retry */
+    } finally {
+      setResolveBusy(false);
+    }
+  }
+
+  async function reopenCase() {
+    if (resolveBusy || appt.status !== "resolved") return;
+    setResolveBusy(true);
+    try {
+      const { data } = await api.put<Appointment>(`/lawyer/appointments/${appt.id}`, { status: "confirmed" });
+      onApptUpdated(data);
+    } catch {
+      /* user can retry */
+    } finally {
+      setResolveBusy(false);
+    }
+  }
 
   return (
     <div className="flex flex-col h-full rounded-2xl border border-[#d9b8c4]/40 bg-white overflow-hidden">
@@ -572,48 +1234,70 @@ function CaseDetail({ appt, onAccept, accepting, onReject, onApptUpdated }: {
               <p className="text-[11px] font-semibold uppercase tracking-wide text-[#957186]">Case</p>
               <p className="font-bold text-[#241715] truncate text-lg leading-tight">{displayCaseTitle(appt)}</p>
               <p className="text-sm text-[#703d57] font-medium truncate mt-0.5">{appt.client_name}</p>
-              <div className="flex items-center gap-3 mt-1 flex-wrap">
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <CaseSourceBadge appt={appt} />
+                <span className="text-[#d9b8c4] select-none" aria-hidden>·</span>
                 <span className="flex items-center gap-1 text-xs text-[#957186]">
                   <CalendarClock className="h-3 w-3 shrink-0" />
                   <span>Booked {fmtBookedAt(appt.created_at)}</span>
                 </span>
-                {appt.client_user_id && (
-                  <span className="flex items-center gap-1 text-xs text-[#957186]">
-                    <Smartphone className="h-3 w-3" />Mobile
-                  </span>
-                )}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border capitalize ${STATUS_BADGE[appt.status] ?? "bg-gray-100 text-gray-600 border-gray-200"}`}>
-              {appt.status}
-            </span>
-            {appt.status === "pending" && (
-              <div className="flex gap-1.5">
-                <button onClick={onAccept} disabled={accepting} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 transition">
-                  {accepting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}Accept
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border capitalize ${STATUS_BADGE[appt.status] ?? "bg-gray-100 text-gray-600 border-gray-200"}`}>
+                {appt.status}
+              </span>
+              {appt.status === "pending" && (
+                <div className="flex gap-1.5">
+                  <button type="button" onClick={onAccept} disabled={accepting} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 transition">
+                    {accepting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}Accept
+                  </button>
+                  <button type="button" onClick={onReject} disabled={accepting} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-200 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60 transition">
+                    <X className="h-3 w-3" />Reject
+                  </button>
+                </div>
+              )}
+              {appt.status === "confirmed" && (
+                <button
+                  type="button"
+                  onClick={() => void resolveCase()}
+                  disabled={resolveBusy}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60 transition"
+                >
+                  {resolveBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <CircleCheck className="h-3 w-3" />}
+                  Resolve case
                 </button>
-                <button onClick={onReject} disabled={accepting} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-200 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60 transition">
-                  <X className="h-3 w-3" />Reject
+              )}
+              {appt.status === "resolved" && (
+                <button
+                  type="button"
+                  onClick={() => void reopenCase()}
+                  disabled={resolveBusy}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#703d57] text-xs font-semibold text-white hover:bg-[#5a3046] disabled:opacity-60 transition"
+                >
+                  {resolveBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                  Reopen case
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-0 border-b border-[#d9b8c4]/40 shrink-0 px-4 bg-white">
+      <div className="flex gap-0 border-b border-[#d9b8c4]/40 shrink-0 px-4 bg-white overflow-x-auto">
         {tabs.map((t) => (
           <button
             key={t.key}
+            type="button"
             onClick={() => setTab(t.key)}
             className={cn(
-              "flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors",
+              "flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors shrink-0",
               tab === t.key
                 ? "border-[#703d57] text-[#703d57]"
-                : "border-transparent text-[#957186] hover:text-[#703d57]"
+                : "border-transparent text-[#957186] hover:text-[#703d57]",
             )}
           >
             {t.icon}{t.label}
@@ -623,11 +1307,161 @@ function CaseDetail({ appt, onAccept, accepting, onReject, onApptUpdated }: {
 
       {/* Tab content */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        {tab === "overview"     && <OverviewTab appt={appt} onApptUpdated={onApptUpdated} />}
-        {tab === "conversation" && <ConversationTab appt={appt} />}
-        {tab === "pdf"          && <PdfTab appt={appt} />}
-        {tab === "chat"         && <ClientChatTab appt={appt} />}
+        {tab === "overview" && <OverviewTab appt={appt} onApptUpdated={onApptUpdated} />}
+        {manual && tab === "notes" && <ManualCaseNotesTab appt={appt} onApptUpdated={onApptUpdated} />}
+        {manual && tab === "documents" && <ManualCaseDocumentsTab appt={appt} onApptUpdated={onApptUpdated} />}
+        {!manual && tab === "conversation" && <ConversationTab appt={appt} />}
+        {!manual && tab === "pdf" && <PdfTab appt={appt} />}
+        {!manual && tab === "chat" && <ClientChatTab appt={appt} />}
       </div>
+    </div>
+  );
+}
+
+// ─── Tab: Notes (manual cases) ───────────────────────────────────────────────
+
+function ManualCaseNotesTab({ appt, onApptUpdated }: { appt: Appointment; onApptUpdated: (a: Appointment) => void }) {
+  const readOnly = appt.status === "resolved";
+  const [draft, setDraft] = useState(appt.lawyer_notes ?? "");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDraft(appt.lawyer_notes ?? "");
+    setErr(null);
+  }, [appt.id, appt.lawyer_notes]);
+
+  async function save() {
+    if (readOnly) return;
+    setSaving(true);
+    setErr(null);
+    try {
+      const { data } = await api.put<Appointment>(`/lawyer/appointments/${appt.id}`, {
+        lawyer_notes: draft.trim() ? draft.trim() : null,
+      });
+      onApptUpdated(data);
+    } catch (e: unknown) {
+      setErr(getApiErrorMessage(e, "Could not save notes."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="p-6 max-w-3xl">
+      <p className="text-sm text-[#957186] mb-4 leading-relaxed">
+        Private notes for this manual case. They stay in the lawyer portal and are not shared with CLAiR mobile clients.
+      </p>
+      <textarea
+        className="w-full min-h-[220px] rounded-xl border border-[#d9b8c4]/60 px-4 py-3 text-sm text-[#241715] focus:outline-none focus:ring-2 focus:ring-[#703d57]/30 resize-y disabled:bg-[#f7f0f4] disabled:text-[#957186]"
+        placeholder="Matter summary, next steps, contact notes…"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        disabled={readOnly}
+      />
+      {readOnly && (
+        <p className="mt-2 text-xs text-[#957186]">This case is resolved. Use <span className="font-semibold text-[#703d57]">Reopen case</span> in the header to edit notes again.</p>
+      )}
+      {!readOnly && (
+        <div className="flex items-center gap-3 mt-4">
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={saving}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#703d57] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#5a3046] disabled:opacity-60 transition"
+          >
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            Save notes
+          </button>
+        </div>
+      )}
+      {err && <p className="mt-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{err}</p>}
+    </div>
+  );
+}
+
+// ─── Tab: Documents (manual cases) ───────────────────────────────────────────
+
+function ManualCaseDocumentsTab({ appt, onApptUpdated }: { appt: Appointment; onApptUpdated: (a: Appointment) => void }) {
+  const readOnly = appt.status === "resolved";
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const atts = appt.attachments ?? [];
+
+  async function onPickFile(e: ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f || readOnly) return;
+    setUploading(true);
+    setErr(null);
+    const fd = new FormData();
+    fd.append("file", f, f.name);
+    try {
+      const { data } = await api.post<Appointment>(`/lawyer/appointments/${appt.id}/case-documents`, fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      onApptUpdated(data);
+    } catch (ex: unknown) {
+      setErr(getApiErrorMessage(ex, "Upload failed."));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="p-6 max-w-3xl">
+      <p className="text-sm text-[#957186] mb-4 leading-relaxed">
+        Files you attach here are stored for this case only (manual matters). Allowed types match client booking uploads (PDF, Word, common images).
+      </p>
+      {!readOnly && (
+        <div className="mb-5">
+          <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp" className="hidden" onChange={(e) => void onPickFile(e)} />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="inline-flex items-center gap-2 rounded-xl border border-[#d9b8c4]/80 bg-white px-4 py-2.5 text-sm font-semibold text-[#703d57] hover:bg-[#f7f0f4] disabled:opacity-60 transition"
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+            Upload document
+          </button>
+        </div>
+      )}
+      {readOnly && (
+        <p className="mb-4 text-xs text-[#957186]">Resolved cases are view-only. Reopen the case to add more files.</p>
+      )}
+      {err && <p className="mb-4 text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{err}</p>}
+      {atts.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[#d9b8c4]/80 bg-[#fdf9fb]/80 px-4 py-8 text-center text-sm text-[#957186]">
+          No documents yet.
+        </div>
+      ) : (
+        <ul className="rounded-xl border border-[#d9b8c4]/40 bg-white divide-y divide-[#f0e4ea]">
+          {atts.map((att, idx) => (
+            <li key={`${att.filename}-${idx}`} className="flex items-center justify-between gap-3 px-4 py-3">
+              <span className="text-sm text-[#241715] truncate min-w-0" title={att.filename}>
+                {att.filename}
+              </span>
+              {att.url ? (
+                <a
+                  href={att.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 flex items-center gap-1 text-xs font-semibold text-[#703d57] hover:underline"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Open
+                </a>
+              ) : (
+                <span className="shrink-0 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+                  No download link
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -667,7 +1501,8 @@ function OverviewTab({ appt, onApptUpdated }: { appt: Appointment; onApptUpdated
     }
   }
 
-  const atts = appt.attachments ?? [];
+  const manual = isManualCase(appt);
+  const titleLocked = manual && appt.status === "resolved";
 
   return (
     <div className="p-6 space-y-5">
@@ -675,7 +1510,7 @@ function OverviewTab({ appt, onApptUpdated }: { appt: Appointment; onApptUpdated
       <div>
         <div className="flex items-center justify-between gap-2 mb-2">
           <p className="text-xs font-semibold text-[#5a3046] uppercase tracking-wide">Case title</p>
-          {!editingTitle ? (
+          {!titleLocked && !editingTitle ? (
             <button
               type="button"
               onClick={() => { setEditingTitle(true); setTitleDraft(appt.case_title ?? ""); setTitleError(null); }}
@@ -723,6 +1558,9 @@ function OverviewTab({ appt, onApptUpdated }: { appt: Appointment; onApptUpdated
       </div>
 
       <div className="grid grid-cols-2 gap-4">
+        <div className="col-span-2">
+          <InfoBlock label="Client source" value={isFromClairAppClient(appt) ? "CLAiR mobile app" : "Manual (lawyer portal)"} />
+        </div>
         <InfoBlock label="Appointment Type"  value={appt.appointment_type} />
         <InfoBlock label="Status"             value={appt.status.charAt(0).toUpperCase() + appt.status.slice(1)} />
         <InfoBlock label="Booked"             value={fmtBookedAt(appt.created_at)} />
@@ -730,30 +1568,33 @@ function OverviewTab({ appt, onApptUpdated }: { appt: Appointment; onApptUpdated
       </div>
 
       <div>
-        <p className="text-xs font-semibold text-[#5a3046] uppercase tracking-wide mb-2">Description</p>
+        <p className="text-xs font-semibold text-[#5a3046] uppercase tracking-wide mb-2">
+          {manual ? "Initial notes (from intake)" : "Description"}
+        </p>
         {appt.description?.trim() ? (
           <div className="rounded-xl border border-[#d9b8c4]/40 bg-[#f7f0f4] px-4 py-3 text-sm text-[#241715] leading-relaxed whitespace-pre-wrap">
             {appt.description}
           </div>
         ) : (
           <div className="rounded-xl border border-[#d9b8c4]/40 bg-[#f7f0f4] px-4 py-3 text-sm text-[#957186]">
-            No description provided.
+            {manual ? "No intake notes were added when this case was created." : "No description provided."}
           </div>
         )}
       </div>
 
+      {!manual && (
       <div>
         <p className="text-xs font-semibold text-[#5a3046] uppercase tracking-wide mb-2 flex items-center gap-1.5">
           <Paperclip className="h-3.5 w-3.5" />
           Uploaded documents
         </p>
-        {atts.length === 0 ? (
+        {(appt.attachments ?? []).length === 0 ? (
           <div className="rounded-xl border border-[#d9b8c4]/40 bg-white px-4 py-3 text-sm text-[#957186]">
             No files attached to this request.
           </div>
         ) : (
           <ul className="rounded-xl border border-[#d9b8c4]/40 bg-white divide-y divide-[#f0e4ea]">
-            {atts.map((att, idx) => (
+            {(appt.attachments ?? []).map((att, idx) => (
               <li key={`${att.filename}-${idx}`} className="flex items-center justify-between gap-3 px-4 py-3">
                 <span className="text-sm text-[#241715] truncate min-w-0" title={att.filename}>
                   {att.filename}
@@ -777,12 +1618,19 @@ function OverviewTab({ appt, onApptUpdated }: { appt: Appointment; onApptUpdated
             ))}
           </ul>
         )}
-        {atts.some((a) => !a.url) && (
+        {(appt.attachments ?? []).some((a) => !a.url) && (
           <p className="mt-2 text-[11px] text-[#957186] leading-relaxed">
             Older requests may list filenames only. New bookings upload files to storage when Supabase is configured.
           </p>
         )}
       </div>
+      )}
+
+      {manual && (
+        <div className="rounded-xl border border-[#d9b8c4]/40 bg-[#f7f0f4] px-4 py-3 text-xs text-[#957186] leading-relaxed">
+          Use the <span className="font-semibold text-[#703d57]">Documents</span> tab to upload files for this manual case.
+        </div>
+      )}
 
       {appt.status === "cancelled" && appt.rejection_reason && (
         <div>
@@ -793,7 +1641,7 @@ function OverviewTab({ appt, onApptUpdated }: { appt: Appointment; onApptUpdated
         </div>
       )}
 
-      {!appt.attached_conversation_id && (
+      {!manual && !appt.attached_conversation_id && (
         <div className="rounded-xl border border-[#d9b8c4]/40 bg-white px-4 py-3 text-xs text-[#957186]">
           No CLAiR conversation was attached to this appointment.
         </div>
@@ -1216,7 +2064,7 @@ function ClientChatTab({ appt }: { appt: Appointment }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const isConfirmed = appt.status === "confirmed";
+  const messagingOpen = appointmentDirectMessagingOpen(appt);
 
   const { lawyerState } = useAuth();
   const lawyerSelfPhoto = lawyerState?.user.photo_url ?? null;
@@ -1232,7 +2080,7 @@ function ClientChatTab({ appt }: { appt: Appointment }) {
   }, []);
 
   const fetchMessages = useCallback(async (silent = false) => {
-    if (!isConfirmed) return;
+    if (!messagingOpen) return;
     try {
       const { data } = await api.get<{ messages: DirectMessage[]; unread_count: number }>(
         `/lawyer/appointments/${appt.id}/messages`
@@ -1243,13 +2091,13 @@ function ClientChatTab({ appt }: { appt: Appointment }) {
     } catch (err: unknown) {
       if (!silent) setLoadError(getApiErrorMessage(err, "Could not load messages."));
     }
-  }, [appt.id, isConfirmed]);
+  }, [appt.id, messagingOpen]);
 
   const markRead = useCallback(async () => {
-    if (!isConfirmed) return;
+    if (!messagingOpen) return;
     try { await api.patch(`/lawyer/appointments/${appt.id}/messages/read`); }
     catch { /* best-effort */ }
-  }, [appt.id, isConfirmed]);
+  }, [appt.id, messagingOpen]);
 
   useEffect(() => {
     fetchMessages().then(() => {
@@ -1305,14 +2153,20 @@ function ClientChatTab({ appt }: { appt: Appointment }) {
     }
   }
 
-  if (!isConfirmed) {
+  if (!messagingOpen) {
+    const isResolved = appt.status === "resolved";
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 p-8 text-center">
         <MessageCircle className="h-10 w-10 text-[#d9b8c4]" />
-        <p className="text-sm font-semibold text-[#241715]">Chat unavailable</p>
+        <p className="text-sm font-semibold text-[#241715]">
+          {isResolved ? "Messaging closed" : "Chat unavailable"}
+        </p>
         <p className="text-xs text-[#957186] max-w-xs">
-          Direct messaging is only available for confirmed appointments.
-          Accept this appointment to enable the chat.
+          {isResolved
+            ? "This case is resolved and the 24-hour messaging window has ended. Reopen the case to send new messages."
+            : appt.status === "pending"
+              ? "Direct messaging is only available after you accept this appointment."
+              : "Direct messaging is not available for this case."}
         </p>
       </div>
     );
@@ -1320,6 +2174,12 @@ function ClientChatTab({ appt }: { appt: Appointment }) {
 
   return (
     <div className="flex flex-col h-full">
+      {appt.status === "resolved" && (
+        <div className="mx-4 mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 shrink-0">
+          <span className="font-semibold">Case resolved.</span>{" "}
+          You can still send messages for 24 hours after it was marked resolved, then the thread becomes read-only until you reopen the case.
+        </div>
+      )}
       {/* Case context bar */}
       <div className="px-4 py-2 bg-[#f7f0f4]/60 border-b border-[#d9b8c4]/30 flex items-center gap-2 shrink-0">
         <MessageCircle className="h-3.5 w-3.5 text-[#703d57]" />

@@ -26,7 +26,7 @@ async def get_appointment_for_client(
         .where(
             Appointment.id == appointment_id,
             Appointment.client_user_id == client_user_id,
-            Appointment.status == "confirmed",
+            Appointment.status.in_(("confirmed", "resolved")),
         )
     )
     return result.scalar_one_or_none()
@@ -46,7 +46,7 @@ async def get_appointment_for_lawyer(
         .where(
             Appointment.id == appointment_id,
             Appointment.lawyer_profile_id == lawyer_profile_id,
-            Appointment.status == "confirmed",
+            Appointment.status.in_(("confirmed", "resolved")),
         )
     )
     return result.scalar_one_or_none()
