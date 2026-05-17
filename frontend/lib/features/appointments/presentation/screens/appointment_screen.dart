@@ -96,6 +96,8 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
           SnackBar(
             content: Text(AppLocalizations.of(context)!.apptNotFoundSnackbar),
             backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       });
@@ -138,6 +140,8 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
           SnackBar(
             content: Text(AppLocalizations.of(context)!.apptNotFoundSnackbar),
             backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       });
@@ -170,6 +174,8 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
           SnackBar(
             content: Text(next.error!),
             backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
         ref.read(appointmentProvider.notifier).clearError();

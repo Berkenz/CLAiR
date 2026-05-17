@@ -98,6 +98,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         SnackBar(
           content: const Text('Speech recognition not available on this device.'),
           backgroundColor: context.c.textDark,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -223,8 +225,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         setState(() => _isExtractingFile = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text(friendlyErrorMessage(e)),
             backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             duration: const Duration(seconds: 4),
           ),
         );
@@ -629,6 +633,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       SnackBar(
         content: Text(l10n.chatPdfGeneratingSummary),
         backgroundColor: cl.textDark,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 10),
       ),
     );
@@ -658,6 +664,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         SnackBar(
           content: Text(l10n.chatPdfSaveFailed(friendlyErrorMessage(e))),
           backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
@@ -748,6 +756,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           SnackBar(
             content: Text(next.error!),
             backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             action: SnackBarAction(
               label: l10n.chatDisclaimerDismiss,
               textColor: Colors.white,
@@ -1489,6 +1499,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           SnackBar(
             content: Text(l10n.chatCopiedClipboard),
             backgroundColor: cl.textDark,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             duration: const Duration(seconds: 2),
           ),
         );

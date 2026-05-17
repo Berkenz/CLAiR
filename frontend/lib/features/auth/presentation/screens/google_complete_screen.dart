@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 
 /// Shown when a Google sign-in user is new and needs to provide their name.
@@ -35,8 +37,16 @@ class _GoogleCompleteScreenState extends ConsumerState<GoogleCompleteScreen> {
       if (mounted) context.go('/home');
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(friendlyErrorMessage(e)),
+            backgroundColor: context.c.crimson,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _loading = false);

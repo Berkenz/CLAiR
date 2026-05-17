@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:http_parser/http_parser.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:image_picker/image_picker.dart';
@@ -50,14 +51,14 @@ class AuthRemoteDataSource {
 
       firebaseUser = credential.user;
       if (firebaseUser == null) {
-        throw AuthException('Failed to create account');
+        throw AuthException('Could not create your account. Please try again.');
       }
 
       await firebaseUser.sendEmailVerification();
 
       final idToken = await firebaseUser.getIdToken();
       if (idToken == null) {
-        throw AuthException('Failed to get ID token');
+        throw AuthException('Sign-in failed. Please try again.');
       }
 
       final response = await _dio.post<Map<String, dynamic>>(
@@ -70,7 +71,7 @@ class AuthRemoteDataSource {
       );
 
       if (response.data == null) {
-        throw AuthException('Invalid response from server');
+        throw AuthException('Something went wrong. Please try again.');
       }
 
       return UserEntity.fromJson(response.data!);
@@ -96,12 +97,12 @@ class AuthRemoteDataSource {
 
     final firebaseUser = credential.user;
     if (firebaseUser == null) {
-      throw AuthException('Login failed');
+      throw AuthException('Sign-in failed. Please try again.');
     }
 
     final idToken = await firebaseUser.getIdToken();
     if (idToken == null) {
-      throw AuthException('Failed to get ID token');
+      throw AuthException('Sign-in failed. Please try again.');
     }
 
     try {
@@ -111,7 +112,7 @@ class AuthRemoteDataSource {
       );
 
       if (response.data == null) {
-        throw AuthException('Invalid response from server');
+        throw AuthException('Something went wrong. Please try again.');
       }
 
       return UserEntity.fromJson(response.data!);
@@ -121,12 +122,23 @@ class AuthRemoteDataSource {
     }
   }
 
-  /// Google sign-in. Returns the user if already registered, or null
-  /// plus a flag if the user needs to complete registration.
+  /// Google sign-in. Returns the user if already registered, a new-user flag
+  /// if registration is needed, or a cancelled flag when the user dismisses
+  /// the account picker without choosing an account.
   Future<GoogleAuthResult> signInWithGoogle() async {
-    final googleUser = await _googleSignIn.signIn();
+    GoogleSignInAccount? googleUser;
+    try {
+      googleUser = await _googleSignIn.signIn();
+    } on PlatformException catch (e) {
+      // sign_in_canceled / access_denied / network_error are user-initiated.
+      const cancelCodes = {'sign_in_canceled', 'access_denied', 'network_error'};
+      if (cancelCodes.contains(e.code)) {
+        return const GoogleAuthResult(user: null, isNewUser: false, isCancelled: true);
+      }
+      rethrow;
+    }
     if (googleUser == null) {
-      throw AuthException('Google sign in was cancelled');
+      return const GoogleAuthResult(user: null, isNewUser: false, isCancelled: true);
     }
 
     final googleAuth = await googleUser.authentication;
@@ -139,12 +151,12 @@ class AuthRemoteDataSource {
         await _firebaseAuth.signInWithCredential(credential);
     final firebaseUser = userCredential.user;
     if (firebaseUser == null) {
-      throw AuthException('Firebase sign in failed');
+      throw AuthException('Google sign-in failed. Please try again.');
     }
 
     final idToken = await firebaseUser.getIdToken();
     if (idToken == null) {
-      throw AuthException('Failed to get ID token');
+      throw AuthException('Sign-in failed. Please try again.');
     }
 
     try {
@@ -154,12 +166,12 @@ class AuthRemoteDataSource {
       );
 
       if (response.data == null) {
-        throw AuthException('Invalid response from server');
+        throw AuthException('Something went wrong. Please try again.');
       }
 
       final isNewUser = response.data!['is_new_user'] as bool? ?? false;
       if (isNewUser) {
-        return GoogleAuthResult(user: null, isNewUser: true);
+        return const GoogleAuthResult(user: null, isNewUser: true);
       }
 
       final userData = response.data!['user'] as Map<String, dynamic>;
@@ -181,12 +193,12 @@ class AuthRemoteDataSource {
   }) async {
     final firebaseUser = _firebaseAuth.currentUser;
     if (firebaseUser == null) {
-      throw AuthException('No authenticated user');
+      throw AuthException('Your session has expired. Please sign in again.');
     }
 
     final idToken = await firebaseUser.getIdToken();
     if (idToken == null) {
-      throw AuthException('Failed to get ID token');
+      throw AuthException('Sign-in failed. Please try again.');
     }
 
     final response = await _dio.post<Map<String, dynamic>>(
@@ -199,7 +211,7 @@ class AuthRemoteDataSource {
     );
 
     if (response.data == null) {
-      throw AuthException('Invalid response from server');
+      throw AuthException('Something went wrong. Please try again.');
     }
 
     return UserEntity.fromJson(response.data!);
@@ -210,12 +222,12 @@ class AuthRemoteDataSource {
     final credential = await _firebaseAuth.signInAnonymously();
     final firebaseUser = credential.user;
     if (firebaseUser == null) {
-      throw AuthException('Anonymous sign in failed');
+      throw AuthException('Could not start a guest session. Please try again.');
     }
 
     final idToken = await firebaseUser.getIdToken();
     if (idToken == null) {
-      throw AuthException('Failed to get ID token');
+      throw AuthException('Sign-in failed. Please try again.');
     }
 
     final response = await _dio.post<Map<String, dynamic>>(
@@ -224,7 +236,7 @@ class AuthRemoteDataSource {
     );
 
     if (response.data == null) {
-      throw AuthException('Invalid response from server');
+      throw AuthException('Something went wrong. Please try again.');
     }
 
     return UserEntity.fromJson(response.data!);
@@ -248,7 +260,7 @@ class AuthRemoteDataSource {
     );
 
     if (response.data == null) {
-      throw AuthException('Invalid response from server');
+      throw AuthException('Something went wrong. Please try again.');
     }
 
     return UserEntity.fromJson(response.data!);
@@ -270,7 +282,7 @@ class AuthRemoteDataSource {
     );
 
     if (response.data == null) {
-      throw AuthException('Invalid response from server');
+      throw AuthException('Something went wrong. Please try again.');
     }
 
     return UserEntity.fromJson(response.data!);
@@ -285,7 +297,7 @@ class AuthRemoteDataSource {
   }) async {
     final user = _firebaseAuth.currentUser;
     if (user == null || user.email == null) {
-      throw AuthException('No authenticated user');
+      throw AuthException('You are not signed in. Please sign in and try again.');
     }
 
     final credential = EmailAuthProvider.credential(
@@ -298,7 +310,7 @@ class AuthRemoteDataSource {
       if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
         throw AuthException('Incorrect password. Please try again.');
       }
-      throw AuthException(e.message ?? 'Re-authentication failed');
+      throw AuthException('Re-authentication failed. Please try again.');
     }
 
     try {
@@ -310,15 +322,15 @@ class AuthRemoteDataSource {
       if (e.code == 'invalid-email') {
         throw AuthException('Please enter a valid email address.');
       }
-      throw AuthException(e.message ?? 'Failed to send verification email');
+      throw AuthException('Could not send verification email. Please try again.');
     }
   }
 
   /// Resends the email verification to the current user's email address.
   Future<void> resendEmailVerification() async {
     final user = _firebaseAuth.currentUser;
-    if (user == null) throw AuthException('No authenticated user');
-    if (user.emailVerified) throw AuthException('Email is already verified');
+    if (user == null) throw AuthException('You are not signed in. Please sign in and try again.');
+    if (user.emailVerified) throw AuthException('Your email is already verified.');
     await user.sendEmailVerification();
   }
 
@@ -328,7 +340,7 @@ class AuthRemoteDataSource {
   }) async {
     final user = _firebaseAuth.currentUser;
     if (user == null || user.email == null) {
-      throw AuthException('No authenticated user');
+      throw AuthException('You are not signed in. Please sign in and try again.');
     }
 
     final credential = EmailAuthProvider.credential(
@@ -349,14 +361,14 @@ class AuthRemoteDataSource {
   /// For anonymous/guest users, no re-authentication is required.
   Future<void> deleteAccount({String? password}) async {
     final firebaseUser = _firebaseAuth.currentUser;
-    if (firebaseUser == null) throw AuthException('No authenticated user');
+    if (firebaseUser == null) throw AuthException('You are not signed in. Please sign in and try again.');
 
     final providers =
         firebaseUser.providerData.map((p) => p.providerId).toList();
 
     if (providers.contains('password')) {
       if (password == null || password.isEmpty) {
-        throw AuthException('Password is required to delete your account');
+        throw AuthException('Please enter your password to confirm account deletion.');
       }
       final credential = EmailAuthProvider.credential(
         email: firebaseUser.email!,
@@ -368,12 +380,12 @@ class AuthRemoteDataSource {
         if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
           throw AuthException('Incorrect password. Please try again.');
         }
-        throw AuthException(e.message ?? 'Re-authentication failed');
+        throw AuthException('Re-authentication failed. Please try again.');
       }
     } else if (providers.contains('google.com')) {
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
-        throw AuthException('Google re-authentication was cancelled');
+        throw AuthException('Google re-authentication was cancelled.');
       }
       final googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
@@ -383,7 +395,10 @@ class AuthRemoteDataSource {
       try {
         await firebaseUser.reauthenticateWithCredential(credential);
       } on FirebaseAuthException catch (e) {
-        throw AuthException(e.message ?? 'Google re-authentication failed');
+        if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+          throw AuthException('Google sign-in failed. Please try again.');
+        }
+        throw AuthException('Google re-authentication failed. Please try again.');
       }
     }
 
@@ -446,9 +461,17 @@ class AuthRemoteDataSource {
 }
 
 class GoogleAuthResult {
-  const GoogleAuthResult({required this.user, required this.isNewUser});
+  const GoogleAuthResult({
+    required this.user,
+    required this.isNewUser,
+    this.isCancelled = false,
+  });
   final UserEntity? user;
   final bool isNewUser;
+
+  /// True when the user dismissed the Google account picker without selecting
+  /// an account. Callers should treat this silently — no error shown.
+  final bool isCancelled;
 }
 
 class AuthException implements Exception {

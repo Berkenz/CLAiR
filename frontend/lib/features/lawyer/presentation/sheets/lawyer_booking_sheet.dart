@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/appointments/data/datasources/appointment_remote_datasource.dart';
 import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
@@ -223,7 +224,7 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
       if (!mounted) return;
       setState(() {
         _typesLoading = false;
-        _typesLoadError = e.toString();
+        _typesLoadError = friendlyErrorMessage(e);
       });
     }
   }

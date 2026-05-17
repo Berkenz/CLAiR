@@ -397,15 +397,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             // Log Out / Exit Guest Session
             GestureDetector(
               onTap: () async {
-                final repo = ref.read(authRepositoryProvider);
-                if (user?.isAnonymous == true) {
-                  await repo.exitGuestSession();
-                } else {
-                  await repo.signOut();
+                try {
+                  final repo = ref.read(authRepositoryProvider);
+                  if (user?.isAnonymous == true) {
+                    await repo.exitGuestSession();
+                  } else {
+                    await repo.signOut();
+                  }
+                  ref.read(currentUserProvider.notifier).state = null;
+                  ref.read(chatProvider.notifier).reset();
+                  if (context.mounted) context.go('/login');
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(friendlyErrorMessage(e)),
+                        backgroundColor: Colors.red.shade700,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                    );
+                  }
                 }
-                ref.read(currentUserProvider.notifier).state = null;
-                ref.read(chatProvider.notifier).reset();
-                if (context.mounted) context.go('/login');
               },
               child: Container(
                 width: double.infinity,

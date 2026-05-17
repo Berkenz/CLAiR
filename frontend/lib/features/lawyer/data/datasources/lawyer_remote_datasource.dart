@@ -31,8 +31,7 @@ class LawyerRemoteDataSource {
       throw LawyerException(_extractError(e));
     } catch (e) {
       throw LawyerException(
-        'Server returned data the app could not read. '
-        'Try updating the app or contact support. ($e)',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -107,21 +106,14 @@ class LawyerRemoteDataSource {
       final detail = map['detail'];
       if (detail is String && detail.trim().isNotEmpty) return detail.trim();
       if (detail is List) {
-        final parts = detail.map((item) {
-          if (item is Map && item['msg'] != null) {
-            final msg = item['msg'].toString().trim();
-            final loc = item['loc'];
-            if (loc is List && loc.isNotEmpty) {
-              final path = loc
-                  .where((e) => e != null && '$e'.isNotEmpty)
-                  .map((e) => e.toString())
-                  .join('.');
-              if (path.isNotEmpty) return '$path: $msg';
-            }
-            return msg;
-          }
-          return item.toString();
-        }).where((s) => s.isNotEmpty);
+        final parts = detail
+            .map((item) {
+              if (item is Map && item['msg'] != null) {
+                return item['msg'].toString().trim();
+              }
+              return item.toString().trim();
+            })
+            .where((s) => s.isNotEmpty);
         final joined = parts.join(' ');
         if (joined.isNotEmpty) return joined;
       }
@@ -132,30 +124,27 @@ class LawyerRemoteDataSource {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
-        return 'Connection timed out. Check that the API is running and reachable.';
+        return 'Connection timed out. Please check your internet connection and try again.';
       case DioExceptionType.connectionError:
-        return 'Cannot reach server. On Android emulator use 10.0.2.2; on a '
-            'physical phone use your PC LAN IP or '
-            '--dart-define=API_BASE_URL=http://192.168.x.x:8000/api/v1 '
-            '(see DEVELOPMENT.md).';
+        return 'Unable to connect. Please check your internet connection and try again.';
       default:
         break;
     }
 
     if (code != null) {
-      return 'Request failed ($code). ${_messageForStatus(code)}';
+      return _messageForStatus(code);
     }
     return 'Could not complete the request. Please try again.';
   }
 
   String _messageForStatus(int code) {
     return switch (code) {
-      401 => 'Sign in again — your session may have expired.',
-      403 => 'You are not allowed to do this.',
-      404 => 'Not found.',
-      422 => 'Invalid data sent to server.',
-      500 => 'Server error.',
-      _ => '',
+      401 => 'Your session has expired. Please sign in again.',
+      403 => 'You don\'t have permission to do that.',
+      404 => 'The requested item was not found.',
+      422 => 'Some information you provided is invalid. Please check and try again.',
+      _ when code >= 500 => 'A server error occurred. Please try again later.',
+      _ => 'Could not complete the request. Please try again.',
     };
   }
 }

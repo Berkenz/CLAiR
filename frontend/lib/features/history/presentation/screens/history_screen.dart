@@ -52,6 +52,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           SnackBar(
             content: Text(next.error!),
             backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
         ref.read(historyProvider.notifier).clearError();
@@ -448,6 +450,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       SnackBar(
         content: Text(l10n.histGeneratingPdf),
         backgroundColor: cl.darkBrown,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 10),
       ),
     );
@@ -482,6 +486,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         SnackBar(
           content: Text(l10n.histDownloadFailed(friendlyErrorMessage(e))),
           backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }

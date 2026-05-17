@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -10,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/chat/utils/chat_markdown_format.dart';
 import 'package:clair/features/history/domain/entities/conversation_entity.dart';
@@ -203,6 +203,8 @@ class _SavedScreenState extends ConsumerState<SavedScreen> {
         content: const Text('Generating PDF...'),
         backgroundColor: cl.textDark,
         duration: const Duration(seconds: 10),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
 
@@ -234,8 +236,10 @@ class _SavedScreenState extends ConsumerState<SavedScreen> {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to download: $e'),
+          content: Text(friendlyErrorMessage(e)),
           backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }

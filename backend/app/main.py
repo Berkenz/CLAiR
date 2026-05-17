@@ -1,47 +1,66 @@
 import logging
+import sys
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from starlette.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.config import settings
 
+_is_dev = settings.ENVIRONMENT == "development" or settings.DEBUG
+
+limiter = Limiter(key_func=get_remote_address)
+
 
 def _configure_logging() -> None:
-    """App loggers default to WARNING; enable INFO in dev so LLM/Tavily lines appear."""
     if settings.DEBUG:
         level = logging.DEBUG
-    elif settings.ENVIRONMENT == "development":
+    elif _is_dev:
         level = logging.INFO
     else:
         level = logging.WARNING
 
-    logging.basicConfig(
-        level=level,
-        format="%(levelname)s %(name)s: %(message)s",
-        force=True,
-    )
+    if not _is_dev:
+        json_fmt = (
+            '{"time":"%(asctime)s","level":"%(levelname)s",'
+            '"logger":"%(name)s","message":%(message)r}'
+        )
+        logging.basicConfig(level=level, format=json_fmt, stream=sys.stdout, force=True)
+    else:
+        logging.basicConfig(
+            level=level,
+            format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+            force=True,
+        )
 
 
 _configure_logging()
 
+_logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    print(f"{settings.APP_NAME} v{settings.APP_VERSION} started")
+    _logger.info("%s v%s started", settings.APP_NAME, settings.APP_VERSION)
     yield
-    # Shutdown
-    pass
 
 
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     lifespan=lifespan,
+    docs_url="/docs" if _is_dev else None,
+    redoc_url="/redoc" if _is_dev else None,
+    openapi_url="/openapi.json" if _is_dev else None,
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -56,11 +75,12 @@ app.include_router(api_router, prefix="/api/v1")
 
 @app.api_route("/health", methods=["GET", "HEAD"])
 async def health_check():
-    """Health check endpoint."""
     return {"status": "ok"}
 
 
 @app.get("/")
 async def root():
-    """Root endpoint - redirects to /docs."""
-    return RedirectResponse(url="/docs")
+    if _is_dev:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/docs")
+    return {"name": settings.APP_NAME, "version": settings.APP_VERSION}

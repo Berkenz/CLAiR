@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/history/data/datasources/history_remote_datasource.dart';
@@ -182,16 +183,15 @@ class _LawyerAttachmentsSectionState
       widget.onSummaryGenerated?.call(summaryText);
     } catch (e) {
       if (!mounted) return;
-      final msg = e is HistoryException
-          ? e.message
-          : 'Could not generate a summary. You can type the description manually.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            msg,
+            friendlyErrorMessage(e),
             style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
           ),
+          backgroundColor: Colors.red.shade700,
           behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     } finally {

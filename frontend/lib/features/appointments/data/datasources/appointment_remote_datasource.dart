@@ -84,7 +84,7 @@ class AppointmentRemoteDataSource {
       throw AppointmentException(_extractError(e));
     } catch (e) {
       throw AppointmentException(
-        'Server returned data the app could not read. ($e)',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -97,11 +97,34 @@ class AppointmentRemoteDataSource {
         return detail.trim();
       }
     }
+
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return 'Connection timed out. Please check your internet connection and try again.';
+      case DioExceptionType.connectionError:
+        return 'Unable to connect. Please check your internet connection and try again.';
+      default:
+        break;
+    }
+
     final code = e.response?.statusCode;
     if (code != null) {
-      return 'Request failed ($code).';
+      return _messageForStatus(code);
     }
     return 'Could not complete the request. Please try again.';
+  }
+
+  String _messageForStatus(int code) {
+    return switch (code) {
+      401 => 'Your session has expired. Please sign in again.',
+      403 => 'You don\'t have permission to do that.',
+      404 => 'The requested item was not found.',
+      422 => 'Some information you provided is invalid. Please check and try again.',
+      _ when code >= 500 => 'A server error occurred. Please try again later.',
+      _ => 'Could not complete the request. Please try again.',
+    };
   }
 }
 

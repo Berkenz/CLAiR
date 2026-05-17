@@ -1,10 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart' show PlatformException;
 
 /// Converts any exception into a short, user-friendly message.
 ///
-/// Checks for Dio backend responses, Firebase auth codes, and known
-/// exception patterns before falling back to a generic message.
+/// Checks for Dio backend responses, Firebase auth codes, native plugin
+/// errors, and known exception patterns before falling back to a generic
+/// message.
 String friendlyErrorMessage(Object e) {
   // 1. Backend returned a structured error via Dio
   if (e is DioException) {
@@ -40,7 +42,23 @@ String friendlyErrorMessage(Object e) {
     return _firebaseCodeToMessage(e.code, e.message);
   }
 
-  // 3. Raw string from our own AuthException / other typed exceptions
+  // 3. Native plugin errors (e.g. google_sign_in PlatformException)
+  if (e is PlatformException) {
+    switch (e.code) {
+      case 'network_error':
+        return 'No internet connection. Check your network and try again.';
+      case 'sign_in_failed':
+        return 'Google Sign-In failed. Please try again.';
+      case 'sign_in_required':
+        return 'Please sign in to continue.';
+      default:
+        final msg = e.message;
+        if (msg != null && msg.isNotEmpty) return _sanitize(msg);
+        return 'Something went wrong. Please try again.';
+    }
+  }
+
+  // 4. Raw string from our own AuthException / other typed exceptions
   final raw = e.toString();
   return _sanitize(raw);
 }

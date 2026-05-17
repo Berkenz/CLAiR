@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/lawyer/data/datasources/lawyer_remote_datasource.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 import 'package:clair/shared/providers/shared_providers.dart';
@@ -76,7 +77,7 @@ class LawyerNotifier extends StateNotifier<LawyerState> {
           report = e3;
         }
       }
-      state = state.copyWith(isLoading: false, error: report.toString());
+      state = state.copyWith(isLoading: false, error: friendlyErrorMessage(report));
     }
   }
 

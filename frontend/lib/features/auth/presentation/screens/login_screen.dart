@@ -80,6 +80,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final repo = ref.read(authRepositoryProvider);
       final result = await repo.signInWithGoogle();
+      if (result.isCancelled) return; // user dismissed — no error shown
       if (result.isNewUser) {
         if (mounted) {
           context.push('/signup/google');

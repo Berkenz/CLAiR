@@ -68,7 +68,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       ref.read(currentUserProvider.notifier).state = updatedUser;
       _showSnackBar('Photo updated');
     } catch (e) {
-      _showSnackBar('Failed to upload photo: $e', isError: true);
+      _showSnackBar(friendlyErrorMessage(e), isError: true);
     } finally {
       if (mounted) setState(() => _saving = false);
     }

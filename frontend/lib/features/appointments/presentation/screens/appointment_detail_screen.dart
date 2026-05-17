@@ -399,6 +399,8 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
         SnackBar(
           content: Text(friendlyErrorMessage(e), style: const TextStyle(fontFamily: 'Satoshi')),
           backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       return;
@@ -412,6 +414,8 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
             style: const TextStyle(fontFamily: 'Satoshi'),
           ),
           backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       return;
@@ -440,6 +444,8 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
             style: const TextStyle(fontFamily: 'Satoshi'),
           ),
           backgroundColor: const Color(0xFF22A64A),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       Navigator.of(context).pop(true);
@@ -449,6 +455,8 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
         SnackBar(
           content: Text(friendlyErrorMessage(e), style: const TextStyle(fontFamily: 'Satoshi')),
           backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     } finally {
