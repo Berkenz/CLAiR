@@ -8,6 +8,7 @@ search_philippine_law() returns [] and the chatbot continues without web context
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from tavily import AsyncTavilyClient
@@ -43,6 +44,7 @@ TRUSTED_PH_LEGAL_DOMAINS: list[str] = [
 
 _MAX_RESULTS = 3
 _MAX_CONTENT_WORDS = 200
+_MIN_QUERY_CHARS_FOR_EMPTY_RAG = 50
 
 # Keywords that signal the user is asking about recent/current legal developments.
 # When present, Tavily is triggered even if RAG already returned chunks, because
@@ -93,13 +95,16 @@ async def search_philippine_law(
     if client is None:
         return []
 
-    should_search = _is_time_sensitive(query) or rag_chunk_count == 0
+    q = query.strip()
+    should_search = _is_time_sensitive(q) or (
+        rag_chunk_count == 0 and len(q) >= _MIN_QUERY_CHARS_FOR_EMPTY_RAG
+    )
     if not should_search:
         return []
 
-    try:
+    async def _search() -> list[dict]:
         response = await client.search(
-            query=f"Philippines law {query}",
+            query=f"Philippines law {q}",
             search_depth="basic",
             include_domains=TRUSTED_PH_LEGAL_DOMAINS,
             max_results=_MAX_RESULTS,
@@ -114,6 +119,15 @@ async def search_philippine_law(
             }
             for r in results
         ]
+
+    try:
+        return await asyncio.wait_for(
+            _search(),
+            timeout=settings.TAVILY_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        logger.warning("Tavily search timed out after %.1fs", settings.TAVILY_TIMEOUT_SECONDS)
+        return []
     except Exception:
         logger.exception("Tavily search failed")
         return []

@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:clair/core/locale/app_locale_provider.dart';
+import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/core/services/location_service.dart';
 import 'package:clair/features/chat/data/datasources/chat_remote_datasource.dart';
@@ -81,11 +83,17 @@ class ChatNotifier extends StateNotifier<ChatState> {
       error: null,
     );
 
-    // Best-effort: obtain GPS before the API call so "lawyers near me" has coordinates
-    // (avoids racing the background fetch started in ChatScreen.initState).
+    // Best-effort GPS — cap wait so chat send is not blocked on a slow fix.
     var loc = _ref.read(locationProvider);
     if (!loc.hasLocation) {
-      await _ref.read(locationProvider.notifier).fetchLocation();
+      try {
+        await _ref
+            .read(locationProvider.notifier)
+            .fetchLocation()
+            .timeout(const Duration(seconds: 2));
+      } on TimeoutException {
+        // Send without coordinates; backend still answers.
+      }
       loc = _ref.read(locationProvider);
     }
 
@@ -198,6 +206,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     String? title,
     bool isPinned = false,
   }) async {
+    if (_ref.read(currentUserProvider)?.isAnonymous == true) return;
     state = state.copyWith(isLoading: true, error: null);
     try {
       final messages =

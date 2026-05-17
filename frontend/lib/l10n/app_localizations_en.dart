@@ -542,6 +542,34 @@ class AppLocalizationsEn extends AppLocalizations {
       'Start a new conversation to explore a different topic.';
 
   @override
+  String get chatGuestClearTitle => 'Clear current chat?';
+
+  @override
+  String get chatGuestClearBody =>
+      'Guest chats aren\'t saved. Starting a new chat will clear your messages from this session.';
+
+  @override
+  String get chatGuestClearConfirm => 'Clear chat';
+
+  @override
+  String get chatGuestEphemeralBanner =>
+      'Guest chats aren\'t saved. Sign up or log in to keep your conversations.';
+
+  @override
+  String get chatGuestSignInAction => 'Sign up or log in';
+
+  @override
+  String get chatGuestNoSavedChats =>
+      'Sign in to save conversations. Guest chats stay in this session only.';
+
+  @override
+  String get histGuestEmptyTitle => 'No saved conversations';
+
+  @override
+  String get histGuestEmptySubtitle =>
+      'Sign up or log in to save chats and view them here.';
+
+  @override
   String get chatCopiedClipboard => 'Copied to clipboard';
 
   @override

@@ -12,6 +12,7 @@ import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
+import 'package:clair/features/chat/utils/guest_chat_reset.dart';
 import 'package:clair/features/history/domain/entities/conversation_entity.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
@@ -68,7 +69,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ref.read(lawyerProvider.notifier).loadLawyers();
       }
       final historyState = ref.read(historyProvider);
-      if (historyState.conversations.isEmpty && !historyState.isLoading) {
+      if (!historyState.hasLoaded && !historyState.isLoading) {
         ref.read(historyProvider.notifier).loadConversations();
       }
     });
@@ -154,8 +155,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
               _fadeSlide(
                 SpringButton(
-                  onTap: () {
-                    ref.read(chatProvider.notifier).reset();
+                  onTap: () async {
+                    if (!await resetChatWithGuestGuard(
+                          context: context,
+                          ref: ref,
+                        ) ||
+                        !context.mounted) {
+                      return;
+                    }
                     ref.read(mainShellTabProvider.notifier).state = 1;
                   },
                   child: Container(
@@ -264,8 +271,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
               const SizedBox(height: 28),
 
-              // ── Generated Documents ────────────────────────────────────────
-              if (historyState.isLoading || recentDocs.isNotEmpty) ...[
+              // ── Generated Documents (only when conversations exist) ─────────
+              if (recentDocs.isNotEmpty) ...[
                 _fadeSlide(
                   _sectionHead(
                     l10n.homeGeneratedDocuments,
@@ -275,11 +282,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   0.35,
                 ),
                 const SizedBox(height: 10),
-                if (historyState.isLoading && recentDocs.isEmpty)
-                  ..._buildDocSkeletons(cl)
-                else
-                  ...recentDocs.asMap().entries.map((e) => _fadeSlide(
-                      _docRow(e.value), 0.4 + e.key * 0.05)),
+                ...recentDocs.asMap().entries.map((e) => _fadeSlide(
+                    _docRow(e.value), 0.4 + e.key * 0.05)),
               ],
 
               const SizedBox(height: 28),
@@ -407,16 +411,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   // ── Documents section ────────────────────────────────────────────────────
 
-  List<Widget> _buildDocSkeletons(AppColorTheme cl) {
-    return List.generate(
-      3,
-      (_) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: _DocSkeleton(),
-      ),
-    );
-  }
-
   Widget _docRow(ConversationEntity conv) {
     final cl = context.c;
     final l10n = AppLocalizations.of(context)!;
@@ -526,8 +520,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final cl = ctx.c;
     final l10n = AppLocalizations.of(ctx)!;
     return SpringButton(
-      onTap: () {
-        if (a.resetChat) ref.read(chatProvider.notifier).reset();
+      onTap: () async {
+        if (a.resetChat) {
+          if (!await resetChatWithGuestGuard(context: ctx, ref: ref) ||
+              !ctx.mounted) {
+            return;
+          }
+        }
         ref.read(mainShellTabProvider.notifier).state = a.tabIndex;
       },
       child: Container(
@@ -647,41 +646,6 @@ class _LawyerEmptyCard extends StatelessWidget {
           style: GoogleFonts.nunito(fontSize: 13, color: cl.textLight),
         ),
       ),
-    );
-  }
-}
-
-class _DocSkeleton extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final cl = context.c;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: cl.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cl.border),
-      ),
-      child: Row(children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: cl.fieldBg,
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(height: 12, decoration: BoxDecoration(color: cl.fieldBg, borderRadius: BorderRadius.circular(6))),
-                const SizedBox(height: 5),
-                Container(width: 100, height: 10, decoration: BoxDecoration(color: cl.fieldBg, borderRadius: BorderRadius.circular(5))),
-              ]),
-        ),
-      ]),
     );
   }
 }

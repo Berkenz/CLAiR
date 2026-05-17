@@ -5,7 +5,14 @@ import { auth } from "@/lib/firebase";
 import { api } from "@/lib/api";
 import { useAuth, type LawyerState } from "@/features/auth/auth-provider";
 import { markPasswordChanged } from "@/features/auth/onboarding-storage";
-import { Scale, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
+import clairIcon from "@/assets/images/CLAiR-icon.png";
+
+const darkBgFilter =
+  "brightness(0) saturate(100%) invert(78%) sepia(18%) saturate(400%) hue-rotate(295deg) brightness(105%) contrast(85%)";
+
+const lightBgFilter =
+  "brightness(0) saturate(100%) invert(25%) sepia(30%) saturate(800%) hue-rotate(295deg) brightness(80%) contrast(90%)";
 
 const MIN_LENGTH = 8;
 
@@ -100,9 +107,12 @@ export function ChangePasswordPage() {
     <div className="min-h-screen flex bg-[#f7f0f4]">
       <div className="hidden lg:flex w-[420px] flex-col justify-between bg-[#241715] p-12 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#703d57]">
-            <Scale className="h-5 w-5 text-white" />
-          </div>
+          <img
+            src={clairIcon}
+            alt="CLAiR"
+            className="h-9 w-9 object-contain"
+            style={{ filter: darkBgFilter }}
+          />
           <span className="text-xl font-bold text-white tracking-wide">CLAiR</span>
         </div>
         <div>
@@ -126,9 +136,12 @@ export function ChangePasswordPage() {
       <div className="flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
           <div className="flex items-center gap-2.5 mb-10 lg:hidden">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#703d57]">
-              <Scale className="h-4 w-4 text-white" />
-            </div>
+            <img
+              src={clairIcon}
+              alt="CLAiR"
+              className="h-8 w-8 object-contain"
+              style={{ filter: lightBgFilter }}
+            />
             <span className="text-lg font-bold text-[#241715] tracking-wide">CLAiR</span>
           </div>
 

@@ -1,12 +1,16 @@
+import time
 import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.models.lawyer_profile import LawyerProfile
 from app.models.user import User
 from app.schemas.lawyer import LawyerProfileUpdate
+
+_lawyers_directory_cache: tuple[float, list[dict]] | None = None
 
 
 class LawyerService:
@@ -114,6 +118,15 @@ class LawyerService:
         self, db: AsyncSession
     ) -> list[dict]:
         """Return all lawyers whose profiles are marked complete, for the mobile directory."""
+        global _lawyers_directory_cache
+        now = time.monotonic()
+        if (
+            _lawyers_directory_cache is not None
+            and now - _lawyers_directory_cache[0]
+            < settings.LAWYER_DIRECTORY_CACHE_TTL_SECONDS
+        ):
+            return _lawyers_directory_cache[1]
+
         result = await db.execute(
             select(LawyerProfile, User)
             .join(User, LawyerProfile.user_id == User.id)
@@ -122,7 +135,7 @@ class LawyerService:
             .order_by(LawyerProfile.created_at.desc())
         )
         rows = result.all()
-        return [
+        lawyers = [
             {
                 "id": profile.id,
                 "display_name": profile.display_name,
@@ -142,6 +155,8 @@ class LawyerService:
             }
             for profile, user in rows
         ]
+        _lawyers_directory_cache = (now, lawyers)
+        return lawyers
 
 
 lawyer_service = LawyerService()

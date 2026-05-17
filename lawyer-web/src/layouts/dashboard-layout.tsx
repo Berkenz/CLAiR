@@ -6,8 +6,15 @@ import { useAuth } from "@/features/auth/auth-provider";
 import { cn } from "@/lib/cn";
 import {
   LayoutDashboard, Briefcase,
-  LogOut, Menu, X, Scale, ChevronRight, Sparkles,
+  LogOut, Menu, X, ChevronRight, Sparkles,
 } from "lucide-react";
+import clairIcon from "@/assets/images/CLAiR-icon.png";
+
+const darkBgFilter =
+  "brightness(0) saturate(100%) invert(78%) sepia(18%) saturate(400%) hue-rotate(295deg) brightness(105%) contrast(85%)";
+
+const lightBgFilter =
+  "brightness(0) saturate(100%) invert(25%) sepia(30%) saturate(800%) hue-rotate(295deg) brightness(80%) contrast(90%)";
 
 const navItems = [
   { to: "/",               label: "Home",           icon: LayoutDashboard },
@@ -52,10 +59,13 @@ export function DashboardLayout() {
         "bg-[#241715]",
         sidebarOpen ? "translate-x-0" : "-translate-x-full",
       )}>
-        <div className="flex h-16 items-center gap-2.5 px-5 border-b border-white/10">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#703d57]">
-            <Scale className="h-4 w-4 text-white" />
-          </div>
+        <div className="flex h-16 items-center gap-2.5 px-4 border-b border-white/10">
+          <img
+            src={clairIcon}
+            alt="CLAiR"
+            className="h-8 w-8 object-contain shrink-0"
+            style={{ filter: darkBgFilter }}
+          />
           <span className="text-lg font-bold text-white tracking-wide">CLAiR</span>
           <button className="ml-auto lg:hidden" onClick={() => setSidebarOpen(false)}>
             <X className="h-5 w-5 text-white/60" />
@@ -120,10 +130,16 @@ export function DashboardLayout() {
       </aside>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 items-center gap-4 border-b border-[#d9b8c4]/40 bg-white px-4 lg:hidden">
+        <header className="flex h-16 items-center gap-3 border-b border-[#d9b8c4]/40 bg-white px-4 lg:hidden">
           <button onClick={() => setSidebarOpen(true)}>
             <Menu className="h-6 w-6 text-[#402a2c]" />
           </button>
+          <img
+            src={clairIcon}
+            alt="CLAiR"
+            className="h-7 w-7 object-contain"
+            style={{ filter: lightBgFilter }}
+          />
           <span className="text-lg font-semibold text-[#241715]">CLAiR</span>
         </header>
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">

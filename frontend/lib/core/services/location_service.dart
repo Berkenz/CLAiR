@@ -34,6 +34,12 @@ class LocationNotifier extends Notifier<LocationState> {
   @override
   LocationState build() => const LocationState();
 
+  /// Starts a background fetch when coordinates are not cached yet.
+  void prefetchIfNeeded() {
+    if (state.hasLocation || state.loading) return;
+    fetchLocation().ignore();
+  }
+
   /// Requests permission (if needed) then fetches the device position.
   /// Returns true if a position was obtained.
   Future<bool> fetchLocation() async {

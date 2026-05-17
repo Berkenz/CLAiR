@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db
 from app.core.firebase import verify_firebase_token
+from app.core.platform_auth import ensure_lawyer_platform_user
 from app.core.lawyer_security import get_current_lawyer
 from app.models.lawyer_profile import LawyerProfile
 from app.models.user import User
@@ -24,11 +25,9 @@ async def lawyer_login(
     Lawyer portal login.
 
     The client authenticates with Firebase first (email + password), then sends
-    the ID token here. Anyone logging in through this endpoint is treated as a
-    lawyer — the portal URL itself is the access gate.
-
-    On first call the backend auto-creates the DB user row and lawyer profile
-    with must_change_password=True. Subsequent calls return the current state.
+    the ID token here. On first login for admin-provisioned Firebase users, the
+    backend creates the DB user row and lawyer profile. Mobile client accounts
+    cannot use this endpoint — they need separate lawyer credentials.
     """
     decoded = verify_firebase_token(body.firebase_token)
 
@@ -36,6 +35,7 @@ async def lawyer_login(
     email: str | None = decoded.get("email")
 
     user = await user_service.get_user_by_firebase_uid(db, firebase_uid)
+    user_created = False
 
     if not user:
         if not email:
@@ -50,6 +50,7 @@ async def lawyer_login(
             auth_provider="email",
             is_email_verified=decoded.get("email_verified", False),
         )
+        user_created = True
 
     if not user.is_active:
         raise HTTPException(
@@ -57,7 +58,12 @@ async def lawyer_login(
             detail="This account has been deactivated. Contact your administrator.",
         )
 
-    profile = await lawyer_service.get_or_create_profile(db, user)
+    if user_created:
+        profile = await lawyer_service.get_or_create_profile(db, user)
+    else:
+        await ensure_lawyer_platform_user(db, user)
+        profile = await lawyer_service.get_profile_by_user_id(db, user.id)
+        assert profile is not None
 
     return LawyerLoginResponse.model_validate({"user": user, "profile": profile})
 

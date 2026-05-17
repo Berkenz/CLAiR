@@ -102,10 +102,14 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
   bool _showMap = false;
   bool _practiceAreasExpanded = true;
   late final AnimationController _anim;
+  late final StateController<bool> _mapViewActiveCtrl;
+  late final StateController<bool> _mapSheetOpenCtrl;
 
   @override
   void initState() {
     super.initState();
+    _mapViewActiveCtrl = ref.read(lawyerMapViewActiveProvider.notifier);
+    _mapSheetOpenCtrl = ref.read(lawyerMapSheetOpenProvider.notifier);
     _anim = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 500))
       ..forward();
@@ -117,8 +121,8 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
 
   @override
   void dispose() {
-    ref.read(lawyerMapViewActiveProvider.notifier).state = false;
-    ref.read(lawyerMapSheetOpenProvider.notifier).state = false;
+    _mapViewActiveCtrl.state = false;
+    _mapSheetOpenCtrl.state = false;
     _anim.dispose();
     _searchCtrl.dispose();
     _scrollCtrl.dispose();
@@ -128,7 +132,8 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
   void _setMapView(bool showMap) {
     if (_showMap == showMap) return;
     setState(() => _showMap = showMap);
-    ref.read(lawyerMapViewActiveProvider.notifier).state = showMap;
+    _mapViewActiveCtrl.state = showMap;
+    if (!showMap) _mapSheetOpenCtrl.state = false;
   }
 
   bool get _isFiltered =>

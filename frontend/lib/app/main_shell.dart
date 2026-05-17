@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:clair/core/services/location_service.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/features/home/presentation/screens/home_screen.dart';
 import 'package:clair/features/chat/presentation/screens/chat_screen.dart';
-import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
+import 'package:clair/features/chat/utils/guest_chat_reset.dart';
 import 'package:clair/features/library/presentation/screens/library_screen.dart';
 import 'package:clair/features/lawyer/presentation/providers/lawyer_provider.dart';
 import 'package:clair/features/lawyer/presentation/screens/lawyer_screen.dart';
@@ -60,6 +61,7 @@ class _MainShellState extends ConsumerState<MainShell>
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(notificationInboxProvider.notifier).refresh();
+      ref.read(locationProvider.notifier).prefetchIfNeeded();
     });
     _notificationPollTimer = Timer.periodic(
       const Duration(seconds: 8),
@@ -74,6 +76,7 @@ class _MainShellState extends ConsumerState<MainShell>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
       ref.read(notificationInboxProvider.notifier).pollSilently();
+      ref.read(locationProvider.notifier).prefetchIfNeeded();
     }
   }
 
@@ -100,9 +103,12 @@ class _MainShellState extends ConsumerState<MainShell>
     _fabAnim.reverse();
   }
 
-  void _fabNewChat() {
+  Future<void> _fabNewChat() async {
     _closeFab();
-    ref.read(chatProvider.notifier).reset();
+    if (!await resetChatWithGuestGuard(context: context, ref: ref) ||
+        !mounted) {
+      return;
+    }
     ref.read(mainShellTabProvider.notifier).state = 1;
   }
 

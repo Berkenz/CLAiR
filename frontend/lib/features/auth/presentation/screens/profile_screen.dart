@@ -397,7 +397,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             // Log Out / Exit Guest Session
             GestureDetector(
               onTap: () async {
-                await ref.read(authRepositoryProvider).signOut();
+                final repo = ref.read(authRepositoryProvider);
+                if (user?.isAnonymous == true) {
+                  await repo.exitGuestSession();
+                } else {
+                  await repo.signOut();
+                }
                 ref.read(currentUserProvider.notifier).state = null;
                 ref.read(chatProvider.notifier).reset();
                 if (context.mounted) context.go('/login');
@@ -425,65 +430,68 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
 
-            const SizedBox(height: 12),
+            if (user?.isAnonymous != true) ...[
+              const SizedBox(height: 12),
 
-            // Delete Account
-            GestureDetector(
-              onTap: _isDeleting
-                  ? null
-                  : () async {
-                      final user = ref.read(currentUserProvider);
-                      if (user == null) return;
-                      final passwordCompleter = _PasswordCompleter();
-                      final confirmed = await showDialog<bool>(
-                        context: context,
-                        barrierDismissible: true,
-                        builder: (_) => _DeleteAccountDialog(
-                          authProvider: user.authProvider,
-                          isAnonymous: user.isAnonymous,
-                          email: user.email,
-                          onConfirm: (password) {
-                            passwordCompleter.value = password;
-                          },
-                        ),
-                      );
-                      if (confirmed == true && mounted) {
-                        await _deleteAccount(passwordCompleter.value);
-                      }
-                    },
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: const Color(0xFFDC4C4C).withOpacity(0.35),
+              // Delete Account (registered users only — guests use Exit Guest Session)
+              GestureDetector(
+                onTap: _isDeleting
+                    ? null
+                    : () async {
+                        final user = ref.read(currentUserProvider);
+                        if (user == null) return;
+                        final passwordCompleter = _PasswordCompleter();
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          barrierDismissible: true,
+                          builder: (_) => _DeleteAccountDialog(
+                            authProvider: user.authProvider,
+                            isAnonymous: user.isAnonymous,
+                            email: user.email,
+                            onConfirm: (password) {
+                              passwordCompleter.value = password;
+                            },
+                          ),
+                        );
+                        if (confirmed == true && mounted) {
+                          await _deleteAccount(passwordCompleter.value);
+                        }
+                      },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: const Color(0xFFDC4C4C).withOpacity(0.35),
+                    ),
                   ),
-                ),
-                child: Center(
-                  child: _isDeleting
-                      ? const SizedBox(
-                          height: 16,
-                          width: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Color(0xFFDC4C4C),
+                  child: Center(
+                    child: _isDeleting
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFFDC4C4C),
+                              ),
+                            ),
+                          )
+                        : Text(
+                            l10n.deleteAccount,
+                            style: GoogleFonts.nunito(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color:
+                                  const Color(0xFFDC4C4C).withOpacity(0.75),
                             ),
                           ),
-                        )
-                      : Text(
-                          l10n.deleteAccount,
-                          style: GoogleFonts.nunito(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFFDC4C4C).withOpacity(0.75),
-                          ),
-                        ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ]),
         ),
       ),

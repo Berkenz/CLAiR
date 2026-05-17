@@ -5,6 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.firebase import verify_firebase_token
+from app.core.platform_auth import (
+    ensure_client_platform_user,
+    ensure_email_available_for_client,
+)
 from app.models.user import User
 from app.schemas.user import (
     GoogleAuthRequest,
@@ -42,10 +46,13 @@ async def register(
 
     existing = await user_service.get_user_by_firebase_uid(db, firebase_uid)
     if existing:
+        await ensure_client_platform_user(db, existing)
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="User already registered",
         )
+
+    await ensure_email_available_for_client(db, email)
 
     existing_by_email = await user_service.get_user_by_email(db, email)
     if existing_by_email:
@@ -86,6 +93,8 @@ async def login(
             detail="User not found. Please register first.",
         )
 
+    await ensure_client_platform_user(db, user)
+
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -119,10 +128,14 @@ async def google_auth(
 
     user = await user_service.get_user_by_firebase_uid(db, firebase_uid)
     if user:
+        await ensure_client_platform_user(db, user)
         return GoogleAuthResponse(
             user=UserResponse.model_validate(user),
             is_new_user=False,
         )
+
+    if email := decoded.get("email"):
+        await ensure_email_available_for_client(db, email)
 
     return GoogleAuthResponse(user=None, is_new_user=True)
 
@@ -144,11 +157,14 @@ async def google_complete(
 
     existing = await user_service.get_user_by_firebase_uid(db, firebase_uid)
     if existing:
+        await ensure_client_platform_user(db, existing)
         return existing
 
     if email:
+        await ensure_email_available_for_client(db, email)
         existing_by_email = await user_service.get_user_by_email(db, email)
         if existing_by_email:
+            await ensure_client_platform_user(db, existing_by_email)
             existing_by_email.firebase_uid = firebase_uid
             existing_by_email.auth_provider = "google"
             existing_by_email.is_email_verified = True
@@ -204,3 +220,19 @@ async def get_me(
 ):
     """Return the current authenticated user's info."""
     return current_user
+
+
+@router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_account(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """
+    Permanently delete the authenticated user and cascaded data (conversations,
+    messages, notifications, etc.). The client must delete the Firebase user
+    after this call succeeds.
+    """
+    from app.core.platform_auth import ensure_client_platform_user
+
+    await ensure_client_platform_user(db, current_user)
+    await user_service.delete_user(db, current_user)

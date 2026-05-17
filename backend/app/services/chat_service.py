@@ -2,10 +2,13 @@ import asyncio
 import math
 import re
 
-from groq import AsyncGroq
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.services.llm_completion import (
+    AllProvidersRateLimitedError,
+    chat_completion,
+)
 from app.services.lawyer_chat_feedback_context import (
     build_global_lawyer_feedback_context_block,
 )
@@ -76,7 +79,10 @@ SYSTEM_INSTRUCTION = (
     "### headings for multi-topic answers, > blockquotes for statute citations. "
     "Keep paragraphs short. On substantive replies: main answer → optional lawyer mention → "
     "**conversation invitation** (rule 2) → italic disclaimer last. "
-    "End with an italicised disclaimer when appropriate."
+    "End with an italicised disclaimer when appropriate. "
+    "Put the disclaimer on its **own line**, separated from lists by a **blank line**. "
+    "Never make the disclaimer a bullet or numbered list item, and never append it "
+    "to the last list item on the same line."
 )
 
 # Keep only the most recent N messages to bound history token cost.
@@ -115,20 +121,6 @@ _TITLE_LOCALE_LINE: dict[str, str] = {
 
 def _locale_rule(locale: str) -> str:
     return _LOCALE_REPLY_RULES.get(locale, _LOCALE_REPLY_RULES["en"])
-
-# Title generation uses the fast 8B model — quality is fine for a short label.
-_CHAT_MODEL = "llama-3.3-70b-versatile"
-_TITLE_MODEL = "llama-3.1-8b-instant"
-
-_client: AsyncGroq | None = None
-
-
-def _get_client() -> AsyncGroq:
-    global _client
-    if _client is None:
-        _client = AsyncGroq(api_key=settings.GROQ_API_KEY)
-    return _client
-
 
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     """Great-circle distance in kilometres between two coordinate pairs."""
@@ -770,53 +762,71 @@ async def get_chat_response(
     """
     rag_enabled = bool(settings.SUPABASE_DB_URL and settings.EMBED_SERVICE_URL)
 
-    chunks_task = asyncio.create_task(get_relevant_chunks(message))
-    geo_task = None
+    geo_task: asyncio.Task[str | None] | None = None
     if user_lat is not None and user_lng is not None:
         geo_task = asyncio.create_task(reverse_geocode_area_label(user_lat, user_lng))
 
-    chunks = await chunks_task
-    rag_sources = _rag_sources_from_chunks(chunks)
-    rag_context = format_rag_context(chunks)
+    async def _lawyer_feedback() -> str:
+        if db is None:
+            return ""
+        return await build_global_lawyer_feedback_context_block(db)
 
-    # Supplement with real-time search from trusted Philippine legal domains.
-    tavily_results = await search_philippine_law(message, rag_chunk_count=len(chunks))
-    rag_context = rag_context + format_tavily_context(tavily_results)
-
-    area_label: str | None = None
-    if geo_task is not None:
-        area_label = await geo_task
-
-    nearby_lawyers: list[dict] = []
-    if db is not None and user_lat is not None and user_lng is not None:
-        location_context, nearby_lawyers = await _build_location_context(
+    async def _location_bundle() -> tuple[str, list[dict]]:
+        if db is None or user_lat is None or user_lng is None:
+            return "", []
+        area_label = await geo_task if geo_task is not None else None
+        return await _build_location_context(
             db,
             user_lat,
             user_lng,
             user_message=message,
             area_label=area_label,
         )
-        rag_context = rag_context + location_context
 
-    lawyer_feedback_block = ""
-    if db is not None:
-        lawyer_feedback_block = await build_global_lawyer_feedback_context_block(db)
+    chunks_task = asyncio.create_task(get_relevant_chunks(message))
+    feedback_task = asyncio.create_task(_lawyer_feedback())
+    location_task = asyncio.create_task(_location_bundle())
+
+    chunks = await chunks_task
+    rag_sources = _rag_sources_from_chunks(chunks)
+    rag_context = format_rag_context(chunks)
+
+    tavily_task = asyncio.create_task(
+        search_philippine_law(message, rag_chunk_count=len(chunks))
+    )
+
+    tavily_results, lawyer_feedback_block, (location_context, nearby_lawyers) = (
+        await asyncio.gather(tavily_task, feedback_task, location_task)
+    )
+    rag_context = (
+        rag_context
+        + format_tavily_context(tavily_results)
+        + location_context
+    )
 
     messages = _build_messages(
         message, history, rag_context, locale, lawyer_feedback_block
     )
 
-    client = _get_client()
-    response = await client.chat.completions.create(
-        model=_CHAT_MODEL,
-        messages=messages,
-        max_tokens=1024,
-        temperature=0.7,
-    )
+    preferred_groq: str | None = None
+    if settings.CHAT_USE_FAST_MODEL_FOR_SHORT:
+        if (
+            len(message) <= settings.CHAT_FAST_MODEL_MAX_CHARS
+            and len(history) <= settings.CHAT_FAST_MODEL_MAX_HISTORY
+        ):
+            preferred_groq = settings.GROQ_FAST_CHAT_MODEL
 
-    content = response.choices[0].message.content or _FALLBACK_NO_REPLY.get(
-        locale, _FALLBACK_NO_REPLY["en"]
-    )
+    try:
+        content = await chat_completion(
+            messages,
+            max_tokens=settings.CHAT_MAX_TOKENS,
+            temperature=0.7,
+            preferred_groq_model=preferred_groq,
+        )
+    except AllProvidersRateLimitedError:
+        raise
+    if not content:
+        content = _FALLBACK_NO_REPLY.get(locale, _FALLBACK_NO_REPLY["en"])
 
     suppress_cards = _suppress_lawyer_cards_for_message(message)
     had_marker = _SUGGEST_MARKER in content
@@ -833,7 +843,8 @@ async def get_chat_response(
         locale=locale,
     )
 
-    rag_sources = await align_rag_sources_with_citations(rag_sources, content)
+    if settings.CHAT_ALIGN_RAG_SOURCES:
+        rag_sources = await align_rag_sources_with_citations(rag_sources, content)
 
     return content, suggested, rag_sources, rag_enabled, tavily_results
 
@@ -960,10 +971,8 @@ async def generate_conversation_title(
     )
 
     try:
-        client = _get_client()
-        response = await client.chat.completions.create(
-            model=_TITLE_MODEL,
-            messages=[
+        raw = await chat_completion(
+            [
                 {
                     "role": "system",
                     "content": f"{_TITLE_SYSTEM}\n\n{lang_line}",
@@ -972,8 +981,8 @@ async def generate_conversation_title(
             ],
             max_tokens=64,
             temperature=0.3,
+            title=True,
         )
-        raw = (response.choices[0].message.content or "").strip()
         if not raw:
             return _fb()
 
@@ -986,5 +995,7 @@ async def generate_conversation_title(
             one_line = one_line[:197] + "..."
 
         return one_line if not _title_too_vague(one_line) else _fb()
+    except AllProvidersRateLimitedError:
+        return _fb()
     except Exception:
         return _fb()

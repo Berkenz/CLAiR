@@ -74,5 +74,13 @@ class UserService:
         await db.refresh(user)
         return user
 
+    async def delete_user(self, db: AsyncSession, user: User) -> None:
+        """
+        Remove the user row. Related rows with ON DELETE CASCADE are removed too
+        (conversations, messages, notifications, etc.).
+        """
+        await db.delete(user)
+        await db.flush()
+
 
 user_service = UserService()

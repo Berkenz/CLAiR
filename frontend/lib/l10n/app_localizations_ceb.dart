@@ -543,6 +543,34 @@ class AppLocalizationsCeb extends AppLocalizations {
       'Pagsugod og bag-ong panag-istorya aron usbon ang lain nga hilisgutan.';
 
   @override
+  String get chatGuestClearTitle => 'I-clear ang karon nga chat?';
+
+  @override
+  String get chatGuestClearBody =>
+      'Dili ma-save ang guest chat. Kung magsugod og bag-ong chat, mapapas ang imong mga mensahe niini nga session.';
+
+  @override
+  String get chatGuestClearConfirm => 'I-clear ang chat';
+
+  @override
+  String get chatGuestEphemeralBanner =>
+      'Dili ma-save ang guest chat. Mag-sign up o mag-log in aron mapadayon ang imong mga panag-istorya.';
+
+  @override
+  String get chatGuestSignInAction => 'Mag-sign up o mag-log in';
+
+  @override
+  String get chatGuestNoSavedChats =>
+      'Mag-log in aron ma-save ang panag-istorya. Ang guest chat anaa ra niini nga session.';
+
+  @override
+  String get histGuestEmptyTitle => 'Walay na-save nga panag-istorya';
+
+  @override
+  String get histGuestEmptySubtitle =>
+      'Mag-sign up o mag-log in aron ma-save ang chat ug makita dinhi.';
+
+  @override
   String get chatCopiedClipboard => 'Nakopya sa clipboard';
 
   @override

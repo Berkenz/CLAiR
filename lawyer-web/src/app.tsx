@@ -14,14 +14,7 @@ import {
   hasChangedPassword,
   hasCompletedProfile,
 } from "@/features/auth/onboarding-storage";
-
-function Spinner() {
-  return (
-    <div className="flex h-screen items-center justify-center bg-[#241715]">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#957186] border-t-transparent" />
-    </div>
-  );
-}
+import { SplashScreen } from "@/components/splash-screen";
 
 function useAuthStatus() {
   const { firebaseUser, loading } = useAuth();
@@ -30,14 +23,14 @@ function useAuthStatus() {
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { firebaseUser, isLoggedIn, loading } = useAuthStatus();
-  if (loading) return <Spinner />;
+  if (loading) return <SplashScreen />;
   if (isLoggedIn && firebaseUser) return <Navigate to={getNextStep(firebaseUser.uid)} replace />;
   return <>{children}</>;
 }
 
 function ChangePasswordRoute({ children }: { children: React.ReactNode }) {
   const { firebaseUser, isLoggedIn, loading } = useAuthStatus();
-  if (loading) return <Spinner />;
+  if (loading) return <SplashScreen />;
   if (!isLoggedIn || !firebaseUser) return <Navigate to="/login" replace />;
   if (hasChangedPassword(firebaseUser.uid)) return <Navigate to={getNextStep(firebaseUser.uid)} replace />;
   return <>{children}</>;
@@ -45,7 +38,7 @@ function ChangePasswordRoute({ children }: { children: React.ReactNode }) {
 
 function ProfileSetupRoute({ children }: { children: React.ReactNode }) {
   const { firebaseUser, isLoggedIn, loading } = useAuthStatus();
-  if (loading) return <Spinner />;
+  if (loading) return <SplashScreen />;
   if (!isLoggedIn || !firebaseUser) return <Navigate to="/login" replace />;
   if (!hasChangedPassword(firebaseUser.uid)) return <Navigate to="/change-password" replace />;
   if (hasCompletedProfile(firebaseUser.uid)) return <Navigate to="/" replace />;
@@ -54,7 +47,7 @@ function ProfileSetupRoute({ children }: { children: React.ReactNode }) {
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { firebaseUser, isLoggedIn, loading } = useAuthStatus();
-  if (loading) return <Spinner />;
+  if (loading) return <SplashScreen />;
   if (!isLoggedIn || !firebaseUser) return <Navigate to="/login" replace />;
   const next = getNextStep(firebaseUser.uid);
   if (next !== "/") return <Navigate to={next} replace />;

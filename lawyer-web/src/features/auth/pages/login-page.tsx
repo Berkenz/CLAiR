@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { api } from "@/lib/api";
 import {
@@ -10,7 +10,13 @@ import {
   markProfileComplete,
 } from "@/features/auth/onboarding-storage";
 import { useAuth, type LawyerState } from "@/features/auth/auth-provider";
-import { Scale } from "lucide-react";
+import clairIcon from "@/assets/images/CLAiR-icon.png";
+
+const darkBgFilter =
+  "brightness(0) saturate(100%) invert(78%) sepia(18%) saturate(400%) hue-rotate(295deg) brightness(105%) contrast(85%)";
+
+const lightBgFilter =
+  "brightness(0) saturate(100%) invert(25%) sepia(30%) saturate(800%) hue-rotate(295deg) brightness(80%) contrast(90%)";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -54,6 +60,7 @@ export function LoginPage() {
         navigate("/", { replace: true });
       }
     } catch (err: any) {
+      await signOut(auth).catch(() => undefined);
       if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found") {
         setError("Invalid email or password. Please try again.");
       } else if (err.code === "auth/too-many-requests") {
@@ -78,9 +85,12 @@ export function LoginPage() {
       {/* Left decorative panel */}
       <div className="hidden lg:flex w-[420px] flex-col justify-between bg-[#241715] p-12 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#703d57]">
-            <Scale className="h-5 w-5 text-white" />
-          </div>
+          <img
+            src={clairIcon}
+            alt="CLAiR"
+            className="h-9 w-9 object-contain"
+            style={{ filter: darkBgFilter }}
+          />
           <span className="text-xl font-bold text-white tracking-wide">CLAiR</span>
         </div>
 
@@ -108,9 +118,12 @@ export function LoginPage() {
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="flex items-center gap-2.5 mb-10 lg:hidden">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#703d57]">
-              <Scale className="h-4 w-4 text-white" />
-            </div>
+            <img
+              src={clairIcon}
+              alt="CLAiR"
+              className="h-8 w-8 object-contain"
+              style={{ filter: lightBgFilter }}
+            />
             <span className="text-lg font-bold text-[#241715] tracking-wide">CLAiR</span>
           </div>
 

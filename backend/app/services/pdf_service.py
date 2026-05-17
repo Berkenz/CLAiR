@@ -9,9 +9,8 @@ from fpdf import FPDF
 
 from app.models.conversation import Conversation, Message
 from app.models.user import User
-from app.services.chat_service import _get_client
+from app.services.llm_completion import chat_completion
 
-_SUMMARY_MODEL = "llama-3.1-8b-instant"
 _SUMMARY_MAX_CHARS = 12000
 
 _ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
@@ -107,17 +106,15 @@ async def _generate_short_summary(messages: list[Message]) -> str:
     )
 
     try:
-        client = _get_client()
-        response = await client.chat.completions.create(
-            model=_SUMMARY_MODEL,
-            messages=[
+        text = await chat_completion(
+            [
                 {"role": "system", "content": _SHORT_SUMMARY_SYSTEM},
                 {"role": "user", "content": prompt},
             ],
             max_tokens=220,
             temperature=0.35,
+            title=True,
         )
-        text = (response.choices[0].message.content or "").strip()
         if text:
             return text
     except Exception:
@@ -147,17 +144,15 @@ async def _generate_summary(messages: list[Message]) -> ConsultationSummary:
     )
 
     try:
-        client = _get_client()
-        response = await client.chat.completions.create(
-            model=_SUMMARY_MODEL,
-            messages=[
+        text = await chat_completion(
+            [
                 {"role": "system", "content": _LAWYER_SUMMARY_SYSTEM},
                 {"role": "user", "content": prompt},
             ],
             max_tokens=900,
             temperature=0.0,
+            title=True,
         )
-        text = (response.choices[0].message.content or "").strip()
         if text:
             return ConsultationSummary(body=text)
     except Exception:

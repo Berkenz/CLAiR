@@ -7,6 +7,7 @@ import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
+import 'package:clair/features/chat/utils/guest_chat_reset.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
 import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
 import 'package:clair/l10n/app_localizations.dart';
@@ -25,10 +26,10 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
     final l10n = AppLocalizations.of(context)!;
     final historyState = ref.watch(historyProvider);
     
-    // Load conversations if not already loaded
-    if (historyState.conversations.isEmpty && !historyState.isLoading) {
+    // Load recent chats once; avoid re-fetch (sets isLoading) on every drawer open.
+    if (!historyState.hasLoaded && !historyState.isLoading) {
       Future.microtask(() {
-        ref.read(historyProvider.notifier).loadConversations();
+        ref.read(historyProvider.notifier).loadConversations(silent: true);
       });
     }
 
@@ -37,7 +38,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
 
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.76,
-      backgroundColor: Colors.transparent,
+      backgroundColor: cl.surface,
       elevation: 0,
       child: Container(
         decoration: BoxDecoration(
@@ -103,9 +104,12 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 Navigator.pop(context);
                 ref.read(mainShellTabProvider.notifier).state = 0;
               }),
-              _item(context, Icons.chat_bubble_outline, l10n.drawerNewChat, false, () {
+              _item(context, Icons.chat_bubble_outline, l10n.drawerNewChat, false, () async {
                 Navigator.pop(context);
-                ref.read(chatProvider.notifier).reset();
+                if (!await resetChatWithGuestGuard(context: context, ref: ref) ||
+                    !context.mounted) {
+                  return;
+                }
                 ref.read(mainShellTabProvider.notifier).state = 1;
               }),
               _item(context, Icons.library_books_rounded, l10n.drawerChatLibrary, false, () {

@@ -14,6 +14,26 @@ class Settings(BaseSettings):
     FIREBASE_WEB_API_KEY: str | None = None
     GEMINI_API_KEY: str | None = None
     GROQ_API_KEY: str | None = None
+    OPENROUTER_API_KEY: str | None = None
+    # Primary chat model (Groq).
+    GROQ_CHAT_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_TITLE_MODEL: str = "llama-3.1-8b-instant"
+    # Fallback 1 — Google AI Studio (Gemini 3.1 Flash-Lite).
+    GEMINI_CHAT_MODEL: str = "gemini-3.1-flash-lite"
+    GEMINI_TITLE_MODEL: str = "gemini-3.1-flash-lite"
+    # Fallback 2 — OpenRouter (openrouter/free routes to an available free model).
+    OPENROUTER_CHAT_MODEL: str = "openrouter/free"
+    OPENROUTER_TITLE_MODEL: str = "openrouter/free"
+    OPENROUTER_HTTP_REFERER: str = "https://clair.local"
+    # Chat latency tuning (see chat_service / tavily_service).
+    CHAT_MAX_TOKENS: int = 768
+    CHAT_USE_FAST_MODEL_FOR_SHORT: bool = True
+    GROQ_FAST_CHAT_MODEL: str = "llama-3.1-8b-instant"
+    CHAT_FAST_MODEL_MAX_CHARS: int = 200
+    CHAT_FAST_MODEL_MAX_HISTORY: int = 4
+    TAVILY_TIMEOUT_SECONDS: float = 2.5
+    LAWYER_DIRECTORY_CACHE_TTL_SECONDS: int = 300
+    CHAT_ALIGN_RAG_SOURCES: bool = True
     SUPABASE_URL: str | None = None
     SUPABASE_SERVICE_ROLE_KEY: str | None = None
     SUPABASE_DB_URL: str | None = None

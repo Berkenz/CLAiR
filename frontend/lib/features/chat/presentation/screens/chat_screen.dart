@@ -14,7 +14,9 @@ import 'package:clair/core/locale/app_locale_provider.dart';
 import 'package:clair/core/services/location_service.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/core/utils/error_helpers.dart';
+import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
+import 'package:clair/features/chat/utils/guest_chat_reset.dart';
 import 'package:clair/features/chat/domain/entities/rag_source_entity.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/chat/utils/chat_markdown_format.dart';
@@ -44,6 +46,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   final _lastMsgKey = GlobalKey();
   bool _didInitialEntryJump = false;
   bool _showScrollToBottom = false;
+  bool _guestEphemeralBannerDismissed = false;
 
   static const _kScrollThreshold = 120.0;
 
@@ -55,9 +58,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _ensureBottomOnEntry();
       _refreshLawyerReportFlagsIfNeeded();
-      // Silently fetch location in the background so it's ready for the first message.
-      // Does not block the UI; errors are ignored here.
-      ref.read(locationProvider.notifier).fetchLocation().ignore();
+      ref.read(locationProvider.notifier).prefetchIfNeeded();
     });
   }
 
@@ -114,8 +115,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _scrollToLastMessage();
   }
 
-  void _newChat() {
-    ref.read(chatProvider.notifier).reset();
+  Future<void> _newChat() async {
+    await resetChatWithGuestGuard(context: context, ref: ref);
   }
 
   void _showConversationSwitcher() {
@@ -129,6 +130,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         builder: (context, ref, _) {
           final state = ref.watch(historyProvider);
           final currentId = ref.watch(chatProvider).conversationId;
+          final isGuest = ref.watch(currentUserProvider)?.isAnonymous == true;
           final cl = context.c;
           final l10n = AppLocalizations.of(context)!;
 
@@ -209,7 +211,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   Padding(
                     padding: const EdgeInsets.all(32),
                     child: Text(
-                      l10n.chatNoConversationsYet,
+                      isGuest
+                          ? l10n.chatGuestNoSavedChats
+                          : l10n.chatNoConversationsYet,
+                      textAlign: TextAlign.center,
                       style: GoogleFonts.nunito(
                           fontSize: 14, color: cl.textLight),
                     ),
@@ -288,30 +293,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   void _showActionsMenu() {
     final chatState = ref.read(chatProvider);
+    final isGuest = ref.read(currentUserProvider)?.isAnonymous == true;
     final cl = context.c;
     final l10n = AppLocalizations.of(context)!;
     final overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox;
     final padding = MediaQuery.of(context).padding;
 
-    final menuItems = <PopupMenuEntry<String>>[
-      _popupItem(
-        cl,
-        chatState.conversationIsPinned
-            ? Icons.bookmark_rounded
-            : Icons.bookmark_outline_rounded,
-        chatState.conversationIsPinned
-            ? l10n.chatMenuUnsaveChat
-            : l10n.chatMenuSaveChat,
-        'save',
-      ),
-      _popupItem(
-          cl, Icons.download_rounded, l10n.chatMenuDownloadPdf, 'download'),
+    final menuItems = <PopupMenuEntry<String>>[];
+    if (!isGuest) {
+      menuItems.addAll([
+        _popupItem(
+          cl,
+          chatState.conversationIsPinned
+              ? Icons.bookmark_rounded
+              : Icons.bookmark_outline_rounded,
+          chatState.conversationIsPinned
+              ? l10n.chatMenuUnsaveChat
+              : l10n.chatMenuSaveChat,
+          'save',
+        ),
+        _popupItem(
+            cl, Icons.download_rounded, l10n.chatMenuDownloadPdf, 'download'),
+        _popupItem(
+            cl, Icons.balance_rounded, l10n.chatMenuShareToLawyer, 'lawyer'),
+      ]);
+    }
+    menuItems.add(
       _popupItem(cl, Icons.flag_outlined, l10n.chatMenuReport, 'report'),
-      _popupItem(
-          cl, Icons.balance_rounded, l10n.chatMenuShareToLawyer, 'lawyer'),
-    ];
-    if (chatState.conversationId != null) {
+    );
+    if (!isGuest && chatState.conversationId != null) {
       menuItems.add(
         _popupItemDestructive(
           cl,
@@ -573,6 +584,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   @override
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatProvider);
+    final isGuest = ref.watch(currentUserProvider)?.isAnonymous == true;
+    final hasUserMessages = chatState.messages.any((m) => m.isUser);
     final cl = context.c;
     final l10n = AppLocalizations.of(context)!;
 
@@ -592,6 +605,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     });
 
     ref.listen<ChatState>(chatProvider, (prev, next) {
+      final hadUserMessages =
+          prev?.messages.any((m) => m.isUser) ?? false;
+      final hasUserMessagesNow = next.messages.any((m) => m.isUser);
+      if (hadUserMessages && !hasUserMessagesNow) {
+        _guestEphemeralBannerDismissed = false;
+      }
+
       if (next.messages.length != (prev?.messages.length ?? 0)) {
         _scrollToLastMessage();
       }
@@ -702,6 +722,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ),
             ),
             if (chatState.showTermsDisclaimer) _buildTermsDisclaimer(),
+            if (isGuest &&
+                hasUserMessages &&
+                !_guestEphemeralBannerDismissed)
+              _buildGuestEphemeralBanner(),
             if (chatState.isLoadedConversation) _buildDisclaimer(),
             _buildInputBar(chatState.isLoading),
           ],
@@ -1210,6 +1234,78 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildGuestEphemeralBanner() {
+    final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
+    return Material(
+      color: cl.accent.withValues(alpha: 0.08),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(16, 10, 4, 10),
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color: cl.accent.withValues(alpha: 0.2),
+              width: 1,
+            ),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Icon(Icons.lock_outline_rounded,
+                  size: 16, color: cl.accent),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.chatGuestEphemeralBanner,
+                    style: GoogleFonts.nunito(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: cl.textMid,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  GestureDetector(
+                    onTap: () => context.push('/login'),
+                    child: Text(
+                      l10n.chatGuestSignInAction,
+                      style: GoogleFonts.nunito(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: cl.accent,
+                        decoration: TextDecoration.underline,
+                        decorationColor: cl.accent.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: () =>
+                  setState(() => _guestEphemeralBannerDismissed = true),
+              icon: Icon(Icons.close_rounded, size: 18, color: cl.textLight),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(
+                minWidth: 36,
+                minHeight: 36,
+              ),
+              tooltip: l10n.chatDisclaimerDismiss,
+            ),
+          ],
+        ),
       ),
     );
   }

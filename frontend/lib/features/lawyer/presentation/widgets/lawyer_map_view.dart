@@ -45,6 +45,7 @@ class _LawyerMapViewState extends ConsumerState<LawyerMapView> {
   LawyerEntity? _selected;
   final _mapCtrl = MapController();
   bool _autoCenteredOnUser = false;
+  late final StateController<bool> _mapSheetOpenCtrl;
 
   List<LawyerEntity> get _pinned => widget.lawyers
       .where((l) => l.latitude != null && l.longitude != null)
@@ -86,7 +87,7 @@ class _LawyerMapViewState extends ConsumerState<LawyerMapView> {
   void _updateSelection(LawyerEntity? lawyer) {
     if (_selected?.id == lawyer?.id) return;
     setState(() => _selected = lawyer);
-    ref.read(lawyerMapSheetOpenProvider.notifier).state = lawyer != null;
+    _mapSheetOpenCtrl.state = lawyer != null;
   }
 
   void _selectLawyer(LawyerEntity lawyer) {
@@ -111,7 +112,7 @@ class _LawyerMapViewState extends ConsumerState<LawyerMapView> {
 
   @override
   void dispose() {
-    ref.read(lawyerMapSheetOpenProvider.notifier).state = false;
+    _mapSheetOpenCtrl.state = false;
     super.dispose();
   }
 

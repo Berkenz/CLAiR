@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -6,6 +7,25 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.config import settings
+
+
+def _configure_logging() -> None:
+    """App loggers default to WARNING; enable INFO in dev so LLM/Tavily lines appear."""
+    if settings.DEBUG:
+        level = logging.DEBUG
+    elif settings.ENVIRONMENT == "development":
+        level = logging.INFO
+    else:
+        level = logging.WARNING
+
+    logging.basicConfig(
+        level=level,
+        format="%(levelname)s %(name)s: %(message)s",
+        force=True,
+    )
+
+
+_configure_logging()
 
 
 @asynccontextmanager

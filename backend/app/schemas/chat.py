@@ -57,10 +57,10 @@ class TavilySourceItem(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
-    conversation_id: uuid.UUID
-    conversation_title: str
-    user_message_id: uuid.UUID
-    assistant_message_id: uuid.UUID
+    conversation_id: uuid.UUID | None = None
+    conversation_title: str = ""
+    user_message_id: uuid.UUID | None = None
+    assistant_message_id: uuid.UUID | None = None
     suggested_lawyers: list[SuggestedLawyer] = Field(default_factory=list)
     # RAG transparency: same retrieval as injected into the LLM prompt.
     rag_enabled: bool = False

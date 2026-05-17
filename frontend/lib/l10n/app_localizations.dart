@@ -1066,6 +1066,54 @@ abstract class AppLocalizations {
   /// **'Start a new conversation to explore a different topic.'**
   String get chatEmptyExploreTopic;
 
+  /// No description provided for @chatGuestClearTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear current chat?'**
+  String get chatGuestClearTitle;
+
+  /// No description provided for @chatGuestClearBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Guest chats aren\'t saved. Starting a new chat will clear your messages from this session.'**
+  String get chatGuestClearBody;
+
+  /// No description provided for @chatGuestClearConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear chat'**
+  String get chatGuestClearConfirm;
+
+  /// No description provided for @chatGuestEphemeralBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Guest chats aren\'t saved. Sign up or log in to keep your conversations.'**
+  String get chatGuestEphemeralBanner;
+
+  /// No description provided for @chatGuestSignInAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign up or log in'**
+  String get chatGuestSignInAction;
+
+  /// No description provided for @chatGuestNoSavedChats.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to save conversations. Guest chats stay in this session only.'**
+  String get chatGuestNoSavedChats;
+
+  /// No description provided for @histGuestEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No saved conversations'**
+  String get histGuestEmptyTitle;
+
+  /// No description provided for @histGuestEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign up or log in to save chats and view them here.'**
+  String get histGuestEmptySubtitle;
+
   /// No description provided for @chatCopiedClipboard.
   ///
   /// In en, this message translates to:

@@ -19,25 +19,29 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
   final HistoryRepository _repository;
   int _searchGeneration = 0;
 
-  Future<void> loadConversations() async {
+  Future<void> loadConversations({bool silent = false}) async {
     if (state.isLoading) return;
-    state = state.copyWith(
-      isLoading: true,
-      error: null,
-      clearSearchResults: true,
-      clearActiveSearchQuery: true,
-      isSearchLoading: false,
-    );
+    if (!silent) {
+      state = state.copyWith(
+        isLoading: true,
+        error: null,
+        clearSearchResults: true,
+        clearActiveSearchQuery: true,
+        isSearchLoading: false,
+      );
+    }
 
     try {
       final conversations = await _repository.getConversations();
       state = state.copyWith(
         conversations: conversations,
         isLoading: false,
+        hasLoaded: true,
       );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
+        hasLoaded: true,
         error: friendlyErrorMessage(e),
       );
     }
@@ -147,6 +151,7 @@ class HistoryState {
   final String? activeSearchQuery;
   final bool isSearchLoading;
   final bool isLoading;
+  final bool hasLoaded;
   final String? error;
 
   const HistoryState({
@@ -155,6 +160,7 @@ class HistoryState {
     this.activeSearchQuery,
     this.isSearchLoading = false,
     this.isLoading = false,
+    this.hasLoaded = false,
     this.error,
   });
 
@@ -164,6 +170,7 @@ class HistoryState {
     String? activeSearchQuery,
     bool? isSearchLoading,
     bool? isLoading,
+    bool? hasLoaded,
     String? error,
     bool clearSearchResults = false,
     bool clearActiveSearchQuery = false,
@@ -177,6 +184,7 @@ class HistoryState {
             : (activeSearchQuery ?? this.activeSearchQuery),
         isSearchLoading: isSearchLoading ?? this.isSearchLoading,
         isLoading: isLoading ?? this.isLoading,
+        hasLoaded: hasLoaded ?? this.hasLoaded,
         error: error,
       );
 }

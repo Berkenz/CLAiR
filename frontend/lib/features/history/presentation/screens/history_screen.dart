@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/core/utils/error_helpers.dart';
+import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/chat/utils/chat_markdown_format.dart';
 import 'package:clair/features/history/domain/entities/conversation_entity.dart';
@@ -488,6 +489,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   Widget _buildEmptyState(AppLocalizations l10n) {
     final cl = context.c;
+    final isGuest = ref.watch(currentUserProvider)?.isAnonymous == true;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -499,7 +501,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            l10n.histEmptyTitle,
+            isGuest ? l10n.histGuestEmptyTitle : l10n.histEmptyTitle,
             style: TextStyle(
               fontSize: 16,
               color: cl.darkBrown.withOpacity(0.4),
@@ -509,7 +511,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            l10n.histEmptySubtitle,
+            isGuest ? l10n.histGuestEmptySubtitle : l10n.histEmptySubtitle,
             style: TextStyle(
               fontSize: 13,
               color: cl.darkBrown.withOpacity(0.3),

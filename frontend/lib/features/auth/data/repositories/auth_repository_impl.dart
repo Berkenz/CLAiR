@@ -98,6 +98,9 @@ class AuthRepositoryImpl implements AuthRepository {
       _remote.deleteAccount(password: password);
 
   @override
+  Future<void> exitGuestSession() => _remote.exitGuestSession();
+
+  @override
   Future<void> signOut() => _remote.signOut();
 
   @override

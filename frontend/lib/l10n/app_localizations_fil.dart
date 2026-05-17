@@ -543,6 +543,34 @@ class AppLocalizationsFil extends AppLocalizations {
       'Magsimula ng bagong usapan para tumuklas ng ibang paksa.';
 
   @override
+  String get chatGuestClearTitle => 'I-clear ang kasalukuyang chat?';
+
+  @override
+  String get chatGuestClearBody =>
+      'Hindi nase-save ang guest chat. Kapag nagsimula ng bagong chat, mabubura ang mga mensahe sa session na ito.';
+
+  @override
+  String get chatGuestClearConfirm => 'I-clear ang chat';
+
+  @override
+  String get chatGuestEphemeralBanner =>
+      'Hindi nase-save ang guest chat. Mag-sign up o mag-log in para mapanatili ang iyong mga usapan.';
+
+  @override
+  String get chatGuestSignInAction => 'Mag-sign up o mag-log in';
+
+  @override
+  String get chatGuestNoSavedChats =>
+      'Mag-log in para mag-save ng usapan. Mananatili lang sa session na ito ang guest chat.';
+
+  @override
+  String get histGuestEmptyTitle => 'Walang naka-save na usapan';
+
+  @override
+  String get histGuestEmptySubtitle =>
+      'Mag-sign up o mag-log in para mag-save ng chat at makita ang mga ito dito.';
+
+  @override
   String get chatCopiedClipboard => 'Nakopya sa clipboard';
 
   @override

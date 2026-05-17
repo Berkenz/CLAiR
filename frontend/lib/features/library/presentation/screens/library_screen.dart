@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/core/utils/error_helpers.dart';
+import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/history/domain/entities/conversation_entity.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
@@ -525,6 +526,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   Widget _buildHistoryEmpty(AppLocalizations l10n) {
     final cl = context.c;
+    final isGuest = ref.watch(currentUserProvider)?.isAnonymous == true;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -539,7 +541,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            l10n.histEmptyTitle,
+            isGuest ? l10n.histGuestEmptyTitle : l10n.histEmptyTitle,
             style: GoogleFonts.nunito(
               fontSize: 18,
               fontWeight: FontWeight.w700,
@@ -548,7 +550,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            l10n.histEmptySubtitle,
+            isGuest ? l10n.histGuestEmptySubtitle : l10n.histEmptySubtitle,
             textAlign: TextAlign.center,
             style: GoogleFonts.nunito(fontSize: 13, color: cl.textMid),
           ),

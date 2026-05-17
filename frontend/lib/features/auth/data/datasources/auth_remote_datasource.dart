@@ -104,16 +104,21 @@ class AuthRemoteDataSource {
       throw AuthException('Failed to get ID token');
     }
 
-    final response = await _dio.post<Map<String, dynamic>>(
-      ApiEndpoints.login,
-      data: {'firebase_token': idToken},
-    );
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.login,
+        data: {'firebase_token': idToken},
+      );
 
-    if (response.data == null) {
-      throw AuthException('Invalid response from server');
+      if (response.data == null) {
+        throw AuthException('Invalid response from server');
+      }
+
+      return UserEntity.fromJson(response.data!);
+    } on DioException {
+      await _firebaseAuth.signOut();
+      rethrow;
     }
-
-    return UserEntity.fromJson(response.data!);
   }
 
   /// Google sign-in. Returns the user if already registered, or null
@@ -142,25 +147,31 @@ class AuthRemoteDataSource {
       throw AuthException('Failed to get ID token');
     }
 
-    final response = await _dio.post<Map<String, dynamic>>(
-      ApiEndpoints.googleAuth,
-      data: {'firebase_token': idToken},
-    );
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.googleAuth,
+        data: {'firebase_token': idToken},
+      );
 
-    if (response.data == null) {
-      throw AuthException('Invalid response from server');
+      if (response.data == null) {
+        throw AuthException('Invalid response from server');
+      }
+
+      final isNewUser = response.data!['is_new_user'] as bool? ?? false;
+      if (isNewUser) {
+        return GoogleAuthResult(user: null, isNewUser: true);
+      }
+
+      final userData = response.data!['user'] as Map<String, dynamic>;
+      return GoogleAuthResult(
+        user: UserEntity.fromJson(userData),
+        isNewUser: false,
+      );
+    } on DioException {
+      await _firebaseAuth.signOut();
+      await _googleSignIn.signOut();
+      rethrow;
     }
-
-    final isNewUser = response.data!['is_new_user'] as bool? ?? false;
-    if (isNewUser) {
-      return GoogleAuthResult(user: null, isNewUser: true);
-    }
-
-    final userData = response.data!['user'] as Map<String, dynamic>;
-    return GoogleAuthResult(
-      user: UserEntity.fromJson(userData),
-      isNewUser: false,
-    );
   }
 
   /// Complete Google sign-in registration by providing first/last name.
@@ -376,17 +387,37 @@ class AuthRemoteDataSource {
       }
     }
 
-    try {
-      await _dio.delete<void>(ApiEndpoints.deleteAccount);
-    } catch (_) {
-      // Best-effort backend cleanup — still proceed with Firebase deletion.
-    }
-
+    await _deleteBackendAccount();
     await firebaseUser.delete();
 
     try {
       await _googleSignIn.signOut();
     } catch (_) {}
+  }
+
+  /// Ends a guest session: removes DB user (and cascaded chats), Firebase user, then signs out.
+  Future<void> exitGuestSession() async {
+    final firebaseUser = _firebaseAuth.currentUser;
+    if (firebaseUser == null) {
+      await signOut();
+      return;
+    }
+
+    await _deleteBackendAccount();
+    try {
+      await firebaseUser.delete();
+    } on FirebaseAuthException {
+      // Already removed or invalid — still sign out locally.
+    }
+    await signOut();
+  }
+
+  Future<void> _deleteBackendAccount() async {
+    try {
+      await _dio.delete<void>(ApiEndpoints.deleteAccount);
+    } catch (_) {
+      // Best-effort — still attempt Firebase deletion / sign-out.
+    }
   }
 
   Future<void> signOut() async {

@@ -29,12 +29,23 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 
+def _require_registered_user(current_user: User) -> None:
+    if current_user.is_anonymous:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sign in or create an account to save and view conversations.",
+        )
+
+
 @router.get("", response_model=ConversationListResponse)
 async def list_conversations(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
     q: Annotated[str | None, Query(min_length=1, max_length=200)] = None,
 ):
+    if current_user.is_anonymous:
+        return ConversationListResponse(conversations=[])
+
     if q and q.strip():
         conversations = await conversation_service.search_conversations(
             db, current_user.id, q.strip()
@@ -56,6 +67,7 @@ async def get_conversation(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    _require_registered_user(current_user)
     conv = await conversation_service.get_conversation(
         db, conversation_id, current_user.id
     )
@@ -96,6 +108,7 @@ async def update_conversation(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    _require_registered_user(current_user)
     conv = await conversation_service.update_conversation(
         db,
         conversation_id,
@@ -208,6 +221,7 @@ async def delete_conversation(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    _require_registered_user(current_user)
     deleted = await conversation_service.delete_conversation(
         db, conversation_id, current_user.id
     )

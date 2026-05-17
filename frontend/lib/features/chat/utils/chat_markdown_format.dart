@@ -125,6 +125,63 @@ String _fixLeadingCategoryLine(String text) {
   return lines.join('\n');
 }
 
+final _listLinePrefix = RegExp(r'^\s*(\d+\.|[-*•])\s+');
+
+bool _looksLikeLegalDisclaimer(String text) {
+  final plain =
+      text.replaceAll(RegExp(r'^[\*_]+|[\*_]+$'), '').trim().toLowerCase();
+  if (plain.isEmpty) return false;
+  return RegExp(
+    r'(please note|not legal advice|information only|for information only|'
+    r'consult a licensed attorney|licensed attorney for personalized|'
+    r"i'm here to provide|my responses are)",
+    caseSensitive: false,
+  ).hasMatch(plain);
+}
+
+String _stripListMarker(String line) =>
+    line.replaceFirst(_listLinePrefix, '').trim();
+
+/// Disclaimers must not be list items — pull them out as separate paragraphs.
+String _separateDisclaimersFromListLines(String text) {
+  final disclaimerTail = RegExp(
+    r'\s+(\*(?:Please note|Note:|Disclaimer|My responses are|I[\u2019\x27]m here to provide)'
+    r'[\s\S]*?\*)',
+    caseSensitive: false,
+  );
+
+  final lines = text.split('\n');
+  final out = <String>[];
+  for (final line in lines) {
+    if (!_listLinePrefix.hasMatch(line)) {
+      out.add(line);
+      continue;
+    }
+
+    final itemBody = _stripListMarker(line);
+
+    // Entire bullet/number is only the disclaimer → plain paragraph.
+    if (_looksLikeLegalDisclaimer(itemBody)) {
+      if (out.isNotEmpty && out.last.trim().isNotEmpty) out.add('');
+      out.add(itemBody);
+      continue;
+    }
+
+    // Disclaimer glued to the end of a real list item.
+    final match = disclaimerTail.firstMatch(line);
+    if (match == null) {
+      out.add(line);
+      continue;
+    }
+    final body = line.substring(0, match.start).trimRight();
+    final disclaimer = match.group(1)!.trim();
+    out.add(body);
+    out.add('');
+    out.add(disclaimer);
+  }
+  return out.join('\n');
+}
+
 /// Unwrap mistaken “entire message is bold” wrappers; keep inline **phrase** bold.
 String normalizeChatMarkdown(String raw) {
   var text = raw.trim();
@@ -132,6 +189,7 @@ String normalizeChatMarkdown(String raw) {
 
   text = _fixEmphasisArtifacts(text);
   text = _fixLeadingCategoryLine(text);
+  text = _separateDisclaimersFromListLines(text);
 
   if (_isSingleOuterBoldWrapper(text)) {
     text = text.substring(2, text.length - 2).trim();
