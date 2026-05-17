@@ -130,7 +130,7 @@ Every law/decision is saved as a single `.json` file with this structure:
 2. **Each JSON file = one law/decision** — use `full_text` as the document body
 3. **Chunk the `full_text`** before embedding (recommended: 500–1000 tokens per chunk with overlap)
 4. **Store metadata** (`number`, `title`, `date_enacted`, `category`, `source_url`) alongside each chunk
-5. **Use metadata for filtering** — e.g., "only search Republic Acts" or "only after 2010"
+5. **Retrieval** (`backend/app/services/vector_service.py`) fetches the top vector matches, then **re-ranks** them with ~22% weight on `date_enacted` so newer laws win close ties. Fill in `date_enacted` when scraping — chunks without a date stay neutral, not excluded.
 
 ### Recommended Chunking Strategy
 

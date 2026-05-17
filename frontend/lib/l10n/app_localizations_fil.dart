@@ -487,6 +487,9 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatSourceLabel => 'Pinagmulan';
 
   @override
+  String get chatOpenSource => 'Buksan ang pinagmulan';
+
+  @override
   String get chatEmptyExploreTopic =>
       'Magsimula ng bagong usapan para tumuklas ng ibang paksa.';
 

@@ -202,6 +202,7 @@
   "chatLawyerReportedBanner": "A lawyer flagged this response for review after you shared this conversation. Treat it as general information only—not legal advice.",
   "chatRetrievedForAnswer": "Retrieved for this answer",
   "chatSourceLabel": "Source",
+  "chatOpenSource": "Open source",
   "chatEmptyExploreTopic": "Start a new conversation to explore a different topic.",
   "chatCopiedClipboard": "Copied to clipboard",
   "chatEditMessageTitle": "Edit Message",

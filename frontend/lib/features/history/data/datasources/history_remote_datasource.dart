@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 
 import 'package:clair/core/network/api_endpoints.dart';
+import 'package:clair/features/chat/data/mappers/chat_message_mapper.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/history/domain/entities/conversation_entity.dart';
 
@@ -44,15 +45,9 @@ class HistoryRemoteDataSource {
       if (data == null || data['messages'] == null) return [];
 
       final list = data['messages'] as List;
-      return list.map((m) {
-        final map = m as Map<String, dynamic>;
-        return ChatMessageEntity(
-          id: map['id']?.toString(),
-          text: map['text'] as String,
-          isUser: map['role'] == 'user',
-          lawyerReported: map['lawyer_reported'] == true,
-        );
-      }).toList();
+      return list
+          .map((m) => chatMessageFromApiMap(m as Map<String, dynamic>))
+          .toList();
     } on DioException catch (e) {
       throw HistoryException(_extractError(e));
     }

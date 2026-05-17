@@ -28,8 +28,14 @@ class ConversationService:
         conversation_id: uuid.UUID,
         role: str,
         text: str,
+        metadata: dict | None = None,
     ) -> Message:
-        message = Message(conversation_id=conversation_id, role=role, text=text)
+        message = Message(
+            conversation_id=conversation_id,
+            role=role,
+            text=text,
+            metadata_=metadata,
+        )
         db.add(message)
         await db.flush()
         return message

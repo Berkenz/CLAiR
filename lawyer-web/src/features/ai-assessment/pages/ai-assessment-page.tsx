@@ -59,6 +59,24 @@ interface LawyerConversationDetailMessage {
   role: string;
   text: string;
   created_at: string;
+  rag_sources?: RagSource[];
+  rag_enabled?: boolean | null;
+}
+
+function mapStoredMessageToChatMessage(m: LawyerConversationDetailMessage): ChatMessage {
+  const isAssistant = m.role === "model";
+  return {
+    id: m.id,
+    role: isAssistant ? "assistant" : "user",
+    content: m.text,
+    timestamp: new Date(m.created_at),
+    ...(isAssistant
+      ? {
+          ragEnabled: m.rag_enabled ?? undefined,
+          ragSources: m.rag_sources ?? [],
+        }
+      : {}),
+  };
 }
 
 interface SharedBookingSummary {
@@ -280,12 +298,7 @@ function ChatTab() {
       const sorted = [...data.messages].sort(
         (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
       );
-      const mapped: ChatMessage[] = sorted.map((m) => ({
-        id: m.id,
-        role: m.role === "model" ? "assistant" : "user",
-        content: m.text,
-        timestamp: new Date(m.created_at),
-      }));
+      const mapped: ChatMessage[] = sorted.map(mapStoredMessageToChatMessage);
       setConversationId(data.id);
       setConversationTitle(data.title);
       setMessages(mapped);

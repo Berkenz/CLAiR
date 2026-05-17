@@ -14,38 +14,62 @@ bool _isSingleOuterBoldWrapper(String block) {
 String _fixEmphasisArtifacts(String text) {
   var t = text;
 
-  // ***phrase** / ****phrase*** — model often emits an extra leading *.
-  t = t.replaceAllMapped(
-    RegExp(r'\*{3,}([^*\n]{1,120}?)\*{2,}'),
-    (m) => '**${m[1]!.trim()}**',
-  );
+  // Model sometimes escapes emphasis (e.g. **\*\*Reinstatement**).
+  t = t.replaceAll(r'\*\*', '');
 
-  // **phrase*** — extra trailing asterisks.
-  t = t.replaceAllMapped(
-    RegExp(r'\*{2}([^*\n]{1,120}?)\*{3,}'),
-    (m) => '**${m[1]!.trim()}**',
-  );
+  for (var pass = 0; pass < 8; pass++) {
+    final before = t;
 
-  // *Title** or *Title*** → **Title** (single open, multiple close).
-  t = t.replaceAllMapped(
-    RegExp(r'(?<!\*)\*([^*\n]{1,120}?)\*\*+'),
-    (m) => '**${m[1]!.trim()}**',
-  );
+    // ****phrase** / ****phrase**** — extra open/close asterisks (common after ":").
+    t = t.replaceAllMapped(
+      RegExp(r'\*{4,}([^*\n]{1,120}?)\*{2,4}'),
+      (m) => '**${m[1]!.trim()}**',
+    );
 
-  // **phrase* — single close after bold open.
-  t = t.replaceAllMapped(
-    RegExp(r'\*{2}([^*\n]{1,120}?)\*(?!\*)'),
-    (m) => '**${m[1]!.trim()}**',
-  );
+    // Duplicate opener before a valid bold span: ****word** → **word**.
+    t = t.replaceAll(RegExp(r'\*\*(?=\*\*[^*\n]{1,120}?\*\*)'), '');
 
-  // *title* *  → **title**
-  t = t.replaceAllMapped(
-    RegExp(r'(?<!\*)\*([^*\n]{1,120}?)\*\s+\*(?=\s|$)'),
-    (m) => '**${m[1]!.trim()}**',
-  );
+    // ** **phrase** — spaced duplicate openers.
+    t = t.replaceAllMapped(
+      RegExp(r'\*\*\s+\*\*([^*\n]{1,120}?)\*\*'),
+      (m) => '**${m[1]!.trim()}**',
+    );
 
-  // Lone * immediately before **bold** (e.g. "* **R.A. No.**").
-  t = t.replaceAll(RegExp(r'(?<!\*)\*(?=\s*\*\*[^*]+\*\*)'), '');
+    // ***phrase** / ****phrase*** — model often emits an extra leading *.
+    t = t.replaceAllMapped(
+      RegExp(r'\*{3,}([^*\n]{1,120}?)\*{2,}'),
+      (m) => '**${m[1]!.trim()}**',
+    );
+
+    // **phrase*** — extra trailing asterisks.
+    t = t.replaceAllMapped(
+      RegExp(r'\*{2}([^*\n]{1,120}?)\*{3,}'),
+      (m) => '**${m[1]!.trim()}**',
+    );
+
+    // *Title** or *Title*** → **Title** (single open, multiple close).
+    t = t.replaceAllMapped(
+      RegExp(r'(?<!\*)\*([^*\n]{1,120}?)\*\*+'),
+      (m) => '**${m[1]!.trim()}**',
+    );
+
+    // **phrase* — single close after bold open.
+    t = t.replaceAllMapped(
+      RegExp(r'\*{2}([^*\n]{1,120}?)\*(?!\*)'),
+      (m) => '**${m[1]!.trim()}**',
+    );
+
+    // *title* *  → **title**
+    t = t.replaceAllMapped(
+      RegExp(r'(?<!\*)\*([^*\n]{1,120}?)\*\s+\*(?=\s|$)'),
+      (m) => '**${m[1]!.trim()}**',
+    );
+
+    // Lone * immediately before **bold** (e.g. "* **R.A. No.**").
+    t = t.replaceAll(RegExp(r'(?<!\*)\*(?=\s*\*\*[^*]+\*\*)'), '');
+
+    if (t == before) break;
+  }
 
   return t;
 }

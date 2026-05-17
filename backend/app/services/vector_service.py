@@ -13,6 +13,8 @@ chatbot continues to work without RAG context.
 from __future__ import annotations
 
 import logging
+import re
+from datetime import date, datetime
 
 import asyncpg
 import httpx
@@ -30,9 +32,29 @@ _TOP_K = 3
 # Only inject chunks that are clearly relevant (≥0.60 similarity).
 _MIN_SIMILARITY = 0.60
 
+# Pull extra vector hits, then re-rank with enactment date so newer laws can win
+# close ties without overriding strong semantic matches.
+_CANDIDATE_LIMIT = 20
+
+# Share of the ranking score from recency (0–1). Similarity still dominates.
+_RECENCY_WEIGHT = 0.22
+
+# Laws before this year get the minimum recency score.
+_RECENCY_FLOOR_YEAR = 1900
+
 # Max words per chunk shown in the prompt. The stored chunk is 800 words but
 # we only send the first 250 words — saves ~1 400 tokens per request.
 _MAX_CHUNK_WORDS = 250
+
+_DATE_FORMATS = (
+    "%Y-%m-%d",
+    "%B %d, %Y",
+    "%b %d, %Y",
+    "%d %B %Y",
+    "%d %b %Y",
+    "%m/%d/%Y",
+    "%m-%d-%Y",
+)
 
 
 async def _get_pool() -> asyncpg.Pool | None:
@@ -66,6 +88,65 @@ def _get_http() -> httpx.AsyncClient:
     return _http
 
 
+def _parse_date_enacted(raw: str | None) -> date | None:
+    """Best-effort parse for scraped date_enacted strings."""
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+
+    for fmt in _DATE_FORMATS:
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+
+    year_match = re.search(r"\b(19|20)\d{2}\b", s)
+    if year_match:
+        year = int(year_match.group(0))
+        return date(year, 6, 15)
+
+    return None
+
+
+def _recency_score(enacted: date | None, *, today: date | None = None) -> float:
+    """
+    Map enactment date → [0, 1]. Missing/unknown dates stay neutral (0.45)
+    so classic statutes are not excluded when similarity is high.
+    """
+    if enacted is None:
+        return 0.45
+
+    ref = today or date.today()
+    ref_year = ref.year
+    year = min(enacted.year, ref_year)
+    floor = _RECENCY_FLOOR_YEAR
+    span = max(ref_year - floor, 1)
+    return max(0.0, min(1.0, (year - floor) / span))
+
+
+def _combined_rank_score(similarity: float, recency: float) -> float:
+    return (1.0 - _RECENCY_WEIGHT) * similarity + _RECENCY_WEIGHT * recency
+
+
+def _rerank_by_recency(candidates: list[dict], top_k: int) -> list[dict]:
+    """Prefer newer enactments among semantically similar chunks."""
+    if not candidates:
+        return []
+
+    ranked: list[tuple[float, float, dict]] = []
+    for chunk in candidates:
+        sim = float(chunk.get("similarity") or 0.0)
+        enacted = _parse_date_enacted(chunk.get("date_enacted"))
+        rec = _recency_score(enacted)
+        score = _combined_rank_score(sim, rec)
+        ranked.append((score, sim, chunk))
+
+    ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    return [chunk for _, _, chunk in ranked[:top_k]]
+
+
 async def _embed(text: str) -> list[float] | None:
     """Call the embed microservice on the VM and return a 768-dim vector."""
     if not settings.EMBED_SERVICE_URL:
@@ -88,6 +169,7 @@ async def _search_chunks_by_embedding(
     top_k: int,
 ) -> list[dict]:
     vec_literal = "[" + ",".join(f"{v:.8f}" for v in embedding) + "]"
+    candidate_limit = max(top_k, _CANDIDATE_LIMIT)
     try:
         async with pool.acquire() as conn:
             rows = await conn.fetch(
@@ -98,6 +180,7 @@ async def _search_chunks_by_embedding(
                     title,
                     category,
                     source_url,
+                    date_enacted,
                     1 - (embedding <=> $1::vector) AS similarity
                 FROM law_chunks
                 WHERE 1 - (embedding <=> $1::vector) >= $3
@@ -105,10 +188,11 @@ async def _search_chunks_by_embedding(
                 LIMIT $2
                 """,
                 vec_literal,
-                top_k,
+                candidate_limit,
                 _MIN_SIMILARITY,
             )
-        return [dict(r) for r in rows]
+        candidates = [dict(r) for r in rows]
+        return _rerank_by_recency(candidates, top_k)
     except Exception:
         logger.exception("pgvector search failed")
         return []
@@ -119,7 +203,9 @@ async def get_relevant_chunks(query: str, top_k: int = _TOP_K) -> list[dict]:
     Return the top-k most relevant law chunks for *query*.
 
     Each result dict has keys:
-        text, number, title, category, source_url, similarity (float 0–1)
+        text, number, title, category, source_url, date_enacted, similarity (float 0–1)
+
+    Results are re-ranked to favor newer enactments when similarity is comparable.
     """
     pool = await _get_pool()
     if pool is None:
@@ -184,6 +270,7 @@ async def rag_self_test(query: str) -> dict:
             "title": (c.get("title") or "")[:240],
             "category": c.get("category"),
             "similarity": round(float(c["similarity"]), 4),
+            "date_enacted": c.get("date_enacted"),
             "text_preview": (c.get("text") or "")[:400],
             "source_url": c.get("source_url"),
         }
@@ -193,7 +280,8 @@ async def rag_self_test(query: str) -> dict:
     if chunks:
         out["summary"] = (
             "RAG pipeline is working: query was embedded, pgvector returned "
-            f"{len(chunks)} chunk(s) above the similarity threshold."
+            f"{len(chunks)} chunk(s) above the similarity threshold "
+            f"(re-ranked with {_RECENCY_WEIGHT:.0%} recency weight)."
         )
     elif (out["law_chunks_total"] or 0) == 0:
         out["summary"] = (
@@ -233,9 +321,11 @@ def format_rag_context(chunks: list[dict]) -> str:
     return (
         "\n\n## RETRIEVED PHILIPPINE LEGAL TEXT\n\n"
         "The following excerpts were retrieved from Philippine statutes and are "
-        "directly relevant to the user's question. Ground your answer in this text "
-        "and cite the law numbers specifically. "
-        "If an excerpt is not relevant to the user's query, ignore it.\n\n"
+        "directly relevant to the user's question. They are ranked with preference "
+        "for more recently enacted sources when similarity is comparable. Ground "
+        "your answer in this text and cite the law numbers specifically. "
+        "If a newer law amends or supersedes an older one on point, follow the "
+        "newer text. If an excerpt is not relevant to the user's query, ignore it.\n\n"
         f"{joined}\n\n"
         "---\n"
     )

@@ -9,6 +9,7 @@ from app.models.user import User
 from app.schemas.chat import ChatRequest, ChatResponse, RagSourceItem, SuggestedLawyer, TavilySourceItem
 from app.services.chat_service import generate_conversation_title, get_chat_response
 from app.services.conversation_service import conversation_service
+from app.services.message_metadata import build_assistant_metadata
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -39,6 +40,12 @@ async def send_message(
             )
 
         history = [{"role": m.role, "text": m.text} for m in body.history]
+
+        user_msg = await conversation_service.add_message(
+            db, conversation_id=conv.id, role="user", text=body.message
+        )
+        await db.flush()
+
         reply, nearby, rag_sources_raw, rag_enabled, tavily_raw = await get_chat_response(
             message=body.message,
             history=history,
@@ -77,11 +84,16 @@ async def send_message(
             for l in nearby
         ]
 
-        user_msg = await conversation_service.add_message(
-            db, conversation_id=conv.id, role="user", text=body.message
-        )
         assistant_msg = await conversation_service.add_message(
-            db, conversation_id=conv.id, role="model", text=reply
+            db,
+            conversation_id=conv.id,
+            role="model",
+            text=reply,
+            metadata=build_assistant_metadata(
+                suggested_lawyers=nearby,
+                rag_sources=rag_sources_raw,
+                rag_enabled=rag_enabled,
+            ),
         )
 
         conversation_title = conv.title

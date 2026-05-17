@@ -32,7 +32,12 @@ SYSTEM_INSTRUCTION = (
     "not state; use hypotheticals or ranges where helpful.\n"
     "4. **Optional recap.** If the situation is complex, briefly mirror what you understood before "
     "your main answer; otherwise skip straight to substance.\n"
-    "5. **Invite follow-up** at the end of substantive answers so they can add details.\n\n"
+    "5. **Invite follow-up** at the end of substantive answers so they can add details.\n"
+    "6. **Location (internal only unless relevant).** When approximate GPS context is provided, "
+    "use it silently to match nearby partners and regional tailoring. **Do not** mention the "
+    "user's city or region in greetings, small talk, or general answers. Only reference their "
+    "area when it clearly matters — e.g. nearby lawyer referrals, which local court or office "
+    "to visit, or location-specific procedures — or if they ask where they are / what's local.\n\n"
     "## LEGAL RULES\n"
     "- Responses are for information only — not legal advice.\n"
     "- Always recommend consulting a licensed attorney before signing documents or taking formal action.\n\n"
@@ -40,8 +45,13 @@ SYSTEM_INSTRUCTION = (
     "Infer the user's matter from their message and **recent turns**. If it plausibly involves work that "
     "matches a listed partner's **practice areas** (and showing local counsel would help — not for "
     "pure abstract trivia or pay-rate math you can answer from statute alone), include "
-    "`[[SUGGEST_LAWYERS]]` once and add one short sentence on why those specialties fit. "
-    "Skip the marker when no listed partner's practice areas reasonably match.\n\n"
+    "`[[SUGGEST_LAWYERS]]` once, name the partner, and say why their listed specialties fit. "
+    "If at least one nearby partner's practice areas fit the matter, prefer recommending them "
+    "over only saying 'consult a lawyer' in general.\n"
+    "When naming a partner, cite **only** the practice areas shown in the nearby list — "
+    "never claim a specialty (e.g. Labor Law) that is not listed for that lawyer. "
+    "If you name a specific partner, you **must** include `[[SUGGEST_LAWYERS]]` once so "
+    "the app can show their profile card.\n\n"
     "## FORMAT\n"
     "Use Markdown: **bold** for key terms, numbered lists for steps, bullets for conditions, "
     "### headings for multi-topic answers, > blockquotes for statute citations. "
@@ -254,6 +264,28 @@ _PRACTICE_TOPIC_GROUPS: tuple[tuple[frozenset[str], frozenset[str]], ...] = (
         frozenset({"tax", "taxation"}),
     ),
     (
+        frozenset(
+            {
+                "estate",
+                "estate settlement",
+                "settlement of estate",
+                "extrajudicial settlement",
+                "without a will",
+                "no will",
+                "probate",
+                "succession",
+                "inheritance",
+                "deceased",
+                "heir",
+                "heirs",
+                "last will",
+                "testament",
+                "intestate",
+            }
+        ),
+        frozenset({"estate", "succession", "probate", "civil", "family", "real estate"}),
+    ),
+    (
         _NOTARIAL_DOC_USER_HINTS,
         _NOTARIAL_DOC_AREA_FRAGMENTS,
     ),
@@ -298,14 +330,82 @@ def _max_topic_alignment_score(message: str, lawyers: list[dict]) -> int:
 
 
 def _prefer_topic_matched_lawyers(message: str, lawyers: list[dict]) -> list[dict]:
-    """Prefer partners whose practice areas fit the topic; otherwise keep full nearby list."""
+    """Return only partners whose listed practice areas fit the topic."""
     if not lawyers:
         return []
     scored = _lawyer_topic_scores(message, lawyers)
-    best = max((s for s, _ in scored), default=0)
-    if best >= 5:
-        return [l for s, l in scored if s >= 5]
-    return lawyers
+    matched = [l for s, l in scored if s >= 5]
+    return matched
+
+
+def _lawyers_named_in_reply(content: str, lawyers: list[dict]) -> list[dict]:
+    """Partners the model named in prose — show profile cards even without [[SUGGEST_LAWYERS]]."""
+    if not content or not lawyers:
+        return []
+    t = content.lower()
+    out: list[dict] = []
+    seen: set[str] = set()
+    for law in lawyers:
+        lid = str(law.get("id") or "")
+        if not lid or lid in seen:
+            continue
+        names: list[str] = []
+        dn = (law.get("display_name") or "").strip()
+        if dn:
+            names.append(dn.lower())
+        fn = (law.get("first_name") or "").strip()
+        ln = (law.get("last_name") or "").strip()
+        if fn or ln:
+            names.append(f"atty. {fn} {ln}".strip().lower())
+        if ln and len(ln) >= 3:
+            names.append(f"atty. {ln}".lower())
+        for name in names:
+            if len(name) >= 5 and name in t:
+                seen.add(lid)
+                out.append(law)
+                break
+    return out
+
+
+def _finalize_suggested_lawyers(
+    *,
+    content: str,
+    message: str,
+    history: list[dict[str, str]],
+    nearby_lawyers: list[dict],
+    had_marker: bool,
+    suppress_cards: bool,
+    locale: str,
+) -> list[dict]:
+    if not nearby_lawyers or suppress_cards:
+        return []
+
+    topic_for_partners = _topic_context_for_partner_match(message, history)
+    matched = _prefer_topic_matched_lawyers(topic_for_partners, nearby_lawyers)
+
+    if _user_message_seeks_nearby_lawyers(message):
+        return nearby_lawyers
+
+    if had_marker and matched:
+        return matched
+
+    if matched:
+        # Practice areas fit — show cards even if the model skipped [[SUGGEST_LAWYERS]].
+        return matched
+
+    named = _lawyers_named_in_reply(content, nearby_lawyers)
+    if named:
+        return named
+
+    if had_marker:
+        return matched
+
+    if _backend_should_attach_partner_cards(
+        message, topic_for_partners, nearby_lawyers, locale
+    ):
+        return matched
+
+    return []
 
 
 def _user_message_indicates_guidance_or_situation(text: str, locale: str = "en") -> bool:
@@ -315,7 +415,28 @@ def _user_message_indicates_guidance_or_situation(text: str, locale: str = "en")
         return False
     if "?" in text:
         return True
-    if len(t) >= 56:
+    if len(t) >= 40:
+        return True
+    if any(
+        hint in t
+        for hint in (
+            "estate",
+            "inheritance",
+            "succession",
+            "probate",
+            "will",
+            "lawyer",
+            "abogado",
+            "attorney",
+            "legal",
+            "contract",
+            "property",
+            "tenant",
+            "employ",
+            "termination",
+            "dispute",
+        )
+    ):
         return True
     prefixes = (
         "how ",
@@ -519,25 +640,28 @@ async def _build_location_context(
         nearby = [(d, l) for d, l in with_dist if d <= 120.0][:max_lawyers]
 
     lines = [
-        "\n\n## USER LOCATION (from the mobile app)\n"
-        "The user's device has shared **approximate GPS** with you for this request only. "
-        "**Do not** print raw coordinates, precise pins, or street-level claims. "
-        "You **may** tailor answers to their part of the Philippines (courts, agencies, "
-        "regional rules, practical next steps).\n"
-        "**Never** tell the user you lack their location when this section is present — "
-        "you have approximate area context; describe it in plain language (city/province "
-        "level), not as surveillance.\n",
+        "\n\n## USER LOCATION (from the mobile app — internal context)\n"
+        "The user's device shared **approximate GPS** for this request only. "
+        "**Do not** print raw coordinates, precise pins, or street-level claims.\n"
+        "Use this **internally** to tailor Philippine-law answers and match nearby partners. "
+        "**Do not** say things like 'Since you're in [city]…' or 'you're likely in [area]…' "
+        "on every reply — especially not on **hello**, thanks, or broad legal explanations.\n"
+        "Mention their general area **only when** it clearly helps: recommending a nearby "
+        "partner, which local court/agency to go to, or location-specific steps — or if they "
+        "ask about local rules or 'near me'.\n"
+        "You still have location context; do not claim you don't know where they are if this "
+        "section is present — just keep location **out of the visible reply** unless relevant.\n",
     ]
     if area_label:
         lines.append(
-            f"- **Inferred general area (best effort):** {area_label}\n"
-            "Use this label when referring to where they likely are; it may be off by "
-            "a few kilometres.\n"
+            f"- **Inferred general area (for your use only):** {area_label}\n"
+            "(May be off by a few kilometres; do not repeat this label unless one of the "
+            "cases above applies.)\n"
         )
     else:
         lines.append(
-            "- A city/province label could not be resolved this time; still use the "
-            "coordinates only internally for regional tailoring — never print them.\n"
+            "- A city/province label could not be resolved; use coordinates only internally — "
+            "never print them.\n"
         )
 
     if nearby:
@@ -555,8 +679,10 @@ async def _build_location_context(
             f"**or**\n"
             f"- their matter reasonably fits one or more partners' specialties and local counsel "
             f"would materially help (name why it fits in one sentence).\n"
-            f"**Do not** use `{_SUGGEST_MARKER}` for general information, definitions, **statutory "
-            f"premium or pay rates**, or when no partner's listed practice areas plausibly match."
+            f"**Do not** use `{_SUGGEST_MARKER}` only for general definitions or **statutory "
+            f"premium/pay-rate math** you can answer without counsel.\n"
+            f"When a partner's listed practice areas fit (e.g. Civil Law for estate matters), "
+            f"include `{_SUGGEST_MARKER}`, name them, and cite **only** their listed specialties."
         )
     else:
         lines.append(
@@ -690,19 +816,15 @@ async def get_chat_response(
     if had_marker:
         content = content.replace(_SUGGEST_MARKER, "").strip()
 
-    topic_for_partners = _topic_context_for_partner_match(message, history)
-
-    suggested: list[dict] = []
-    if nearby_lawyers and not suppress_cards:
-        if had_marker:
-            suggested = _prefer_topic_matched_lawyers(topic_for_partners, nearby_lawyers)
-        elif _user_message_seeks_nearby_lawyers(message):
-            # Model often omits the marker; still return cards when intent + GPS match.
-            suggested = nearby_lawyers
-        elif _backend_should_attach_partner_cards(
-            message, topic_for_partners, nearby_lawyers, locale
-        ):
-            suggested = _prefer_topic_matched_lawyers(topic_for_partners, nearby_lawyers)
+    suggested = _finalize_suggested_lawyers(
+        content=content,
+        message=message,
+        history=history,
+        nearby_lawyers=nearby_lawyers,
+        had_marker=had_marker,
+        suppress_cards=suppress_cards,
+        locale=locale,
+    )
 
     return content, suggested, rag_sources, rag_enabled, tavily_results
 

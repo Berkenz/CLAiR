@@ -28,6 +28,7 @@ import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/widgets/app_drawer.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
@@ -853,6 +854,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     );
   }
 
+  Future<void> _openRagSourceUrl(String url) async {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return;
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null || !uri.hasScheme) return;
+    // Do not gate on canLaunchUrl — on Android 11+ it returns false unless
+    // AndroidManifest <queries> declares https/http VIEW intents.
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   Widget _buildRagFootnote(ChatMessageEntity message) {
     if (message.isUser) return const SizedBox.shrink();
     final enabled = message.ragEnabled;
@@ -932,6 +943,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                       Text(
                         s.category!,
                         style: GoogleFonts.nunito(fontSize: 10, color: cl.textMid),
+                      ),
+                    if (s.sourceUrl != null && s.sourceUrl!.trim().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: InkWell(
+                          onTap: () => _openRagSourceUrl(s.sourceUrl!),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Text(
+                            l10n.chatOpenSource,
+                            style: GoogleFonts.nunito(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: cl.accent,
+                              decoration: TextDecoration.underline,
+                              decorationColor: cl.accent,
+                            ),
+                          ),
+                        ),
                       ),
                   ],
                 ),

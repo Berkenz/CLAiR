@@ -1000,6 +1000,12 @@ abstract class AppLocalizations {
   /// **'Source'**
   String get chatSourceLabel;
 
+  /// No description provided for @chatOpenSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Open source'**
+  String get chatOpenSource;
+
   /// No description provided for @chatEmptyExploreTopic.
   ///
   /// In en, this message translates to:

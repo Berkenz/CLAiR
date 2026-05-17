@@ -17,6 +17,7 @@ from app.schemas.conversation import (
     MessageResponse,
 )
 from app.services.conversation_service import conversation_service
+from app.services.message_metadata import message_response_extras
 from app.services.lawyer_ai_assessment_service import lawyer_ai_assessment_service
 from app.services.pdf_service import (
     generate_appointment_description_summary,
@@ -81,6 +82,7 @@ async def get_conversation(
                 text=m.text,
                 created_at=m.created_at,
                 lawyer_reported=m.id in reported_ids,
+                **message_response_extras(m.metadata_),
             )
             for m in ordered_messages
         ],

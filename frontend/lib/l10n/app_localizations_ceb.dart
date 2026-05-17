@@ -487,6 +487,9 @@ class AppLocalizationsCeb extends AppLocalizations {
   String get chatSourceLabel => 'Tinubdan';
 
   @override
+  String get chatOpenSource => 'Ablihi ang tinubdan';
+
+  @override
   String get chatEmptyExploreTopic =>
       'Pagsugod og bag-ong panag-istorya aron usbon ang lain nga hilisgutan.';
 

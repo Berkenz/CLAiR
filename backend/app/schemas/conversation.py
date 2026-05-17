@@ -1,7 +1,9 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.chat import RagSourceItem, SuggestedLawyer
 
 
 class ConversationUpdate(BaseModel):
@@ -28,6 +30,9 @@ class MessageResponse(BaseModel):
     created_at: datetime
     """True when a lawyer flagged this assistant reply during QA review."""
     lawyer_reported: bool = False
+    suggested_lawyers: list[SuggestedLawyer] = Field(default_factory=list)
+    rag_sources: list[RagSourceItem] = Field(default_factory=list)
+    rag_enabled: bool | None = None
 
 
 class ConversationDetail(BaseModel):

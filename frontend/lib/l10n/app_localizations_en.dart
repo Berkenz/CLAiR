@@ -486,6 +486,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatSourceLabel => 'Source';
 
   @override
+  String get chatOpenSource => 'Open source';
+
+  @override
   String get chatEmptyExploreTopic =>
       'Start a new conversation to explore a different topic.';
 
