@@ -39,6 +39,13 @@ class Settings(BaseSettings):
     SUPABASE_DB_URL: str | None = None
     EMBED_SERVICE_URL: str | None = None  # e.g. http://34.143.181.61:8001
     TAVILY_API_KEY: str | None = None
+    # SMTP — used for sending report notification emails
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_FROM_EMAIL: str = "noreply@clair-ai.app"
+    REPORT_RECIPIENT_EMAIL: str = "support@clair-ai.app"
     # Lawyer portal (Vite) runs on 5173; include 127.0.0.1 — browsers treat it separately from localhost.
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
