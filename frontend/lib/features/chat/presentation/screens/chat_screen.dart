@@ -1,11 +1,13 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 
 import 'package:go_router/go_router.dart';
 
@@ -48,6 +50,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   bool _showScrollToBottom = false;
   bool _guestEphemeralBannerDismissed = false;
 
+  // Voice
+  final SpeechToText _speech = SpeechToText();
+  bool _speechAvailable = false;
+  bool _isListening = false;
+
+  // Attachment
+  File? _attachedFile;
+  String? _attachedFileName;
+  bool _isExtractingFile = false;
+
   static const _kScrollThreshold = 120.0;
 
   @override
@@ -55,11 +67,81 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
+    _controller.addListener(_onControllerChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _ensureBottomOnEntry();
       _refreshLawyerReportFlagsIfNeeded();
       ref.read(locationProvider.notifier).prefetchIfNeeded();
     });
+    _initSpeech();
+  }
+
+  void _onControllerChanged() => setState(() {});
+
+  Future<void> _initSpeech() async {
+    final available = await _speech.initialize(
+      onError: (_) {
+        if (mounted) setState(() => _isListening = false);
+      },
+      onStatus: (status) {
+        if (mounted && status == SpeechToText.doneStatus) {
+          setState(() => _isListening = false);
+        }
+      },
+    );
+    if (mounted) setState(() => _speechAvailable = available);
+  }
+
+  Future<void> _toggleListening() async {
+    if (!_speechAvailable) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Speech recognition not available on this device.'),
+          backgroundColor: context.c.textDark,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    if (_isListening) {
+      await _speech.stop();
+      setState(() => _isListening = false);
+    } else {
+      setState(() => _isListening = true);
+      await _speech.listen(
+        onResult: (result) {
+          if (mounted) {
+            setState(() {
+              _controller.text = result.recognizedWords;
+              _controller.selection = TextSelection.fromPosition(
+                TextPosition(offset: _controller.text.length),
+              );
+              if (result.finalResult) _isListening = false;
+            });
+          }
+        },
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 4),
+        listenOptions: SpeechListenOptions(
+          partialResults: true,
+          cancelOnError: true,
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickAttachment() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'md'],
+    );
+    if (!mounted) return;
+    if (result != null && result.files.single.path != null) {
+      setState(() {
+        _attachedFile = File(result.files.single.path!);
+        _attachedFileName = result.files.single.name;
+      });
+    }
   }
 
   void _refreshLawyerReportFlagsIfNeeded() {
@@ -80,8 +162,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _scrollController.removeListener(_onScroll);
+    _controller.removeListener(_onControllerChanged);
     _controller.dispose();
     _scrollController.dispose();
+    _speech.stop();
     super.dispose();
   }
 
@@ -105,9 +189,48 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     }
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    final file = _attachedFile;
+    final fileName = _attachedFileName;
+    if (text.isEmpty && file == null) return;
+
+    if (_isListening) {
+      await _speech.stop();
+      setState(() => _isListening = false);
+    }
+
+    if (file != null) {
+      setState(() => _isExtractingFile = true);
+      try {
+        final repo = ref.read(chatRepositoryProvider);
+        final extractedText = await repo.extractFileText(file);
+        if (!mounted) return;
+        final header = '📄 **$fileName**\n\n$extractedText';
+        final fullMessage =
+            text.isNotEmpty ? '$header\n\n---\n\n$text' : header;
+        _controller.clear();
+        setState(() {
+          _attachedFile = null;
+          _attachedFileName = null;
+          _isExtractingFile = false;
+        });
+        ref.read(chatProvider.notifier).sendMessage(fullMessage);
+        ref.read(chatProvider.notifier).hideDisclaimer();
+        _scrollToLastMessage();
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isExtractingFile = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red.shade700,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
 
     _controller.clear();
     ref.read(chatProvider.notifier).sendMessage(text);
@@ -1518,102 +1641,287 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final cl = context.c;
     final l10n = AppLocalizations.of(context)!;
     final bottomPad = MediaQuery.of(context).viewInsets.bottom;
+    final isBusy = isLoading || _isExtractingFile;
+    final hasContent =
+        _controller.text.trim().isNotEmpty || _attachedFile != null;
+
     return AnimatedPadding(
       duration: const Duration(milliseconds: 150),
       curve: Curves.easeOut,
-      padding: EdgeInsets.fromLTRB(16, 10, 16, 16 + bottomPad),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+      padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomPad),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: cl.bg,
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.upload_file_rounded,
-                    color: cl.border,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      maxLines: 4,
-                      minLines: 1,
-                      maxLength: 4000,
-                      enabled: !isLoading,
-                      textAlignVertical: TextAlignVertical.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: cl.textDark,
-                        fontFamily: 'Satoshi',
+          // ── Attachment chip ──────────────────────────────────────────────
+          if (_attachedFile != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: cl.accent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: cl.accent.withValues(alpha: 0.25)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.insert_drive_file_outlined,
+                        size: 14, color: cl.accent),
+                    const SizedBox(width: 6),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.55,
                       ),
-                      buildCounter: (_,
-                              {required currentLength,
-                              required isFocused,
-                              required maxLength}) =>
-                          null,
-                      decoration: InputDecoration(
-                        hintText: l10n.chatComposerHint,
-                        hintStyle: TextStyle(
-                          color: cl.textLight,
-                          fontFamily: 'Satoshi',
-                          fontSize: 14,
+                      child: Text(
+                        _attachedFileName ?? '',
+                        style: GoogleFonts.nunito(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: cl.accent,
                         ),
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      onSubmitted: (_) => _sendMessage(),
+                    ),
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: () => setState(() {
+                        _attachedFile = null;
+                        _attachedFileName = null;
+                      }),
+                      child: Icon(Icons.close_rounded,
+                          size: 14, color: cl.textLight),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          // ── Extracting indicator ─────────────────────────────────────────
+          if (_isExtractingFile)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 10,
+                    height: 10,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: cl.accent,
                     ),
                   ),
                   const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: isLoading ? null : _sendMessage,
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: isLoading
-                            ? cl.accent.withOpacity(0.5)
-                            : cl.accent,
-                        shape: BoxShape.circle,
-                      ),
-                      child: isLoading
-                          ? const Padding(
-                              padding: EdgeInsets.all(8),
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(
-                              Icons.arrow_forward_rounded,
-                              color: Colors.white,
-                              size: 18,
-                            ),
+                  Text(
+                    'Reading file…',
+                    style: GoogleFonts.nunito(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: cl.accent,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Icon(
-              Icons.mic_none_rounded,
-              color: cl.border,
-              size: 26,
+          // ── Listening indicator ──────────────────────────────────────────
+          if (_isListening)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _PulsingDot(),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Listening…',
+                    style: GoogleFonts.nunito(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.red.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          // ── Input row ────────────────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: cl.bg,
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Attach button
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 7),
+                  child: GestureDetector(
+                    onTap: isBusy ? null : _pickAttachment,
+                    child: Icon(
+                      Icons.attach_file_rounded,
+                      color:
+                          _attachedFile != null ? cl.accent : cl.textLight,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Text field
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    maxLines: 4,
+                    minLines: 1,
+                    maxLength: 4000,
+                    enabled: !isBusy,
+                    textAlignVertical: TextAlignVertical.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: cl.textDark,
+                      fontFamily: 'Satoshi',
+                    ),
+                    buildCounter: (_,
+                            {required currentLength,
+                            required isFocused,
+                            required maxLength}) =>
+                        null,
+                    decoration: InputDecoration(
+                      hintText: _isListening
+                          ? 'Listening…'
+                          : _isExtractingFile
+                              ? 'Reading file…'
+                              : l10n.chatComposerHint,
+                      hintStyle: TextStyle(
+                        color: _isListening
+                            ? Colors.red.shade300
+                            : cl.textLight,
+                        fontFamily: 'Satoshi',
+                        fontSize: 14,
+                      ),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding:
+                          const EdgeInsets.fromLTRB(8, 10, 8, 10),
+                    ),
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                // Mic (empty) or Send (has content / busy)
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  transitionBuilder: (child, animation) => ScaleTransition(
+                    scale: animation,
+                    child: child,
+                  ),
+                  child: hasContent || isBusy
+                      ? GestureDetector(
+                          key: const ValueKey('send'),
+                          onTap: isBusy ? null : _sendMessage,
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            margin: const EdgeInsets.only(bottom: 2),
+                            decoration: BoxDecoration(
+                              color: isBusy
+                                  ? cl.accent.withOpacity(0.5)
+                                  : cl.accent,
+                              shape: BoxShape.circle,
+                            ),
+                            child: isBusy
+                                ? const Padding(
+                                    padding: EdgeInsets.all(9),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.arrow_forward_rounded,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                          ),
+                        )
+                      : GestureDetector(
+                          key: const ValueKey('mic'),
+                          onTap: _toggleListening,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            width: 36,
+                            height: 36,
+                            margin: const EdgeInsets.only(bottom: 2),
+                            decoration: BoxDecoration(
+                              color: _isListening
+                                  ? Colors.red.shade500
+                                  : cl.accent.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              _isListening
+                                  ? Icons.stop_rounded
+                                  : Icons.mic_rounded,
+                              color:
+                                  _isListening ? Colors.white : cl.accent,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PulsingDot extends StatefulWidget {
+  @override
+  State<_PulsingDot> createState() => _PulsingDotState();
+}
+
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 700))
+      ..repeat(reverse: true);
+    _anim = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) => Opacity(
+        opacity: _anim.value,
+        child: Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: Colors.red.shade600,
+            shape: BoxShape.circle,
+          ),
+        ),
       ),
     );
   }

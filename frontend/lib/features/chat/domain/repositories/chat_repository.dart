@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/chat/domain/entities/chat_response_entity.dart';
 
@@ -10,6 +12,8 @@ abstract class ChatRepository {
     double? userLng,
     String locale = 'en',
   });
+
+  Future<String> extractFileText(File file);
 
   Future<void> reportConversation({
     required String category,

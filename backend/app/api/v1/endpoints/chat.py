@@ -1,7 +1,8 @@
+import io
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -205,3 +206,67 @@ async def send_message(
                 detail="CLAiR is receiving too many requests right now. Please try again in a moment.",
             )
         raise HTTPException(status_code=500, detail="Failed to get a response. Please try again.")
+
+
+_MAX_EXTRACT_CHARS = 6_000
+_SUPPORTED_EXTENSIONS = {"txt", "pdf", "docx", "doc", "md"}
+
+
+@router.post("/extract-file")
+async def extract_file_text(
+    file: Annotated[UploadFile, File()],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Extract plain text from an uploaded document so the AI can read it."""
+    filename = file.filename or "file"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    if ext not in _SUPPORTED_EXTENSIONS:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Unsupported file type '.{ext}'. Supported: {', '.join(sorted(_SUPPORTED_EXTENSIONS))}.",
+        )
+
+    content = await file.read()
+
+    try:
+        if ext in ("txt", "md"):
+            text = content.decode("utf-8", errors="replace")
+
+        elif ext == "pdf":
+            try:
+                from pypdf import PdfReader  # type: ignore
+            except ImportError:
+                raise HTTPException(status_code=500, detail="PDF extraction library not installed.")
+            reader = PdfReader(io.BytesIO(content))
+            pages = [page.extract_text() or "" for page in reader.pages]
+            text = "\n\n".join(p for p in pages if p.strip())
+
+        elif ext in ("docx", "doc"):
+            try:
+                import docx  # type: ignore
+            except ImportError:
+                raise HTTPException(status_code=500, detail="DOCX extraction library not installed.")
+            doc = docx.Document(io.BytesIO(content))
+            text = "\n".join(p.text for p in doc.paragraphs)
+
+        else:
+            text = ""
+
+        text = text.strip()
+        if not text:
+            raise HTTPException(
+                status_code=422,
+                detail="No text could be extracted from this file. It may be scanned or image-only.",
+            )
+
+        if len(text) > _MAX_EXTRACT_CHARS:
+            text = text[:_MAX_EXTRACT_CHARS] + f"\n\n[Document truncated at {_MAX_EXTRACT_CHARS:,} characters to stay within limits. Ask follow-up questions if you need analysis of a specific section.]"
+
+        return {"text": text, "filename": filename}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("File extraction error")
+        raise HTTPException(status_code=500, detail=f"Failed to extract file content: {e}")

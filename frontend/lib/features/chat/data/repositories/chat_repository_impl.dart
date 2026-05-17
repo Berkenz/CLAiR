@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:clair/features/chat/data/datasources/chat_remote_datasource.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/chat/domain/entities/chat_response_entity.dart';
@@ -26,6 +28,9 @@ class ChatRepositoryImpl implements ChatRepository {
         userLng: userLng,
         locale: locale,
       );
+
+  @override
+  Future<String> extractFileText(File file) => _remote.extractFileText(file);
 
   @override
   Future<void> reportConversation({

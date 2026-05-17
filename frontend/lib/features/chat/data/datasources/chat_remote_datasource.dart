@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 
 import 'package:clair/core/constants/app_constants.dart';
@@ -109,6 +111,36 @@ class ChatRemoteDataSource {
       throw ChatException(
         'Could not reach CLAiR at $targetUrl. $cause Please check your connection or API base URL.',
       );
+    }
+  }
+
+  Future<String> extractFileText(File file) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(
+        file.path,
+        filename: file.path.split(Platform.pathSeparator).last,
+      ),
+    });
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.chatExtractFile,
+        data: formData,
+        options: Options(
+          contentType: 'multipart/form-data',
+          receiveTimeout: const Duration(seconds: 60),
+        ),
+      );
+      final body = response.data;
+      if (body == null || body['text'] == null) {
+        throw ChatException('No text extracted from file.');
+      }
+      return body['text'] as String;
+    } on DioException catch (e) {
+      final detail = e.response?.data;
+      if (detail is Map<String, dynamic> && detail['detail'] != null) {
+        throw ChatException(detail['detail'].toString());
+      }
+      throw ChatException('Failed to read file. Please try again.');
     }
   }
 
