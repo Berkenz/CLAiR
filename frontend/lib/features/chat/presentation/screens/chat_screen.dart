@@ -765,9 +765,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   ),
                   child: MarkdownBody(
                     data: text,
-                    selectable: true,
                     shrinkWrap: true,
                     styleSheet: chatMarkdownStyleSheet(cl),
+                    onTapLink: (text, href, title) =>
+                        _openChatLink(text, href),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -854,14 +855,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     );
   }
 
-  Future<void> _openRagSourceUrl(String url) async {
-    final trimmed = url.trim();
-    if (trimmed.isEmpty) return;
-    final uri = Uri.tryParse(trimmed);
+  Future<void> _openExternalUrl(String raw) async {
+    var target = raw.trim();
+    if (target.isEmpty) return;
+    if (!target.toLowerCase().contains('://')) {
+      if (target.contains('.') || target.toLowerCase().startsWith('www.')) {
+        target = 'https://$target';
+      } else {
+        return;
+      }
+    }
+    final uri = Uri.tryParse(target);
     if (uri == null || !uri.hasScheme) return;
     // Do not gate on canLaunchUrl — on Android 11+ it returns false unless
     // AndroidManifest <queries> declares https/http VIEW intents.
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _openChatLink(String text, String? href) async {
+    final link = (href != null && href.trim().isNotEmpty) ? href : text;
+    await _openExternalUrl(link);
+  }
+
+  Future<void> _openRagSourceUrl(String url) async {
+    await _openExternalUrl(url);
   }
 
   Widget _buildRagFootnote(ChatMessageEntity message) {

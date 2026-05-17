@@ -10,6 +10,7 @@ import 'package:clair/features/home/presentation/screens/home_screen.dart';
 import 'package:clair/features/chat/presentation/screens/chat_screen.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/library/presentation/screens/library_screen.dart';
+import 'package:clair/features/lawyer/presentation/providers/lawyer_provider.dart';
 import 'package:clair/features/lawyer/presentation/screens/lawyer_screen.dart';
 import 'package:clair/features/appointments/presentation/screens/appointment_screen.dart';
 import 'package:clair/app/main_shell_tab.dart';
@@ -122,9 +123,15 @@ class _MainShellState extends ConsumerState<MainShell>
       l10n.navAppointments,
     ];
     final currentIndex = ref.watch(mainShellTabProvider);
+    final lawyerMapSheetOpen = ref.watch(lawyerMapSheetOpenProvider);
+    final lawyerMapViewActive = ref.watch(lawyerMapViewActiveProvider);
 
     ref.listen<int>(mainShellTabProvider, (prev, next) {
       _closeFab();
+      if (next != 3) {
+        ref.read(lawyerMapSheetOpenProvider.notifier).state = false;
+        ref.read(lawyerMapViewActiveProvider.notifier).state = false;
+      }
       if (next == 4 && prev != next) {
         ref.read(notificationInboxProvider.notifier).refresh();
       }
@@ -157,7 +164,10 @@ class _MainShellState extends ConsumerState<MainShell>
               ),
             ),
           ),
-          floatingActionButton: currentIndex == 1 || tutorialActive
+          floatingActionButton: currentIndex == 1 ||
+                  tutorialActive ||
+                  lawyerMapSheetOpen ||
+                  lawyerMapViewActive
               ? null
               : _QuickActionsFab(
                   open: _fabOpen,

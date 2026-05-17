@@ -51,6 +51,8 @@
   "lawyerList": "Listahan",
   "lawyerSearchHint": "Maghanap ayon sa pangalan o espesyalidad…",
   "lawyerBrowseByPracticeArea": "Mag-browse ayon sa practice area",
+  "lawyerShowPracticeAreas": "Ipakita ang practice areas",
+  "lawyerHidePracticeAreas": "Itago ang practice areas",
   "lawyerClearWithCount": "Alisin ({count})",
   "@lawyerClearWithCount": {
     "placeholders": {
@@ -59,6 +61,34 @@
       }
     }
   },
+  "lawyerKmAway": "{distance} km ang layo",
+  "@lawyerKmAway": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "lawyerNearYouEnableLocation": "I-on ang location para makita ang mga abogadong malapit sa iyo",
+  "lawyerNearYouNoneInRange": "Walang rehistradong abogado na may opisina sa loob ng saklaw sa ngayon.",
+  "lawyerMapPinsCount": "{count, plural, =1{1 abogado sa mapa} other{{count} abogado sa mapa}}",
+  "@lawyerMapPinsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lawyerMapAllPins": "{count, plural, =1{1 abogado sa mapa} other{{count} abogado sa mapa}}",
+  "@lawyerMapAllPins": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lawyerMapNoFilterMatches": "Walang abogadong tumugma sa iyong hinahanap o filter.",
+  "lawyerMapNoPinsForResults": "Ang mga tumugmang abogado ay walang opisina sa mapa.",
   "lawyerAllRegistered": "Lahat ng rehistradong abogado",
   "lawyerResultsCount": "{count, plural, =1{1 resulta} other{{count} na resulta}}",
   "@lawyerResultsCount": {

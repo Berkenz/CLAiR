@@ -51,6 +51,8 @@
   "lawyerList": "List",
   "lawyerSearchHint": "Search by name or specialty…",
   "lawyerBrowseByPracticeArea": "Browse by practice area",
+  "lawyerShowPracticeAreas": "Show practice areas",
+  "lawyerHidePracticeAreas": "Hide practice areas",
   "lawyerClearWithCount": "Clear ({count})",
   "@lawyerClearWithCount": {
     "placeholders": {
@@ -59,6 +61,34 @@
       }
     }
   },
+  "lawyerKmAway": "{distance} km away",
+  "@lawyerKmAway": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "lawyerNearYouEnableLocation": "Enable location to see lawyers near you",
+  "lawyerNearYouNoneInRange": "No registered lawyers with an office location within range yet.",
+  "lawyerMapPinsCount": "{count, plural, =1{1 lawyer on map} other{{count} lawyers on map}}",
+  "@lawyerMapPinsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lawyerMapAllPins": "{count, plural, =1{1 lawyer on map} other{{count} lawyers on map}}",
+  "@lawyerMapAllPins": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lawyerMapNoFilterMatches": "No lawyers match your search or filters.",
+  "lawyerMapNoPinsForResults": "Matching lawyers have no office location on the map yet.",
   "lawyerAllRegistered": "All registered lawyers",
   "lawyerResultsCount": "{count, plural, =1{1 result} other{{count} results}}",
   "@lawyerResultsCount": {

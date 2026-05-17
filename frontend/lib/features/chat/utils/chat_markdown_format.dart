@@ -239,10 +239,16 @@ MarkdownStyleSheet chatMarkdownStyleSheet(AppColorTheme cl) {
   final body = chatMarkdownBody(cl);
   final strong = chatMarkdownStrong(cl);
   final em = chatMarkdownEmphasis(cl);
+  const linkColor = Color(0xFF2563EB);
   return MarkdownStyleSheet(
     p: body,
     strong: strong,
     em: em,
+    a: body.copyWith(
+      color: linkColor,
+      decoration: TextDecoration.underline,
+      decorationColor: linkColor,
+    ),
     h1: strong.copyWith(fontSize: 16, height: 1.35),
     h2: strong.copyWith(fontSize: 15, height: 1.35),
     h3: strong.copyWith(fontSize: 14, height: 1.4),

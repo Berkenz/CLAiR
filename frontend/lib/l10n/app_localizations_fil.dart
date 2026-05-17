@@ -164,9 +164,58 @@ class AppLocalizationsFil extends AppLocalizations {
   String get lawyerBrowseByPracticeArea => 'Mag-browse ayon sa practice area';
 
   @override
+  String get lawyerShowPracticeAreas => 'Ipakita ang practice areas';
+
+  @override
+  String get lawyerHidePracticeAreas => 'Itago ang practice areas';
+
+  @override
   String lawyerClearWithCount(int count) {
     return 'Alisin ($count)';
   }
+
+  @override
+  String lawyerKmAway(String distance) {
+    return '$distance km ang layo';
+  }
+
+  @override
+  String get lawyerNearYouEnableLocation =>
+      'I-on ang location para makita ang mga abogadong malapit sa iyo';
+
+  @override
+  String get lawyerNearYouNoneInRange =>
+      'Walang rehistradong abogado na may opisina sa loob ng saklaw sa ngayon.';
+
+  @override
+  String lawyerMapPinsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count abogado sa mapa',
+      one: '1 abogado sa mapa',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lawyerMapAllPins(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count abogado sa mapa',
+      one: '1 abogado sa mapa',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lawyerMapNoFilterMatches =>
+      'Walang abogadong tumugma sa iyong hinahanap o filter.';
+
+  @override
+  String get lawyerMapNoPinsForResults =>
+      'Ang mga tumugmang abogado ay walang opisina sa mapa.';
 
   @override
   String get lawyerAllRegistered => 'Lahat ng rehistradong abogado';

@@ -164,9 +164,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lawyerBrowseByPracticeArea => 'Browse by practice area';
 
   @override
+  String get lawyerShowPracticeAreas => 'Show practice areas';
+
+  @override
+  String get lawyerHidePracticeAreas => 'Hide practice areas';
+
+  @override
   String lawyerClearWithCount(int count) {
     return 'Clear ($count)';
   }
+
+  @override
+  String lawyerKmAway(String distance) {
+    return '$distance km away';
+  }
+
+  @override
+  String get lawyerNearYouEnableLocation =>
+      'Enable location to see lawyers near you';
+
+  @override
+  String get lawyerNearYouNoneInRange =>
+      'No registered lawyers with an office location within range yet.';
+
+  @override
+  String lawyerMapPinsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count lawyers on map',
+      one: '1 lawyer on map',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lawyerMapAllPins(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count lawyers on map',
+      one: '1 lawyer on map',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lawyerMapNoFilterMatches =>
+      'No lawyers match your search or filters.';
+
+  @override
+  String get lawyerMapNoPinsForResults =>
+      'Matching lawyers have no office location on the map yet.';
 
   @override
   String get lawyerAllRegistered => 'All registered lawyers';

@@ -406,11 +406,65 @@ abstract class AppLocalizations {
   /// **'Browse by practice area'**
   String get lawyerBrowseByPracticeArea;
 
+  /// No description provided for @lawyerShowPracticeAreas.
+  ///
+  /// In en, this message translates to:
+  /// **'Show practice areas'**
+  String get lawyerShowPracticeAreas;
+
+  /// No description provided for @lawyerHidePracticeAreas.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide practice areas'**
+  String get lawyerHidePracticeAreas;
+
   /// No description provided for @lawyerClearWithCount.
   ///
   /// In en, this message translates to:
   /// **'Clear ({count})'**
   String lawyerClearWithCount(int count);
+
+  /// No description provided for @lawyerKmAway.
+  ///
+  /// In en, this message translates to:
+  /// **'{distance} km away'**
+  String lawyerKmAway(String distance);
+
+  /// No description provided for @lawyerNearYouEnableLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable location to see lawyers near you'**
+  String get lawyerNearYouEnableLocation;
+
+  /// No description provided for @lawyerNearYouNoneInRange.
+  ///
+  /// In en, this message translates to:
+  /// **'No registered lawyers with an office location within range yet.'**
+  String get lawyerNearYouNoneInRange;
+
+  /// No description provided for @lawyerMapPinsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 lawyer on map} other{{count} lawyers on map}}'**
+  String lawyerMapPinsCount(int count);
+
+  /// No description provided for @lawyerMapAllPins.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 lawyer on map} other{{count} lawyers on map}}'**
+  String lawyerMapAllPins(int count);
+
+  /// No description provided for @lawyerMapNoFilterMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No lawyers match your search or filters.'**
+  String get lawyerMapNoFilterMatches;
+
+  /// No description provided for @lawyerMapNoPinsForResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Matching lawyers have no office location on the map yet.'**
+  String get lawyerMapNoPinsForResults;
 
   /// No description provided for @lawyerAllRegistered.
   ///

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:clair/core/services/location_service.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
+import 'package:clair/features/lawyer/utils/lawyer_nearby.dart';
 import 'package:clair/features/lawyer/presentation/providers/lawyer_provider.dart';
 import 'package:clair/features/lawyer/presentation/providers/lawyer_sharing_provider.dart';
 import 'package:clair/features/lawyer/presentation/screens/lawyer_overview_screen.dart';
@@ -98,6 +100,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
   final Set<int> _selectedCats = {};
   bool _searching = false;
   bool _showMap = false;
+  bool _practiceAreasExpanded = true;
   late final AnimationController _anim;
 
   @override
@@ -106,20 +109,34 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
     _anim = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 500))
       ..forward();
-    Future.microtask(
-        () => ref.read(lawyerProvider.notifier).loadLawyers());
+    Future.microtask(() async {
+      await ref.read(lawyerProvider.notifier).loadLawyers();
+      await ref.read(locationProvider.notifier).fetchLocation();
+    });
   }
 
   @override
   void dispose() {
+    ref.read(lawyerMapViewActiveProvider.notifier).state = false;
+    ref.read(lawyerMapSheetOpenProvider.notifier).state = false;
     _anim.dispose();
     _searchCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
 
+  void _setMapView(bool showMap) {
+    if (_showMap == showMap) return;
+    setState(() => _showMap = showMap);
+    ref.read(lawyerMapViewActiveProvider.notifier).state = showMap;
+  }
+
   bool get _isFiltered =>
       _selectedCats.isNotEmpty || _searchCtrl.text.trim().isNotEmpty;
+
+  List<LawyerEntity> _pinnedForMap(List<LawyerEntity> lawyers) => lawyers
+      .where((l) => l.latitude != null && l.longitude != null)
+      .toList();
 
   List<LawyerEntity> _filtered(
       List<LawyerEntity> all, List<_LegalCategory> cats) {
@@ -184,8 +201,16 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
     final l10n = AppLocalizations.of(context)!;
     final cats = _legalCategories(l10n);
     final state = ref.watch(lawyerProvider);
+    final loc = ref.watch(locationProvider);
     final sharing = ref.watch(lawyerSharingProvider);
     final filtered = _filtered(state.lawyers, cats);
+    final nearby = loc.hasLocation
+        ? lawyersNearPoint(
+            lawyers: filtered,
+            userLat: loc.latitude!,
+            userLng: loc.longitude!,
+          )
+        : <LawyerNearbyEntry>[];
 
     return Container(
       color: cl.bg,
@@ -202,10 +227,30 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
               child: Column(
                 children: [
                   _buildHeader(cl, state.isLoading, l10n),
+                  if (!_searching)
+                    _buildCategoryGrid(cl, cats, l10n),
+                  if (!state.isLoading)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: _buildResultsBar(
+                        cl,
+                        _pinnedForMap(filtered).length,
+                        state,
+                        l10n,
+                        mapMode: true,
+                      ),
+                    ),
                   Expanded(
-                    child: LawyerMapView(
-                      lawyers: state.lawyers,
-                      onTap: _openLawyer,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                      child: LawyerMapView(
+                        lawyers: filtered,
+                        directoryEmpty:
+                            !state.isLoading && state.lawyers.isEmpty,
+                        noFilterMatches:
+                            _isFiltered && filtered.isEmpty && !state.isLoading,
+                        onTap: _openLawyer,
+                      ),
                     ),
                   ),
                 ],
@@ -223,6 +268,16 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
                 SliverToBoxAdapter(
                     child: _buildHeader(cl, state.isLoading, l10n)),
 
+                if (!_searching && !state.isLoading)
+                  SliverToBoxAdapter(
+                    child: _buildNearbySection(
+                      cl,
+                      l10n,
+                      loc,
+                      nearby,
+                    ),
+                  ),
+
                 // Category chips (hidden when searching)
                 if (!_searching)
                   SliverToBoxAdapter(
@@ -230,7 +285,11 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
 
                 // Active filter pill + results label
                 SliverToBoxAdapter(
-                    child: _buildResultsBar(cl, filtered.length, state, l10n)),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: _buildResultsBar(cl, filtered.length, state, l10n),
+                  ),
+                ),
 
                 // Lawyer list
                 if (state.error != null)
@@ -318,7 +377,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
               ),
             const SizedBox(width: 8),
             GestureDetector(
-              onTap: () => setState(() => _showMap = !_showMap),
+              onTap: () => _setMapView(!_showMap),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding:
@@ -403,6 +462,82 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
     );
   }
 
+  Widget _buildNearbySection(
+    AppColorTheme cl,
+    AppLocalizations l10n,
+    LocationState loc,
+    List<LawyerNearbyEntry> nearby,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.near_me_rounded, size: 16, color: cl.accent),
+              const SizedBox(width: 6),
+              Text(
+                l10n.chatLawyersNearYou,
+                style: GoogleFonts.nunito(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: cl.textMid,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (loc.loading)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: cl.accent,
+                  ),
+                ),
+              ),
+            )
+          else if (!loc.hasLocation)
+            _NearbyLocationPrompt(
+              cl: cl,
+              message: loc.error ?? l10n.lawyerNearYouEnableLocation,
+              onEnable: () =>
+                  ref.read(locationProvider.notifier).fetchLocation(),
+            )
+          else if (nearby.isEmpty)
+            Text(
+              l10n.lawyerNearYouNoneInRange,
+              style: GoogleFonts.nunito(fontSize: 12, color: cl.textLight),
+            )
+          else
+            SizedBox(
+              height: 132,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: nearby.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (_, i) {
+                  final entry = nearby[i];
+                  return _NearbyLawyerCard(
+                    lawyer: entry.lawyer,
+                    distanceKm: entry.distanceKm,
+                    l10n: l10n,
+                    onTap: () => _openLawyer(entry.lawyer),
+                  );
+                },
+              ),
+            ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
   // ── Category grid ──────────────────────────────────────────────────────────
 
   Widget _buildCategoryGrid(
@@ -412,49 +547,93 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(
-                l10n.lawyerBrowseByPracticeArea,
-                style: GoogleFonts.nunito(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: cl.textMid),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => setState(
+                () => _practiceAreasExpanded = !_practiceAreasExpanded,
               ),
-              if (_selectedCats.isNotEmpty) ...[
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () => setState(() => _selectedCats.clear()),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: cl.accent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      l10n.lawyerClearWithCount(_selectedCats.length),
-                      style: GoogleFonts.nunito(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: cl.accent,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.lawyerBrowseByPracticeArea,
+                        style: GoogleFonts.nunito(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: cl.textMid,
+                        ),
                       ),
                     ),
-                  ),
+                    if (_selectedCats.isNotEmpty) ...[
+                      GestureDetector(
+                        onTap: () => setState(() => _selectedCats.clear()),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: cl.accent.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            l10n.lawyerClearWithCount(_selectedCats.length),
+                            style: GoogleFonts.nunito(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: cl.accent,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Tooltip(
+                      message: _practiceAreasExpanded
+                          ? l10n.lawyerHidePracticeAreas
+                          : l10n.lawyerShowPracticeAreas,
+                      child: Icon(
+                        _practiceAreasExpanded
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                        size: 22,
+                        color: cl.textMid,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: List.generate(
-              cats.length,
-              (i) => _buildCategoryChip(cl, cats, i),
+              ),
             ),
           ),
-          const SizedBox(height: 16),
+          AnimatedCrossFade(
+            firstCurve: Curves.easeInOut,
+            secondCurve: Curves.easeInOut,
+            sizeCurve: Curves.easeInOut,
+            duration: const Duration(milliseconds: 220),
+            crossFadeState: _practiceAreasExpanded
+                ? CrossFadeState.showFirst
+                : CrossFadeState.showSecond,
+            firstChild: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: List.generate(
+                    cats.length,
+                    (i) => _buildCategoryChip(cl, cats, i),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+            secondChild: const SizedBox(height: 8),
+          ),
         ],
       ),
     );
@@ -512,41 +691,49 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
   // ── Results bar ────────────────────────────────────────────────────────────
 
   Widget _buildResultsBar(
-      AppColorTheme cl, int count, LawyerState state, AppLocalizations l10n) {
+    AppColorTheme cl,
+    int count,
+    LawyerState state,
+    AppLocalizations l10n, {
+    bool mapMode = false,
+  }) {
     if (state.isLoading) {
-      return const Padding(
-        padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: SizedBox.shrink(),
-      );
+      return const SizedBox.shrink();
     }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Row(
-        children: [
-          Expanded(
+    final label = _isFiltered
+        ? (mapMode
+            ? l10n.lawyerMapPinsCount(count)
+            : l10n.lawyerResultsCount(count))
+        : (mapMode
+            ? l10n.lawyerMapAllPins(count)
+            : l10n.lawyerAllRegistered);
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: GoogleFonts.nunito(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: cl.textMid,
+            ),
+          ),
+        ),
+        if (_isFiltered)
+          GestureDetector(
+            onTap: _clearFilters,
             child: Text(
-              _isFiltered
-                  ? l10n.lawyerResultsCount(count)
-                  : l10n.lawyerAllRegistered,
+              l10n.lawyerClearAll,
               style: GoogleFonts.nunito(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: cl.textMid,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: cl.accent,
               ),
             ),
           ),
-          if (_isFiltered)
-            GestureDetector(
-              onTap: _clearFilters,
-              child: Text(l10n.lawyerClearAll,
-                  style: GoogleFonts.nunito(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: cl.accent)),
-            ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -644,6 +831,150 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
                     fontWeight: FontWeight.w700, color: cl.accent)),
           ),
         ]),
+      ),
+    );
+  }
+}
+
+// ── Nearby lawyer horizontal card ─────────────────────────────────────────────
+
+class _NearbyLawyerCard extends StatelessWidget {
+  const _NearbyLawyerCard({
+    required this.lawyer,
+    required this.distanceKm,
+    required this.l10n,
+    required this.onTap,
+  });
+
+  final LawyerEntity lawyer;
+  final double distanceKm;
+  final AppLocalizations l10n;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cl = context.c;
+    final kmLabel = distanceKm < 10
+        ? distanceKm.toStringAsFixed(1)
+        : distanceKm.round().toString();
+    final area = lawyer.practiceAreas.isNotEmpty
+        ? localizeLawyerPracticeArea(l10n, lawyer.practiceAreas.first)
+        : null;
+
+    return SpringButton(
+      onTap: onTap,
+      child: Container(
+        width: 200,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: cl.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: cl.accent.withValues(alpha: 0.28)),
+          boxShadow: [
+            BoxShadow(
+              color: cl.cardShadow,
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                LawyerDisplayAvatar(
+                  lawyer: lawyer,
+                  size: 40,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [
+                      cl.accent.withValues(alpha: 0.12),
+                      cl.accentLight.withValues(alpha: 0.3),
+                    ]),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  initialsStyle: GoogleFonts.nunito(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: cl.accent,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    lawyer.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.nunito(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: cl.textDark,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Text(
+              l10n.lawyerKmAway(kmLabel),
+              style: GoogleFonts.nunito(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: cl.accent,
+              ),
+            ),
+            if (area != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                area,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.nunito(fontSize: 10.5, color: cl.textMid),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NearbyLocationPrompt extends StatelessWidget {
+  const _NearbyLocationPrompt({
+    required this.cl,
+    required this.message,
+    required this.onEnable,
+  });
+
+  final AppColorTheme cl;
+  final String message;
+  final VoidCallback onEnable;
+
+  @override
+  Widget build(BuildContext context) {
+    return SpringButton(
+      onTap: onEnable,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: cl.accent.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: cl.accent.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.location_off_outlined, size: 20, color: cl.accent),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: GoogleFonts.nunito(fontSize: 12, color: cl.textMid),
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, size: 20, color: cl.accent),
+          ],
+        ),
       ),
     );
   }

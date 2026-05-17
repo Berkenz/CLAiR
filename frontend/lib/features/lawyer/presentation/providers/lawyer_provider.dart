@@ -133,3 +133,9 @@ final lawyerProvider = StateNotifierProvider<LawyerNotifier, LawyerState>((ref) 
   final dataSource = ref.watch(lawyerDataSourceProvider);
   return LawyerNotifier(dataSource);
 });
+
+/// True while a lawyer preview card is open on the map (hides shell quick-action FAB).
+final lawyerMapSheetOpenProvider = StateProvider<bool>((ref) => false);
+
+/// True while the Lawyers tab is showing the map (hides shell FAB — same corner as map controls).
+final lawyerMapViewActiveProvider = StateProvider<bool>((ref) => false);
