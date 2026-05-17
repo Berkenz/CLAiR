@@ -181,7 +181,7 @@ export function ProfileSetupPage() {
     setError("");
     setSaving(true);
     try {
-      await auth.currentUser.getIdToken(true);
+      await auth.currentUser?.getIdToken(true);
       const body = buildLawyerProfileUpdateBody({
         firstName,
         middleName,
