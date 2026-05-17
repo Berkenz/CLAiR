@@ -721,12 +721,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 ],
               ),
             ),
-            if (chatState.showTermsDisclaimer) _buildTermsDisclaimer(),
+            if (chatState.showTermsDisclaimer)
+              MediaQuery(
+                data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+                child: _buildTermsDisclaimer(),
+              ),
             if (isGuest &&
                 hasUserMessages &&
                 !_guestEphemeralBannerDismissed)
-              _buildGuestEphemeralBanner(),
-            if (chatState.isLoadedConversation) _buildDisclaimer(),
+              MediaQuery(
+                data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+                child: _buildGuestEphemeralBanner(),
+              ),
+            if (chatState.isLoadedConversation)
+              MediaQuery(
+                data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+                child: _buildDisclaimer(),
+              ),
             _buildInputBar(chatState.isLoading),
           ],
         ),

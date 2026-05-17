@@ -34,7 +34,11 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
     }
 
     final allChats = historyState.conversations;
-    final filteredChats = allChats.take(4).toList();
+    final filteredChats = allChats
+        .where((c) => !c.isPinned)
+        .toList()
+      ..sort((a, b) => (b.updatedAt ?? b.createdAt).compareTo(a.updatedAt ?? a.createdAt));
+    final recentChats = filteredChats.take(4).toList();
 
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.76,
@@ -67,7 +71,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
             ),
           ),
 
-          if (filteredChats.isEmpty)
+          if (recentChats.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Text(
@@ -76,7 +80,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               ),
             )
           else
-            ...filteredChats.toList().asMap().entries.map((e) {
+            ...recentChats.asMap().entries.map((e) {
               final conv = e.value;
               final timeLabel = _formatRecentTime(conv.updatedAt ?? conv.createdAt);
               return GestureDetector(
@@ -89,7 +93,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   );
                   ref.read(mainShellTabProvider.notifier).state = 1;
                 },
-                child: _recentChat(context, conv.isPinned ? Icons.push_pin_rounded : Icons.chat_bubble_outline_rounded, conv.title, timeLabel),
+                child: _recentChat(context, Icons.chat_bubble_outline_rounded, conv.title, timeLabel),
               );
             }),
 

@@ -147,8 +147,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       backgroundColor: cl.surface,
       body: SafeArea(
         child: SingleChildScrollView(
-          child: SizedBox(
-            height: size.height - MediaQuery.of(context).padding.top,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: size.height - MediaQuery.of(context).padding.top,
+            ),
             child: Stack(
               children: [
                 CustomPaint(
@@ -163,6 +165,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       SizedBox(height: compact ? 12 : 20),
 
@@ -315,8 +318,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                       SizedBox(height: compact ? 12 : 20),
 
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text(
                             l10n.authNoAccountPrompt,
