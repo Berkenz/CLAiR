@@ -68,6 +68,16 @@ data/commonwealth_acts/*.json
 data/supreme_court_decisions/*.json
 data/administrative_orders/*.json
 
+# Credentials & secrets — never commit these
+*service-account*.json
+*service_account*.json
+credentials.json
+*.keystore
+*.jks
+*.p12
+*.pem
+local.properties
+
 # Misc
 *.swp
 *.swo

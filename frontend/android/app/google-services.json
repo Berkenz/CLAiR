@@ -48,6 +48,42 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:84517594334:android:2f4cd719fe5c9d28480e4f",
+        "android_client_info": {
+          "package_name": "ph.clair.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "84517594334-ftnp4nbbtsc737q4mov4vqm6jibj41fq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAIj96e3iCVEdwyFtQEfUWoNup8fkhqemE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "84517594334-ftnp4nbbtsc737q4mov4vqm6jibj41fq.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "84517594334-228b8qlf4234oaq0hbacd6tj9qmie5oc.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.clair"
+              }
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"
