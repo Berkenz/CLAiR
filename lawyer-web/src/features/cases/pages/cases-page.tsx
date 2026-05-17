@@ -1244,6 +1244,15 @@ export function CasesPage() {
 
 // ─── Case Detail Panel ────────────────────────────────────────────────────────
 
+const USER_REPORT_CATEGORIES = [
+  "Inappropriate Behavior",
+  "Harassment or Threats",
+  "Fraudulent Activity",
+  "No-Show or Abandonment",
+  "Privacy Violation",
+  "Other",
+] as const;
+
 function CaseDetail({ appt, onAccept, accepting, onReject, onApptUpdated, initialTab, onInitialTabConsumed, chatUnreadCount, onChatOpened }: {
   appt: Appointment;
   onAccept: () => void;
@@ -1258,6 +1267,49 @@ function CaseDetail({ appt, onAccept, accepting, onReject, onApptUpdated, initia
   const manual = isManualCase(appt);
   const [tab, setTab] = useState<DetailTab>(initialTab ?? "overview");
   const [resolveBusy, setResolveBusy] = useState(false);
+
+  // ── Report client state ──────────────────────────────────────────────────
+  const [showReportClient, setShowReportClient] = useState(false);
+  const [rptCategory, setRptCategory] = useState<string>(USER_REPORT_CATEGORIES[0]);
+  const [rptExplanation, setRptExplanation] = useState("");
+  const [rptSubmitting, setRptSubmitting] = useState(false);
+  const [rptError, setRptError] = useState<string | null>(null);
+  const [rptSuccess, setRptSuccess] = useState(false);
+
+  async function submitClientReport(e: FormEvent) {
+    e.preventDefault();
+    if (rptExplanation.trim().length < 12) {
+      setRptError("Please provide at least 12 characters of explanation.");
+      return;
+    }
+    setRptSubmitting(true);
+    setRptError(null);
+    try {
+      const body: Record<string, string> = {
+        category: rptCategory,
+        explanation: appt.client_user_id
+          ? rptExplanation.trim()
+          : `[Client: ${appt.client_name}] ${rptExplanation.trim()}`,
+      };
+      if (appt.client_user_id) {
+        body.reported_user_id = appt.client_user_id;
+      } else {
+        body.reported_user_id = "00000000-0000-0000-0000-000000000000";
+      }
+      await api.post("/reports/user", body);
+      setRptSuccess(true);
+      setTimeout(() => {
+        setShowReportClient(false);
+        setRptSuccess(false);
+        setRptExplanation("");
+        setRptCategory(USER_REPORT_CATEGORIES[0]);
+      }, 1800);
+    } catch (err) {
+      setRptError(getApiErrorMessage(err, "Failed to submit report."));
+    } finally {
+      setRptSubmitting(false);
+    }
+  }
 
   useEffect(() => {
     if (initialTab) {
@@ -1371,6 +1423,14 @@ function CaseDetail({ appt, onAccept, accepting, onReject, onApptUpdated, initia
                   Reopen case
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => setShowReportClient(true)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-200 text-xs font-semibold text-red-600 hover:bg-red-50 transition"
+              >
+                <Flag className="h-3 w-3" />
+                Report client
+              </button>
             </div>
           </div>
         </div>
@@ -1409,6 +1469,57 @@ function CaseDetail({ appt, onAccept, accepting, onReject, onApptUpdated, initia
         {!manual && tab === "pdf" && <PdfTab appt={appt} />}
         {!manual && tab === "chat" && <ClientChatTab appt={appt} />}
       </div>
+
+      {/* Report client modal */}
+      {showReportClient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-[#241715] text-base">Report Client</h2>
+              <button type="button" onClick={() => { setShowReportClient(false); setRptError(null); setRptSuccess(false); }} className="text-[#957186] hover:text-[#703d57]">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {rptSuccess ? (
+              <p className="text-emerald-600 font-semibold text-sm text-center py-4">Report submitted successfully.</p>
+            ) : (
+              <form onSubmit={(e) => void submitClientReport(e)} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-[#703d57] mb-1">Category</label>
+                  <select
+                    className="w-full rounded-lg border border-[#d9b8c4]/60 px-3 py-2 text-sm text-[#241715] focus:outline-none focus:ring-2 focus:ring-[#703d57]/30"
+                    value={rptCategory}
+                    onChange={(e: ChangeEvent<HTMLSelectElement>) => setRptCategory(e.target.value)}
+                  >
+                    {USER_REPORT_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#703d57] mb-1">Explanation</label>
+                  <textarea
+                    className="w-full rounded-lg border border-[#d9b8c4]/60 px-3 py-2 text-sm text-[#241715] focus:outline-none focus:ring-2 focus:ring-[#703d57]/30 min-h-[100px] resize-y"
+                    placeholder="Describe the issue (min. 12 characters)…"
+                    value={rptExplanation}
+                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setRptExplanation(e.target.value)}
+                    required
+                  />
+                </div>
+                {rptError && <p className="text-red-600 text-xs">{rptError}</p>}
+                <button
+                  type="submit"
+                  disabled={rptSubmitting}
+                  className="w-full py-2.5 rounded-xl bg-[#703d57] text-white text-sm font-semibold hover:bg-[#5a3046] disabled:opacity-60 transition flex items-center justify-center gap-2"
+                >
+                  {rptSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {rptSubmitting ? "Submitting…" : "Submit Report"}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

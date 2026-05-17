@@ -9,6 +9,8 @@ import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/appointments/domain/entities/appointment_entity.dart';
 import 'package:clair/features/appointments/domain/entities/direct_message_entity.dart';
 import 'package:clair/features/appointments/presentation/providers/direct_message_provider.dart';
+import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
+import 'package:clair/features/lawyer/presentation/sheets/lawyer_concern_sheet.dart';
 import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
 
 Widget _dmChatAvatar({
@@ -86,6 +88,7 @@ class LawyerChatScreen extends ConsumerStatefulWidget {
 class _LawyerChatScreenState extends ConsumerState<LawyerChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
+  DirectMessageNotifier? _dmNotifier;
 
   AppointmentEntity get appt => widget.appointment;
 
@@ -101,6 +104,7 @@ class _LawyerChatScreenState extends ConsumerState<LawyerChatScreen> {
   @override
   void initState() {
     super.initState();
+    _dmNotifier = ref.read(directMessageProvider(appt.id).notifier);
     ref.listenManual<DirectMessageState>(
       directMessageProvider(appt.id),
       (prev, next) {
@@ -112,7 +116,7 @@ class _LawyerChatScreenState extends ConsumerState<LawyerChatScreen> {
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(directMessageProvider(appt.id).notifier).startPolling();
+      _dmNotifier?.startPolling();
       // Inbox refresh rebuilds the shell; defer one frame so DM listeners finish
       // attaching before markRead mutates notification state.
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -124,7 +128,7 @@ class _LawyerChatScreenState extends ConsumerState<LawyerChatScreen> {
 
   @override
   void dispose() {
-    ref.read(directMessageProvider(appt.id).notifier).stopPolling();
+    _dmNotifier?.stopPolling();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -285,6 +289,22 @@ class _LawyerChatScreenState extends ConsumerState<LawyerChatScreen> {
           ),
         ],
       ),
+      actions: [
+        IconButton(
+          tooltip: 'Report lawyer',
+          icon: Icon(Icons.flag_outlined, color: cl.textMid, size: 22),
+          onPressed: () {
+            showLawyerConcernSheet(
+              context,
+              LawyerEntity(
+                id: appt.lawyerProfileId,
+                displayName: appt.displayLawyerName,
+                photoUrl: appt.lawyerPhotoUrl,
+              ),
+            );
+          },
+        ),
+      ],
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(1),
         child: Container(height: 1, color: cl.border),

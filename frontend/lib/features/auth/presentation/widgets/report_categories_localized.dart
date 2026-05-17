@@ -67,6 +67,45 @@ List<LawReportCategory> lawReportCategoriesFor(AppLocalizations l) => [
       ),
     ];
 
+List<LawReportCategory> userReportCategoriesFor(AppLocalizations l) => [
+      LawReportCategory(
+        id: 'Inappropriate Behavior',
+        label: 'Inappropriate Behavior',
+        description: 'Rude, offensive, or unprofessional conduct',
+        icon: Icons.sentiment_very_dissatisfied_rounded,
+      ),
+      LawReportCategory(
+        id: 'Harassment or Threats',
+        label: 'Harassment or Threats',
+        description: 'Intimidating, threatening, or hostile communication',
+        icon: Icons.warning_amber_rounded,
+      ),
+      LawReportCategory(
+        id: 'Fraudulent Activity',
+        label: 'Fraudulent Activity',
+        description: 'Scam, misrepresentation, or deceptive practices',
+        icon: Icons.gavel_rounded,
+      ),
+      LawReportCategory(
+        id: 'No-Show or Abandonment',
+        label: 'No-Show or Abandonment',
+        description: 'Failed to attend or abandoned the appointment',
+        icon: Icons.event_busy_rounded,
+      ),
+      LawReportCategory(
+        id: 'Privacy Violation',
+        label: 'Privacy Violation',
+        description: 'Shared private information without consent',
+        icon: Icons.security_rounded,
+      ),
+      LawReportCategory(
+        id: 'Other',
+        label: 'Other',
+        description: 'Any other concern not listed above',
+        icon: Icons.more_horiz_rounded,
+      ),
+    ];
+
 List<LawReportCategory> appReportCategoriesFor(AppLocalizations l) => [
       LawReportCategory(
         id: 'App Bug',

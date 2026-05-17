@@ -144,6 +144,35 @@ class ChatRemoteDataSource {
       throw ChatException('Failed to submit report. Please try again.');
     }
   }
+
+  Future<void> reportUser({
+    String? reportedUserId,
+    String? reportedLawyerProfileId,
+    required String category,
+    required String explanation,
+  }) async {
+    final data = <String, dynamic>{
+      'category': category,
+      'explanation': explanation,
+    };
+    if (reportedUserId != null) data['reported_user_id'] = reportedUserId;
+    if (reportedLawyerProfileId != null) {
+      data['reported_lawyer_profile_id'] = reportedLawyerProfileId;
+    }
+
+    try {
+      await _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.reportUser,
+        data: data,
+      );
+    } on DioException catch (e) {
+      final detail = e.response?.data;
+      if (detail is Map<String, dynamic> && detail['detail'] != null) {
+        throw ChatException(detail['detail'].toString());
+      }
+      throw ChatException('Failed to submit report. Please try again.');
+    }
+  }
 }
 
 class ChatException implements Exception {

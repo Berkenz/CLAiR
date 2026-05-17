@@ -159,4 +159,13 @@ class LawyerService:
         return lawyers
 
 
+    async def get_profile_by_id(
+        self, db: AsyncSession, profile_id: uuid.UUID
+    ) -> LawyerProfile | None:
+        result = await db.execute(
+            select(LawyerProfile).where(LawyerProfile.id == profile_id)
+        )
+        return result.scalar_one_or_none()
+
+
 lawyer_service = LawyerService()

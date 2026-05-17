@@ -74,6 +74,12 @@ class UserService:
         await db.refresh(user)
         return user
 
+    async def get_user_by_id(
+        self, db: AsyncSession, user_id: uuid.UUID
+    ) -> User | None:
+        result = await db.execute(select(User).where(User.id == user_id))
+        return result.scalar_one_or_none()
+
     async def delete_user(self, db: AsyncSession, user: User) -> None:
         """
         Remove the user row. Related rows with ON DELETE CASCADE are removed too

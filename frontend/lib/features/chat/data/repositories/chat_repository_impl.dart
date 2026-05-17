@@ -42,4 +42,18 @@ class ChatRepositoryImpl implements ChatRepository {
         conversationId: conversationId,
         reportedMessageExcerpt: reportedMessageExcerpt,
       );
+
+  @override
+  Future<void> reportUser({
+    String? reportedUserId,
+    String? reportedLawyerProfileId,
+    required String category,
+    required String explanation,
+  }) =>
+      _remote.reportUser(
+        reportedUserId: reportedUserId,
+        reportedLawyerProfileId: reportedLawyerProfileId,
+        category: category,
+        explanation: explanation,
+      );
 }

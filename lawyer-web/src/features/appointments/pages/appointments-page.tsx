@@ -1,10 +1,19 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   Check, X, RefreshCw, Loader2, Smartphone, CalendarDays, Clock,
-  FileText, ChevronDown, ChevronUp, WifiOff, Download,
+  FileText, ChevronDown, ChevronUp, WifiOff, Download, Flag,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { getApiErrorMessage, isApiNetworkError } from "@/lib/api-error";
+
+const REPORT_CATEGORIES = [
+  "Inappropriate Behavior",
+  "Harassment or Threats",
+  "Fraudulent Activity",
+  "No-Show or Abandonment",
+  "Privacy Violation",
+  "Other",
+] as const;
 
 interface Appointment {
   id: string;
@@ -56,6 +65,13 @@ export function AppointmentsPage() {
   const [rejectError, setRejectError] = useState<string | null>(null);
   const [confirmedCollapsed, setConfirmedCollapsed] = useState(false);
   const [cancelledCollapsed, setCancelledCollapsed] = useState(true);
+
+  const [reportTarget, setReportTarget] = useState<Appointment | null>(null);
+  const [reportCategory, setReportCategory] = useState<string>(REPORT_CATEGORIES[0]);
+  const [reportExplanation, setReportExplanation] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportSuccess, setReportSuccess] = useState(false);
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true);
@@ -113,6 +129,50 @@ export function AppointmentsPage() {
       setRejectError(e?.response?.data?.detail ?? "Failed to reject. Please try again.");
     } finally {
       setRejecting(false);
+    }
+  }
+
+  function openReport(appt: Appointment) {
+    setReportTarget(appt);
+    setReportCategory(REPORT_CATEGORIES[0]);
+    setReportExplanation("");
+    setReportError(null);
+    setReportSuccess(false);
+  }
+
+  async function handleReport(e: FormEvent) {
+    e.preventDefault();
+    if (!reportTarget) return;
+    if (reportExplanation.trim().length < 12) {
+      setReportError("Please provide at least 12 characters of explanation.");
+      return;
+    }
+    setReportSubmitting(true);
+    setReportError(null);
+    try {
+      const body: Record<string, string> = {
+        category: reportCategory,
+        explanation: reportTarget.client_user_id
+          ? reportExplanation.trim()
+          : `[Client: ${reportTarget.client_name}] ${reportExplanation.trim()}`,
+      };
+      if (reportTarget.client_user_id) {
+        body.reported_user_id = reportTarget.client_user_id;
+      } else {
+        body.reported_user_id = "00000000-0000-0000-0000-000000000000";
+      }
+      await api.post("/reports/user", body);
+      setReportSuccess(true);
+      setTimeout(() => {
+        setReportTarget(null);
+        setReportSuccess(false);
+        setReportExplanation("");
+        setReportCategory(REPORT_CATEGORIES[0]);
+      }, 1800);
+    } catch (err) {
+      setReportError(getApiErrorMessage(err, "Failed to submit report."));
+    } finally {
+      setReportSubmitting(false);
     }
   }
 
@@ -207,6 +267,7 @@ export function AppointmentsPage() {
                   <AppointmentCard
                     key={a.id}
                     appt={a}
+                    onReport={openReport}
                     actions={
                       <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
                         <button
@@ -248,7 +309,7 @@ export function AppointmentsPage() {
               confirmed.length === 0 ? (
                 <div className="rounded-2xl border border-[#d9b8c4]/40 bg-white shadow-sm py-10 text-center text-sm text-gray-400">No confirmed appointments.</div>
               ) : (
-                <div className="space-y-3">{confirmed.map((a) => <AppointmentCard key={a.id} appt={a} />)}</div>
+                <div className="space-y-3">{confirmed.map((a) => <AppointmentCard key={a.id} appt={a} onReport={openReport} />)}</div>
               )
             )}
           </section>
@@ -264,11 +325,71 @@ export function AppointmentsPage() {
                 </span>
               </button>
               {!cancelledCollapsed && (
-                <div className="space-y-3">{cancelled.map((a) => <AppointmentCard key={a.id} appt={a} />)}</div>
+                <div className="space-y-3">{cancelled.map((a) => <AppointmentCard key={a.id} appt={a} onReport={openReport} />)}</div>
               )}
             </section>
           )}
         </>
+      )}
+
+      {/* ── Report Client Modal ── */}
+      {reportTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="font-bold text-[#241715] text-lg">Report Client</h2>
+                <p className="text-sm text-[#957186] mt-0.5">{reportTarget.client_name}</p>
+              </div>
+              <button onClick={() => { setReportTarget(null); setReportError(null); setReportSuccess(false); }} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 mt-0.5">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {reportSuccess ? (
+              <p className="text-emerald-600 font-semibold text-sm text-center py-4">Report submitted successfully.</p>
+            ) : (
+              <form onSubmit={(e) => void handleReport(e)} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-[#703d57] mb-1.5">Category</label>
+                  <select
+                    className="w-full rounded-xl border border-[#d9b8c4]/60 px-3 py-2.5 text-sm text-[#241715] focus:outline-none focus:ring-2 focus:ring-[#703d57]/30"
+                    value={reportCategory}
+                    onChange={(e: ChangeEvent<HTMLSelectElement>) => setReportCategory(e.target.value)}
+                  >
+                    {REPORT_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#703d57] mb-1.5">Explanation</label>
+                  <textarea
+                    rows={4}
+                    autoFocus
+                    className="w-full rounded-xl border border-[#d9b8c4]/60 px-3 py-2.5 text-sm text-[#241715] focus:outline-none focus:ring-2 focus:ring-[#703d57]/30 resize-none"
+                    placeholder="Describe the issue (min. 12 characters)…"
+                    value={reportExplanation}
+                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setReportExplanation(e.target.value)}
+                    required
+                  />
+                  {reportError && (
+                    <p className="mt-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{reportError}</p>
+                  )}
+                </div>
+                <div className="flex gap-3 mt-5">
+                  <button type="button" onClick={() => setReportTarget(null)} className="flex-1 rounded-xl border border-[#d9b8c4]/60 py-2.5 text-sm font-semibold text-[#402a2c] hover:bg-[#f7f0f4] transition-colors">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={reportSubmitting}
+                    className="flex-1 rounded-xl bg-[#703d57] py-2.5 text-sm font-semibold text-white hover:bg-[#5a3046] transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+                    {reportSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Submit Report
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
       )}
 
       {/* ── Reject Modal ── */}
@@ -319,7 +440,7 @@ export function AppointmentsPage() {
   );
 }
 
-function AppointmentCard({ appt, actions }: { appt: Appointment; actions?: React.ReactNode }) {
+function AppointmentCard({ appt, actions, onReport }: { appt: Appointment; actions?: React.ReactNode; onReport?: (a: Appointment) => void }) {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
@@ -412,6 +533,18 @@ function AppointmentCard({ appt, actions }: { appt: Appointment; actions?: React
           <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">
             <span className="font-semibold">Reason: </span>{appt.rejection_reason}
           </p>
+        </div>
+      )}
+      {onReport && (
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={() => onReport(appt)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:underline transition-colors"
+          >
+            <Flag className="h-3.5 w-3.5" />
+            Report client
+          </button>
         </div>
       )}
       {actions}

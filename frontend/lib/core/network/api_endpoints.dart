@@ -42,4 +42,5 @@ class ApiEndpoints {
       '/conversations/$id/appointment-summary';
 
   static const String reportConversation = '/reports';
+  static const String reportUser = '/reports/user';
 }

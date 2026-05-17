@@ -18,4 +18,11 @@ abstract class ChatRepository {
     String? conversationId,
     String? reportedMessageExcerpt,
   });
+
+  Future<void> reportUser({
+    String? reportedUserId,
+    String? reportedLawyerProfileId,
+    required String category,
+    required String explanation,
+  });
 }
