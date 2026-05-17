@@ -111,6 +111,39 @@ class ChatRemoteDataSource {
       );
     }
   }
+
+  Future<void> reportConversation({
+    required String category,
+    required String explanation,
+    required List<ChatMessageEntity> messages,
+    String? conversationId,
+    String? reportedMessageExcerpt,
+  }) async {
+    final data = <String, dynamic>{
+      'category': category,
+      'explanation': explanation,
+      'messages': messages
+          .map((m) => {'role': m.role, 'text': m.text})
+          .toList(),
+    };
+    if (conversationId != null) data['conversation_id'] = conversationId;
+    if (reportedMessageExcerpt != null) {
+      data['reported_message_excerpt'] = reportedMessageExcerpt;
+    }
+
+    try {
+      await _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.reportConversation,
+        data: data,
+      );
+    } on DioException catch (e) {
+      final detail = e.response?.data;
+      if (detail is Map<String, dynamic> && detail['detail'] != null) {
+        throw ChatException(detail['detail'].toString());
+      }
+      throw ChatException('Failed to submit report. Please try again.');
+    }
+  }
 }
 
 class ChatException implements Exception {

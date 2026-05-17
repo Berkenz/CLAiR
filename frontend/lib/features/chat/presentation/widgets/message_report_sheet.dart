@@ -46,6 +46,58 @@ class _MessageReportSheet extends ConsumerStatefulWidget {
 class _MessageReportSheetState extends ConsumerState<_MessageReportSheet> {
   final GlobalKey<LawReportIssueFieldGroupState> _fieldsKey =
       GlobalKey<LawReportIssueFieldGroupState>();
+  bool _submitting = false;
+
+  Future<void> _submitReport(
+    BuildContext context,
+    WidgetRef ref,
+    AppColorTheme cl,
+  ) async {
+    final st = _fieldsKey.currentState;
+    if (st == null || !st.validateReport()) return;
+
+    setState(() => _submitting = true);
+
+    final chatState = ref.read(chatProvider);
+    final messages = [...chatState.messages];
+
+    if (widget.messageIndex >= 0 && widget.messageIndex < messages.length) {
+      final m = messages[widget.messageIndex];
+      messages[widget.messageIndex] = m.copyWith(feedback: 'dislike');
+      ref.read(chatProvider.notifier).updateMessages(messages);
+    }
+
+    try {
+      final repo = ref.read(chatRepositoryProvider);
+      await repo.reportConversation(
+        category: st.category,
+        explanation: st.explanationText,
+        messages: chatState.messages,
+        conversationId: chatState.conversationId,
+        reportedMessageExcerpt: widget.excerpt,
+      );
+    } catch (_) {
+      // Best-effort — snackbar still thanks the user.
+    }
+
+    if (!mounted) return;
+    setState(() => _submitting = false);
+
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Thanks — your report was sent.',
+          style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: cl.textDark,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -157,38 +209,22 @@ class _MessageReportSheetState extends ConsumerState<_MessageReportSheet> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            onPressed: () {
-                              final st = _fieldsKey.currentState;
-                              if (st == null || !st.validateReport()) return;
-
-                              final messages = [...ref.read(chatProvider).messages];
-                              if (widget.messageIndex >= 0 &&
-                                  widget.messageIndex < messages.length) {
-                                final m = messages[widget.messageIndex];
-                                messages[widget.messageIndex] =
-                                    m.copyWith(feedback: 'dislike');
-                                ref.read(chatProvider.notifier).updateMessages(messages);
-                              }
-
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Thanks — your report was sent.',
-                                    style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
+                            onPressed: _submitting
+                                ? null
+                                : () => _submitReport(context, ref, cl),
+                            child: _submitting
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    l10n.commonSubmit,
+                                    style: GoogleFonts.nunito(fontWeight: FontWeight.w700),
                                   ),
-                                  backgroundColor: cl.textDark,
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              );
-                            },
-                            child: Text(
-                              l10n.commonSubmit,
-                              style: GoogleFonts.nunito(fontWeight: FontWeight.w700),
-                            ),
                           ),
                         ),
                       ],

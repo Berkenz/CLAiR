@@ -40,4 +40,6 @@ class ApiEndpoints {
   static String conversationPdf(String id) => '/conversations/$id/pdf';
   static String conversationAppointmentSummary(String id) =>
       '/conversations/$id/appointment-summary';
+
+  static const String reportConversation = '/reports';
 }

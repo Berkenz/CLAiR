@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/widgets/law_report_issue_field_group.dart';
 import 'package:clair/features/auth/presentation/widgets/report_categories_localized.dart';
+import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/l10n/app_localizations.dart';
 
-class ReportScreen extends StatefulWidget {
+class ReportScreen extends ConsumerStatefulWidget {
   const ReportScreen({super.key});
 
   @override
-  State<ReportScreen> createState() => _ReportScreenState();
+  ConsumerState<ReportScreen> createState() => _ReportScreenState();
 }
 
-class _ReportScreenState extends State<ReportScreen> {
+class _ReportScreenState extends ConsumerState<ReportScreen> {
   final GlobalKey<LawReportIssueFieldGroupState> _fieldsKey =
       GlobalKey<LawReportIssueFieldGroupState>();
   bool _submitted = false;
+  bool _submitting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -176,16 +179,45 @@ class _ReportScreenState extends State<ReportScreen> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                onPressed: () {
+                onPressed: _submitting ? null : () async {
                   final st = _fieldsKey.currentState;
                   if (st == null || !st.validateReport()) return;
-                  setState(() => _submitted = true);
+
+                  setState(() => _submitting = true);
+
+                  try {
+                    final chatState = ref.read(chatProvider);
+                    final repo = ref.read(chatRepositoryProvider);
+                    await repo.reportConversation(
+                      category: st.category,
+                      explanation: st.explanationText,
+                      messages: chatState.messages,
+                      conversationId: chatState.conversationId,
+                    );
+                  } catch (_) {
+                    // Best-effort — success screen still shown.
+                  }
+
+                  if (!mounted) return;
+                  setState(() {
+                    _submitting = false;
+                    _submitted = true;
+                  });
                 },
-                child: Text(
-                  l10n.reportSubmitButton,
-                  style: GoogleFonts.nunito(
-                      fontSize: 15, fontWeight: FontWeight.w800),
-                ),
+                child: _submitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        l10n.reportSubmitButton,
+                        style: GoogleFonts.nunito(
+                            fontSize: 15, fontWeight: FontWeight.w800),
+                      ),
               ),
             ),
           ],

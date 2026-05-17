@@ -26,4 +26,20 @@ class ChatRepositoryImpl implements ChatRepository {
         userLng: userLng,
         locale: locale,
       );
+
+  @override
+  Future<void> reportConversation({
+    required String category,
+    required String explanation,
+    required List<ChatMessageEntity> messages,
+    String? conversationId,
+    String? reportedMessageExcerpt,
+  }) =>
+      _remote.reportConversation(
+        category: category,
+        explanation: explanation,
+        messages: messages,
+        conversationId: conversationId,
+        reportedMessageExcerpt: reportedMessageExcerpt,
+      );
 }

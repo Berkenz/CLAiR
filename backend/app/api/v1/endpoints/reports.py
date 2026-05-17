@@ -3,7 +3,7 @@ import uuid
 from html import escape
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -15,7 +15,6 @@ from app.schemas.report import (
     UserReportRequest,
     UserReportResponse,
 )
-from app.main import limiter
 from app.services.email_service import send_email
 from app.services.lawyer_service import lawyer_service
 from app.services.user_service import user_service
@@ -156,9 +155,7 @@ def _build_user_report_email(
 # ── endpoints ──────────────────────────────────────────────────────────────────
 
 @router.post("", response_model=ConversationReportResponse)
-@limiter.limit("5/minute")
 async def report_conversation(
-    request: Request,
     body: ConversationReportRequest,
     background_tasks: BackgroundTasks,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -183,9 +180,7 @@ async def report_conversation(
 
 
 @router.post("/user", response_model=UserReportResponse)
-@limiter.limit("5/minute")
 async def report_user(
-    request: Request,
     body: UserReportRequest,
     background_tasks: BackgroundTasks,
     current_user: Annotated[User, Depends(get_current_user)],

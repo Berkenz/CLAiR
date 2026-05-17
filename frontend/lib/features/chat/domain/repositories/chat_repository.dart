@@ -10,4 +10,12 @@ abstract class ChatRepository {
     double? userLng,
     String locale = 'en',
   });
+
+  Future<void> reportConversation({
+    required String category,
+    required String explanation,
+    required List<ChatMessageEntity> messages,
+    String? conversationId,
+    String? reportedMessageExcerpt,
+  });
 }
