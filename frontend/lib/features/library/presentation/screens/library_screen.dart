@@ -42,9 +42,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   void initState() {
     super.initState();
     _searchController = TextEditingController();
-    Future.microtask(
-      () => ref.read(historyProvider.notifier).loadConversations(),
-    );
+    Future.microtask(() {
+      ref.read(historyProvider.notifier).loadConversations();
+      final requestedSegment = ref.read(librarySegmentProvider);
+      if (requestedSegment != 0) {
+        if (mounted) setState(() => _segment = requestedSegment);
+        ref.read(librarySegmentProvider.notifier).state = 0;
+      }
+    });
   }
 
   @override

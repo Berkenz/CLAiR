@@ -15,6 +15,7 @@ import 'package:clair/features/lawyer/presentation/providers/lawyer_provider.dar
 import 'package:clair/features/lawyer/presentation/screens/lawyer_screen.dart';
 import 'package:clair/features/appointments/presentation/screens/appointment_screen.dart';
 import 'package:clair/app/main_shell_tab.dart';
+import 'package:clair/features/appointments/presentation/providers/direct_message_provider.dart';
 import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
 import 'package:clair/features/notifications/presentation/widgets/realtime_notification_banner.dart';
 import 'package:clair/core/tutorial/tutorial_overlay.dart';
@@ -206,7 +207,8 @@ class _MainShellState extends ConsumerState<MainShell>
     final cl = context.c;
     final bottom = MediaQuery.of(context).viewPadding.bottom;
     final inbox = ref.watch(notificationInboxProvider);
-    final totalUnread = inbox.unreadCount;
+    final dmAggregate = ref.watch(dmUnreadAggregateProvider);
+    final totalUnread = inbox.unreadCount > dmAggregate ? inbox.unreadCount : dmAggregate;
 
     return Container(
       padding: EdgeInsets.only(bottom: bottom > 0 ? bottom : 8),

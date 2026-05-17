@@ -222,3 +222,29 @@ final directMessageProvider = StateNotifierProvider.autoDispose.family<
     return DirectMessageNotifier(dataSource, appointmentId);
   },
 );
+
+/// Global aggregate of DM unread counts across all appointments.
+/// Updated by appointment cards when they call fetchCountOnly().
+class DmUnreadAggregateNotifier extends StateNotifier<int> {
+  DmUnreadAggregateNotifier() : super(0);
+
+  final Map<String, int> _perAppt = {};
+
+  void update(String appointmentId, int count) {
+    final prev = _perAppt[appointmentId] ?? 0;
+    if (prev == count) return;
+    _perAppt[appointmentId] = count;
+    state = _perAppt.values.fold(0, (sum, v) => sum + v);
+  }
+
+  void remove(String appointmentId) {
+    if (_perAppt.remove(appointmentId) != null) {
+      state = _perAppt.values.fold(0, (sum, v) => sum + v);
+    }
+  }
+}
+
+final dmUnreadAggregateProvider =
+    StateNotifierProvider<DmUnreadAggregateNotifier, int>(
+  (ref) => DmUnreadAggregateNotifier(),
+);

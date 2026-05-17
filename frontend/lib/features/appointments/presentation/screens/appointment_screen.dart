@@ -856,7 +856,10 @@ class _AppointmentCardState extends ConsumerState<_AppointmentCard> {
         (prev, next) {
           if (!mounted) return;
           final u = next.unreadCount;
-          if (u != _dmUnread) setState(() => _dmUnread = u);
+          if (u != _dmUnread) {
+            setState(() => _dmUnread = u);
+            ref.read(dmUnreadAggregateProvider.notifier).update(id, u);
+          }
         },
       );
       Future.microtask(() {
@@ -865,6 +868,14 @@ class _AppointmentCardState extends ConsumerState<_AppointmentCard> {
         }
       });
     }
+  }
+
+  @override
+  void dispose() {
+    if (widget.appointment.canStartLawyerChat) {
+      // Don't remove — keep the count alive for the nav badge.
+    }
+    super.dispose();
   }
 
   AppointmentEntity get appointment => widget.appointment;
