@@ -477,6 +477,10 @@ class AppLocalizationsCeb extends AppLocalizations {
       'Walay law excerpt nga nakab-ot sa relevance threshold niini nga pangutana.';
 
   @override
+  String get chatLawyerReportedBanner =>
+      'Gi-flag sa abogado kining tubaga alang sa review human nimo gipaambit kining chat. Isipa kini nga kinatibuk-ang impormasyon lamang—dili legal advice.';
+
+  @override
   String get chatRetrievedForAnswer => 'Gikuha alang niini nga tubag';
 
   @override

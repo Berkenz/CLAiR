@@ -77,10 +77,10 @@ async def send_message(
             for l in nearby
         ]
 
-        await conversation_service.add_message(
+        user_msg = await conversation_service.add_message(
             db, conversation_id=conv.id, role="user", text=body.message
         )
-        await conversation_service.add_message(
+        assistant_msg = await conversation_service.add_message(
             db, conversation_id=conv.id, role="model", text=reply
         )
 
@@ -107,6 +107,8 @@ async def send_message(
             reply=reply,
             conversation_id=conv.id,
             conversation_title=conversation_title,
+            user_message_id=user_msg.id,
+            assistant_message_id=assistant_msg.id,
             suggested_lawyers=suggested_lawyers,
             rag_enabled=rag_enabled,
             rag_sources=rag_sources,

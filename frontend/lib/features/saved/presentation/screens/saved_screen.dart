@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
+import 'package:clair/features/chat/utils/chat_markdown_format.dart';
 import 'package:clair/features/history/domain/entities/conversation_entity.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
 import 'package:clair/shared/widgets/clair_app_bar.dart';
@@ -86,7 +87,7 @@ class _SavedScreenState extends ConsumerState<SavedScreen> {
     final chatDate = conversation.updatedAt ?? conversation.createdAt;
     final dateTimeStr = _formatDateTime(chatDate);
     final lastMessagePreview = conversation.lastMessage?.trim().isNotEmpty == true
-      ? conversation.lastMessage!.trim()
+      ? plainTextChatPreview(conversation.lastMessage!)
       : 'Tap to open conversation';
 
     return GestureDetector(

@@ -26,6 +26,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { api } from "@/lib/api";
 import { getApiErrorMessage, isApiNetworkError } from "@/lib/api-error";
 import { cn } from "@/lib/cn";
+import { ChatMarkdown } from "@/components/chat-markdown";
 import { useAuth } from "@/features/auth/auth-provider";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1766,10 +1767,10 @@ function ConversationTab({ appt }: { appt: Appointment }) {
                   </div>
                 )}
                 <div className={cn(
-                  "max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
-                  isAI ? "bg-[#f7f0f4] text-[#241715] rounded-tl-sm" : "bg-[#703d57] text-white rounded-tr-sm"
+                  "max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                  isAI ? "bg-[#f7f0f4] text-[#241715] rounded-tl-sm" : "bg-[#703d57] text-white rounded-tr-sm whitespace-pre-wrap"
                 )}>
-                  {msg.text}
+                  {isAI ? <ChatMarkdown content={msg.text} /> : msg.text}
                 </div>
                 {!isAI && (
                   <div className="h-7 w-7 rounded-full bg-[#957186] flex items-center justify-center shrink-0 mt-0.5">

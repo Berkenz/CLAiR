@@ -1,4 +1,5 @@
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
+import 'package:clair/features/chat/utils/chat_markdown_format.dart';
 import 'package:clair/l10n/app_localizations.dart';
 
 /// Structured preview for a conversation list row (localized when formatted).
@@ -16,7 +17,7 @@ class ConversationPreviewLine {
     required this.isUser,
     required String snippet,
   })  : isEmpty = false,
-        snippet = snippet.trim().isNotEmpty ? snippet.trim() : '...';
+        snippet = _previewSnippet(snippet);
 
   factory ConversationPreviewLine.fromMessages(List<ChatMessageEntity> messages) {
     if (messages.isEmpty) return const ConversationPreviewLine.empty();
@@ -26,6 +27,11 @@ class ConversationPreviewLine {
       snippet: latest.text,
     );
   }
+}
+
+String _previewSnippet(String raw) {
+  final plain = plainTextChatPreview(raw).trim();
+  return plain.isNotEmpty ? plain : '...';
 }
 
 String formatConversationPreviewLine(
@@ -40,6 +46,8 @@ String formatConversationPreviewLine(
 /// When full message list is unavailable, uses [ConversationEntity.lastMessage].
 String conversationListFallbackPreview(String? lastMessage, AppLocalizations l) {
   final t = lastMessage?.trim();
-  if (t != null && t.isNotEmpty) return l.libPreviewRecent(t);
+  if (t != null && t.isNotEmpty) {
+    return l.libPreviewRecent(plainTextChatPreview(t));
+  }
   return l.libPreviewEmpty;
 }

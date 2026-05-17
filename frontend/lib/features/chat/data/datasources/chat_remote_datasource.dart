@@ -81,6 +81,8 @@ class ChatRemoteDataSource {
         reply: replyText,
         conversationId: convId,
         conversationTitle: (body['conversation_title'] as String?)?.trim() ?? '',
+        userMessageId: body['user_message_id']?.toString(),
+        assistantMessageId: body['assistant_message_id']?.toString(),
         suggestedLawyers: suggestedLawyers,
         ragEnabled: ragEnabled,
         ragSources: ragSources,

@@ -46,6 +46,10 @@ class ClientConversationSummaryOut(BaseModel):
     latest_shared_booking: SharedBookingSummaryOut
 
 
+class ConversationFeedbackListOut(BaseModel):
+    feedback: list[AssessmentFeedbackItemOut]
+
+
 class ClientConversationListOut(BaseModel):
     conversations: list[ClientConversationSummaryOut]
 

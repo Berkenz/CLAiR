@@ -26,6 +26,8 @@ class MessageResponse(BaseModel):
     role: str
     text: str
     created_at: datetime
+    """True when a lawyer flagged this assistant reply during QA review."""
+    lawyer_reported: bool = False
 
 
 class ConversationDetail(BaseModel):

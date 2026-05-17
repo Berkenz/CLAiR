@@ -982,6 +982,12 @@ abstract class AppLocalizations {
   /// **'No law excerpts met the relevance threshold for this question.'**
   String get chatNoLawExcerpts;
 
+  /// No description provided for @chatLawyerReportedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'A lawyer flagged this response for review after you shared this conversation. Treat it as general information only—not legal advice.'**
+  String get chatLawyerReportedBanner;
+
   /// No description provided for @chatRetrievedForAnswer.
   ///
   /// In en, this message translates to:

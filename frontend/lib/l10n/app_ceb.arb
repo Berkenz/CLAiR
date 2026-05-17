@@ -199,6 +199,7 @@
   "chatTitleCurrentConversation": "Karon nga panag-istorya",
   "chatRagDisconnectedBanner": "Dili nakakonekta ang law library (RAG) sa server — mahimong gumamit og kinatibuk-ang kahibalo ang tubag.",
   "chatNoLawExcerpts": "Walay law excerpt nga nakab-ot sa relevance threshold niini nga pangutana.",
+  "chatLawyerReportedBanner": "Gi-flag sa abogado kining tubaga alang sa review human nimo gipaambit kining chat. Isipa kini nga kinatibuk-ang impormasyon lamang—dili legal advice.",
   "chatRetrievedForAnswer": "Gikuha alang niini nga tubag",
   "chatSourceLabel": "Tinubdan",
   "chatEmptyExploreTopic": "Pagsugod og bag-ong panag-istorya aron usbon ang lain nga hilisgutan.",

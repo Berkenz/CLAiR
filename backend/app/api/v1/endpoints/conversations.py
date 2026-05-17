@@ -14,8 +14,10 @@ from app.schemas.conversation import (
     ConversationListResponse,
     ConversationSummary,
     ConversationUpdate,
+    MessageResponse,
 )
 from app.services.conversation_service import conversation_service
+from app.services.lawyer_ai_assessment_service import lawyer_ai_assessment_service
 from app.services.pdf_service import (
     generate_appointment_description_summary,
     generate_consultation_pdf,
@@ -53,7 +55,28 @@ async def get_conversation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Conversation not found",
         )
-    return conv
+
+    reported_ids = await lawyer_ai_assessment_service.get_reported_message_ids_for_conversation(
+        db, conv.id
+    )
+    ordered_messages = sorted(conv.messages, key=lambda m: m.created_at)
+    return ConversationDetail(
+        id=conv.id,
+        title=conv.title,
+        is_pinned=conv.is_pinned,
+        created_at=conv.created_at,
+        updated_at=conv.updated_at,
+        messages=[
+            MessageResponse(
+                id=m.id,
+                role=m.role,
+                text=m.text,
+                created_at=m.created_at,
+                lawyer_reported=m.id in reported_ids,
+            )
+            for m in ordered_messages
+        ],
+    )
 
 
 @router.patch("/{conversation_id}", response_model=ConversationSummary)

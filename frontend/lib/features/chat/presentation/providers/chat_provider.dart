@@ -119,15 +119,27 @@ class ChatNotifier extends StateNotifier<ChatState> {
         }
       }
 
-      final aiMessage = ChatMessageEntity(
-        text: response.reply,
-        isUser: false,
-        suggestedLawyers: suggestedLawyers,
-        ragSources: response.ragSources,
-        ragEnabled: response.ragEnabled,
+      final updatedMessages = [...state.messages];
+      if (updatedMessages.isNotEmpty && updatedMessages.last.isUser) {
+        final last = updatedMessages.removeLast();
+        updatedMessages.add(
+          last.copyWith(
+            id: response.userMessageId ?? last.id,
+          ),
+        );
+      }
+      updatedMessages.add(
+        ChatMessageEntity(
+          id: response.assistantMessageId,
+          text: response.reply,
+          isUser: false,
+          suggestedLawyers: suggestedLawyers,
+          ragSources: response.ragSources,
+          ragEnabled: response.ragEnabled,
+        ),
       );
       state = state.copyWith(
-        messages: [...state.messages, aiMessage],
+        messages: updatedMessages,
         isLoading: false,
         // Preserve existing conversationId if backend returned empty.
         conversationId: response.conversationId.isNotEmpty
@@ -142,6 +154,42 @@ class ChatNotifier extends StateNotifier<ChatState> {
         isLoading: false,
         error: friendlyErrorMessage(e),
       );
+    }
+  }
+
+  /// Sync lawyer-report flags from the server into the current in-memory thread.
+  Future<void> refreshLawyerReportFlags() async {
+    final id = state.conversationId;
+    if (id == null || state.messages.isEmpty) return;
+
+    try {
+      final serverMsgs =
+          await _historyRepository.getConversationMessages(id);
+      final reportedIds = <String>{};
+      final reportedTexts = <String>{};
+      for (final s in serverMsgs) {
+        if (s.isUser || !s.lawyerReported) continue;
+        if (s.id != null && s.id!.isNotEmpty) reportedIds.add(s.id!);
+        reportedTexts.add(s.text.trim());
+      }
+
+      var changed = false;
+      final merged = state.messages.map((m) {
+        if (m.isUser) return m;
+        final byId = m.id != null && reportedIds.contains(m.id);
+        final byText = reportedTexts.contains(m.text.trim());
+        if ((byId || byText) && !m.lawyerReported) {
+          changed = true;
+          return m.copyWith(lawyerReported: true);
+        }
+        return m;
+      }).toList();
+
+      if (changed) {
+        state = state.copyWith(messages: merged);
+      }
+    } catch (_) {
+      // Non-fatal — chat still works without flags.
     }
   }
 

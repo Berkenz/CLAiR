@@ -10,7 +10,7 @@ from app.database import Base
 
 
 class LawyerAiMessageFeedback(Base):
-    """Lawyer QA feedback on AI assistant messages in client conversations."""
+    """Lawyer QA feedback on AI assistant messages (visible to clients when reported)."""
 
     __tablename__ = "lawyer_ai_message_feedback"
     __table_args__ = (

@@ -199,6 +199,7 @@
   "chatTitleCurrentConversation": "Current conversation",
   "chatRagDisconnectedBanner": "Law library (RAG) not connected on server — answer may use general model knowledge only.",
   "chatNoLawExcerpts": "No law excerpts met the relevance threshold for this question.",
+  "chatLawyerReportedBanner": "A lawyer flagged this response for review after you shared this conversation. Treat it as general information only—not legal advice.",
   "chatRetrievedForAnswer": "Retrieved for this answer",
   "chatSourceLabel": "Source",
   "chatEmptyExploreTopic": "Start a new conversation to explore a different topic.",

@@ -2,11 +2,17 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Sparkles, MessageSquare, ThumbsUp, Flag, Send, Plus,
-  X, AlertTriangle, Check, Bot, User, Pin, RefreshCw,
+  Bot, User, Pin, RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { api } from "@/lib/api";
 import { getApiErrorMessage, getApiErrorMessageWithNetworkHint } from "@/lib/api-error";
+import { ChatMarkdown } from "@/components/chat-markdown";
+import {
+  AssistantMessageFeedbackBar,
+  ReportFeedbackModal,
+  type MessageFeedback,
+} from "@/features/ai-assessment/components/message-feedback";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -33,16 +39,11 @@ interface ChatSendResponse {
   reply: string;
   conversation_id: string;
   conversation_title: string;
+  user_message_id: string;
+  assistant_message_id: string;
   suggested_lawyers?: unknown[];
   rag_enabled?: boolean;
   rag_sources?: RagSource[];
-}
-
-interface MessageFeedback {
-  messageId: string;
-  type: "commend" | "report";
-  issues?: string[];
-  comment?: string;
 }
 
 interface LawyerConversationSummary {
@@ -126,19 +127,6 @@ function sharedBookingOneLiner(b: SharedBookingSummary): string {
   return `${formatBookingDateShort(b.appointment_date)} ${formatBookingTimeShort(b.appointment_time)} · ${b.status} · ${b.appointment_type}`;
 }
 
-// ─── Report issue options ─────────────────────────────────────────────────────
-
-const REPORT_ISSUES = [
-  { id: "incorrect", label: "Incorrect information", desc: "The AI stated facts that are legally inaccurate" },
-  { id: "misleading", label: "Misleading advice", desc: "The response could lead the client to wrong conclusions" },
-  { id: "outdated", label: "Outdated law cited", desc: "References repealed or amended legislation" },
-  { id: "incomplete", label: "Incomplete answer", desc: "Important aspects of the legal question were omitted" },
-  { id: "jurisdiction", label: "Wrong jurisdiction", desc: "Advice does not apply to Philippine law or the relevant region" },
-  { id: "overconfident", label: "Overly confident tone", desc: "Presented uncertain information as definitive legal fact" },
-  { id: "harmful", label: "Potentially harmful", desc: "Could cause legal or financial harm if followed" },
-  { id: "other", label: "Other concern", desc: "Something else not listed above" },
-];
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function AiAssessmentPage() {
@@ -214,7 +202,26 @@ function ChatTab() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversationTitle, setConversationTitle] = useState<string | null>(null);
   const [chatError, setChatError] = useState("");
+  const [feedbacks, setFeedbacks] = useState<Record<string, MessageFeedback>>({});
+  const [reportTarget, setReportTarget] = useState<string | null>(null);
+  const [selectedIssues, setSelectedIssues] = useState<string[]>([]);
+  const [comment, setComment] = useState("");
+  const [submitted, setSubmitted] = useState<string | null>(null);
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
+  const [feedbackBanner, setFeedbackBanner] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const loadFeedbackForConversation = useCallback(async (convId: string) => {
+    try {
+      const { data } = await api.get<{ feedback: AssessmentFeedbackRow[] }>(
+        `/lawyer/ai-assessment/conversations/${convId}/my-feedback`,
+      );
+      setFeedbacks(feedbackRecordFromRows(data.feedback));
+      setFeedbackBanner("");
+    } catch {
+      setFeedbacks({});
+    }
+  }, []);
 
   const refreshHistories = useCallback(async () => {
     try {
@@ -283,10 +290,77 @@ function ChatTab() {
       setConversationTitle(data.title);
       setMessages(mapped);
       setStarted(true);
+      void loadFeedbackForConversation(data.id);
     } catch (err) {
       setChatError(getApiErrorMessage(err, "Could not open that conversation."));
     } finally {
       setLoadingConversation(false);
+    }
+  }
+
+  function openReport(messageId: string) {
+    setFeedbackBanner("");
+    setReportTarget(messageId);
+    setSelectedIssues([]);
+    setComment("");
+  }
+
+  function toggleIssue(id: string) {
+    setSelectedIssues((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+    );
+  }
+
+  async function submitReport() {
+    if (!reportTarget || selectedIssues.length === 0 || feedbackBusy) return;
+    setFeedbackBusy(true);
+    setFeedbackBanner("");
+    try {
+      await api.post("/lawyer/ai-assessment/message-feedback", {
+        message_id: reportTarget,
+        feedback_type: "report",
+        issue_codes: selectedIssues,
+        comment: comment.trim() || undefined,
+      });
+      setFeedbacks((prev) => ({
+        ...prev,
+        [reportTarget]: {
+          messageId: reportTarget,
+          type: "report",
+          issues: selectedIssues,
+          comment: comment.trim() || undefined,
+        },
+      }));
+      setSubmitted(reportTarget);
+      setReportTarget(null);
+      setTimeout(() => setSubmitted(null), 3000);
+    } catch (err) {
+      setFeedbackBanner(getApiErrorMessage(err, "Could not submit report."));
+    } finally {
+      setFeedbackBusy(false);
+    }
+  }
+
+  async function submitCommend(messageId: string) {
+    if (feedbackBusy) return;
+    setFeedbackBusy(true);
+    setFeedbackBanner("");
+    try {
+      await api.post("/lawyer/ai-assessment/message-feedback", {
+        message_id: messageId,
+        feedback_type: "commend",
+        issue_codes: [],
+      });
+      setFeedbacks((prev) => ({
+        ...prev,
+        [messageId]: { messageId, type: "commend" },
+      }));
+      setSubmitted(messageId);
+      setTimeout(() => setSubmitted(null), 3000);
+    } catch (err) {
+      setFeedbackBanner(getApiErrorMessage(err, "Could not submit commend."));
+    } finally {
+      setFeedbackBusy(false);
     }
   }
 
@@ -302,7 +376,7 @@ function ChatTab() {
     }));
 
     const userMsg: ChatMessage = {
-      id: crypto.randomUUID(),
+      id: `pending-user-${Date.now()}`,
       role: "user",
       content,
       timestamp: new Date(),
@@ -328,15 +402,26 @@ function ChatTab() {
         setConversationTitle(data.conversation_title);
       }
 
-      const reply: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: data.reply,
-        timestamp: new Date(),
-        ragEnabled: data.rag_enabled,
-        ragSources: data.rag_sources ?? [],
-      };
-      setMessages((prev) => [...prev, reply]);
+      setMessages((prev) => {
+        const withoutPending = prev.filter((m) => m.id !== userMsg.id);
+        return [
+          ...withoutPending,
+          {
+            id: data.user_message_id,
+            role: "user" as const,
+            content,
+            timestamp: new Date(),
+          },
+          {
+            id: data.assistant_message_id,
+            role: "assistant" as const,
+            content: data.reply,
+            timestamp: new Date(),
+            ragEnabled: data.rag_enabled,
+            ragSources: data.rag_sources ?? [],
+          },
+        ];
+      });
       void refreshHistories();
     } catch (err) {
       setMessages((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev));
@@ -365,6 +450,9 @@ function ChatTab() {
     setConversationId(null);
     setConversationTitle(null);
     setChatError("");
+    setFeedbacks({});
+    setReportTarget(null);
+    setFeedbackBanner("");
   }
 
   return (
@@ -465,6 +553,11 @@ function ChatTab() {
             {chatError}
           </div>
         ) : null}
+        {feedbackBanner ? (
+          <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+            {feedbackBanner}
+          </div>
+        ) : null}
 
         <div className="flex-1 overflow-y-auto rounded-2xl border border-[#d9b8c4]/40 bg-white min-h-0">
           {loadingConversation ? (
@@ -505,13 +598,17 @@ function ChatTab() {
                     )}
                     <div
                       className={cn(
-                        "max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
+                        "max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
                         msg.role === "user"
-                          ? "bg-[#703d57] text-white rounded-tr-sm"
+                          ? "bg-[#703d57] text-white rounded-tr-sm whitespace-pre-wrap"
                           : "bg-[#f7f0f4] text-[#241715] rounded-tl-sm",
                       )}
                     >
-                      {msg.content}
+                      {msg.role === "assistant" ? (
+                        <ChatMarkdown content={msg.content} />
+                      ) : (
+                        msg.content
+                      )}
                     </div>
                     {msg.role === "user" && (
                       <div className="h-8 w-8 rounded-full bg-[#957186] flex items-center justify-center shrink-0 mt-0.5">
@@ -557,6 +654,16 @@ function ChatTab() {
                         </div>
                       )}
                     </div>
+                  )}
+                  {msg.role === "assistant" && !msg.id.startsWith("pending-") && (
+                    <AssistantMessageFeedbackBar
+                      messageId={msg.id}
+                      feedback={feedbacks[msg.id]}
+                      submitted={submitted}
+                      feedbackBusy={feedbackBusy}
+                      onCommend={(id) => void submitCommend(id)}
+                      onReport={openReport}
+                    />
                   )}
                 </div>
               ))}
@@ -610,6 +717,17 @@ function ChatTab() {
           </div>
         </div>
       </div>
+
+      <ReportFeedbackModal
+        reportTarget={reportTarget}
+        selectedIssues={selectedIssues}
+        comment={comment}
+        feedbackBusy={feedbackBusy}
+        onClose={() => setReportTarget(null)}
+        onToggleIssue={toggleIssue}
+        onCommentChange={setComment}
+        onSubmit={() => void submitReport()}
+      />
     </div>
   );
 }
@@ -911,13 +1029,17 @@ function AssessmentTab() {
                       )}
                       <div
                         className={cn(
-                          "max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
+                          "max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
                           isAI
                             ? "bg-[#f7f0f4] text-[#241715] rounded-tl-sm"
-                            : "bg-[#703d57] text-white rounded-tr-sm",
+                            : "bg-[#703d57] text-white rounded-tr-sm whitespace-pre-wrap",
                         )}
                       >
-                        {msg.content}
+                        {isAI ? (
+                          <ChatMarkdown content={msg.content} />
+                        ) : (
+                          msg.content
+                        )}
                       </div>
                       {!isAI && (
                         <div className="h-7 w-7 rounded-full bg-[#957186] flex items-center justify-center shrink-0 mt-0.5">
@@ -927,41 +1049,14 @@ function AssessmentTab() {
                     </div>
 
                     {isAI && (
-                      <div className="ml-10 mt-2 flex items-center gap-2 flex-wrap">
-                        {fb?.type === "commend" ? (
-                          <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
-                            <Check className="h-3.5 w-3.5" /> Commended
-                          </span>
-                        ) : fb?.type === "report" ? (
-                          <span className="flex items-center gap-1 text-xs text-red-500 font-medium">
-                            <Flag className="h-3.5 w-3.5" /> Reported
-                          </span>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              disabled={feedbackBusy}
-                              onClick={() => void submitCommend(msg.id)}
-                              className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-emerald-200 bg-emerald-50 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition disabled:opacity-50"
-                            >
-                              <ThumbsUp className="h-3 w-3" />
-                              Commend
-                            </button>
-                            <button
-                              type="button"
-                              disabled={feedbackBusy}
-                              onClick={() => openReport(msg.id)}
-                              className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-red-200 bg-red-50 text-xs font-medium text-red-600 hover:bg-red-100 transition disabled:opacity-50"
-                            >
-                              <Flag className="h-3 w-3" />
-                              Report
-                            </button>
-                          </>
-                        )}
-                        {submitted === msg.id && (
-                          <span className="text-xs text-[#957186] animate-pulse">Saved ✓</span>
-                        )}
-                      </div>
+                      <AssistantMessageFeedbackBar
+                        messageId={msg.id}
+                        feedback={fb}
+                        submitted={submitted}
+                        feedbackBusy={feedbackBusy}
+                        onCommend={(id) => void submitCommend(id)}
+                        onReport={openReport}
+                      />
                     )}
                   </div>
                 );
@@ -985,101 +1080,16 @@ function AssessmentTab() {
         ) : null}
       </div>
 
-      {reportTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-start justify-between p-6 border-b border-[#d9b8c4]/30">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-red-100 flex items-center justify-center">
-                  <AlertTriangle className="h-5 w-5 text-red-600" />
-                </div>
-                <div>
-                  <h2 className="font-bold text-[#241715]">Report AI Response</h2>
-                  <p className="text-xs text-[#957186] mt-0.5">Logged for your QA records</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setReportTarget(null)}
-                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 transition"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div>
-                <p className="text-xs font-semibold text-[#5a3046] uppercase tracking-wide mb-3">
-                  What&apos;s wrong with this response? <span className="text-red-500">*</span>
-                </p>
-                <div className="space-y-2">
-                  {REPORT_ISSUES.map((issue) => {
-                    const checked = selectedIssues.includes(issue.id);
-                    return (
-                      <button
-                        key={issue.id}
-                        type="button"
-                        onClick={() => toggleIssue(issue.id)}
-                        className={cn(
-                          "w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-all",
-                          checked
-                            ? "border-red-300 bg-red-50"
-                            : "border-[#d9b8c4]/40 hover:border-[#703d57]/30 hover:bg-[#f7f0f4]",
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            "h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors",
-                            checked ? "bg-red-500 border-red-500" : "border-[#d9b8c4]",
-                          )}
-                        >
-                          {checked && <Check className="h-2.5 w-2.5 text-white" />}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-[#241715]">{issue.label}</p>
-                          <p className="text-xs text-[#957186] mt-0.5">{issue.desc}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide mb-1.5">
-                  Additional comments <span className="normal-case font-normal text-[#c490aa]">(optional)</span>
-                </label>
-                <textarea
-                  rows={3}
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="Describe the specific error or provide the correct information…"
-                  className="w-full rounded-xl border border-[#d9b8c4] bg-[#fdf9fb] px-3.5 py-2.5 text-sm text-[#241715] placeholder-[#c490aa] outline-none focus:border-[#703d57] focus:bg-white transition resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 px-6 pb-6">
-              <button
-                type="button"
-                onClick={() => setReportTarget(null)}
-                className="flex-1 py-2.5 rounded-xl border border-[#d9b8c4] text-sm font-semibold text-[#957186] hover:bg-[#f7f0f4] transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void submitReport()}
-                disabled={selectedIssues.length === 0 || feedbackBusy}
-                className="flex-1 py-2.5 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
-              >
-                <Flag className="h-4 w-4" />
-                Send report
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ReportFeedbackModal
+        reportTarget={reportTarget}
+        selectedIssues={selectedIssues}
+        comment={comment}
+        feedbackBusy={feedbackBusy}
+        onClose={() => setReportTarget(null)}
+        onToggleIssue={toggleIssue}
+        onCommentChange={setComment}
+        onSubmit={() => void submitReport()}
+      />
     </div>
   );
 }

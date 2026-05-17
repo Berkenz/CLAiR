@@ -476,6 +476,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'No law excerpts met the relevance threshold for this question.';
 
   @override
+  String get chatLawyerReportedBanner =>
+      'A lawyer flagged this response for review after you shared this conversation. Treat it as general information only—not legal advice.';
+
+  @override
   String get chatRetrievedForAnswer => 'Retrieved for this answer';
 
   @override

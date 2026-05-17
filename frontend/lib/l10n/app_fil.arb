@@ -199,6 +199,7 @@
   "chatTitleCurrentConversation": "Kasalukuyang usapan",
   "chatRagDisconnectedBanner": "Hindi nakakonekta ang law library (RAG) sa server — maaaring gumamit ng pangkalahatang kaalaman ang sagot.",
   "chatNoLawExcerpts": "Walang law excerpt na umabot sa relevance threshold para sa tanong na ito.",
+  "chatLawyerReportedBanner": "Na-flag ng abogado ang sagot na ito para sa review matapos mong ibahagi ang usapang ito. Ituring itong pangkalahatang impormasyon lamang—hindi legal advice.",
   "chatRetrievedForAnswer": "Kinuha para sa sagot na ito",
   "chatSourceLabel": "Pinagmulan",
   "chatEmptyExploreTopic": "Magsimula ng bagong usapan para tumuklas ng ibang paksa.",

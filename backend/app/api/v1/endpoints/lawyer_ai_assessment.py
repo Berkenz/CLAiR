@@ -14,6 +14,7 @@ from app.schemas.lawyer_ai_assessment import (
     ClientConversationDetailOut,
     ClientConversationListOut,
     ClientConversationSummaryOut,
+    ConversationFeedbackListOut,
     LawyerAiFeedbackCreate,
     LawyerAiFeedbackResponse,
     SharedBookingDetailOut,
@@ -118,6 +119,44 @@ async def get_client_conversation_detail(
             )
             for b in shared_rows
         ],
+    )
+
+
+@router.get(
+    "/conversations/{conversation_id}/my-feedback",
+    response_model=ConversationFeedbackListOut,
+)
+async def list_conversation_feedback(
+    conversation_id: uuid.UUID,
+    current: Annotated[tuple[User, LawyerProfile], Depends(get_current_lawyer)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Feedback the lawyer submitted on AI replies in a chat they own or a client shared."""
+    user, profile = current
+    allowed = await lawyer_ai_assessment_service.lawyer_can_assess_conversation(
+        db,
+        conversation_id=conversation_id,
+        lawyer_user_id=user.id,
+        lawyer_profile_id=profile.id,
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found",
+        )
+    rows = await lawyer_ai_assessment_service.list_my_feedback_for_conversation(
+        db, lawyer_user_id=user.id, conversation_id=conversation_id
+    )
+    return ConversationFeedbackListOut(
+        feedback=[
+            AssessmentFeedbackItemOut(
+                message_id=f.message_id,
+                feedback_type=f.feedback_type,
+                issue_codes=list(f.issue_codes) if f.issue_codes else None,
+                comment=f.comment,
+            )
+            for f in rows
+        ]
     )
 
 

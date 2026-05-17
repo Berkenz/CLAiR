@@ -115,6 +115,23 @@ class LawyerAiAssessmentService:
         result = await db.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_reported_message_ids_for_conversation(
+        self,
+        db: AsyncSession,
+        conversation_id: uuid.UUID,
+    ) -> set[uuid.UUID]:
+        """Message IDs in this conversation that lawyers reported (client-visible flag)."""
+        stmt = (
+            select(LawyerAiMessageFeedback.message_id)
+            .join(Message, LawyerAiMessageFeedback.message_id == Message.id)
+            .where(
+                Message.conversation_id == conversation_id,
+                LawyerAiMessageFeedback.feedback_type == "report",
+            )
+        )
+        result = await db.execute(stmt)
+        return {row[0] for row in result.all()}
+
     async def list_my_feedback_for_conversation(
         self,
         db: AsyncSession,
@@ -133,13 +150,35 @@ class LawyerAiAssessmentService:
         result = await db.execute(stmt)
         return list(result.scalars().all())
 
+    async def lawyer_can_assess_conversation(
+        self,
+        db: AsyncSession,
+        *,
+        conversation_id: uuid.UUID,
+        lawyer_user_id: uuid.UUID,
+        lawyer_profile_id: uuid.UUID,
+    ) -> bool:
+        own = await db.execute(
+            select(Conversation.id).where(
+                Conversation.id == conversation_id,
+                Conversation.user_id == lawyer_user_id,
+            )
+        )
+        if own.scalar_one_or_none():
+            return True
+        client = await self.get_client_conversation(
+            db, conversation_id, lawyer_profile_id=lawyer_profile_id
+        )
+        return client is not None
+
     async def get_verifiable_model_message(
         self,
         db: AsyncSession,
         message_id: uuid.UUID,
         lawyer_profile_id: uuid.UUID,
+        lawyer_user_id: uuid.UUID,
     ) -> Message | None:
-        stmt = (
+        client_stmt = (
             select(Message)
             .join(Conversation, Message.conversation_id == Conversation.id)
             .join(
@@ -152,7 +191,21 @@ class LawyerAiAssessmentService:
                 Message.role == "model",
             )
         )
-        result = await db.execute(stmt)
+        result = await db.execute(client_stmt)
+        msg = result.scalar_one_or_none()
+        if msg:
+            return msg
+
+        own_stmt = (
+            select(Message)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .where(
+                Message.id == message_id,
+                Conversation.user_id == lawyer_user_id,
+                Message.role == "model",
+            )
+        )
+        result = await db.execute(own_stmt)
         return result.scalar_one_or_none()
 
     async def upsert_feedback(
@@ -164,7 +217,7 @@ class LawyerAiAssessmentService:
         body: LawyerAiFeedbackCreate,
     ) -> LawyerAiMessageFeedback:
         msg = await self.get_verifiable_model_message(
-            db, body.message_id, lawyer_profile_id
+            db, body.message_id, lawyer_profile_id, lawyer_user_id
         )
         if not msg:
             raise ValueError("Message not found or not eligible for assessment")

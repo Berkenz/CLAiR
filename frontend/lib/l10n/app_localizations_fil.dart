@@ -477,6 +477,10 @@ class AppLocalizationsFil extends AppLocalizations {
       'Walang law excerpt na umabot sa relevance threshold para sa tanong na ito.';
 
   @override
+  String get chatLawyerReportedBanner =>
+      'Na-flag ng abogado ang sagot na ito para sa review matapos mong ibahagi ang usapang ito. Ituring itong pangkalahatang impormasyon lamang—hindi legal advice.';
+
+  @override
   String get chatRetrievedForAnswer => 'Kinuha para sa sagot na ito';
 
   @override

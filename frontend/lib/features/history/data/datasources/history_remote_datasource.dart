@@ -44,8 +44,10 @@ class HistoryRemoteDataSource {
       return list.map((m) {
         final map = m as Map<String, dynamic>;
         return ChatMessageEntity(
+          id: map['id']?.toString(),
           text: map['text'] as String,
           isUser: map['role'] == 'user',
+          lawyerReported: map['lawyer_reported'] == true,
         );
       }).toList();
     } on DioException catch (e) {

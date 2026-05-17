@@ -17,6 +17,7 @@ import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/chat/domain/entities/rag_source_entity.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
+import 'package:clair/features/chat/utils/chat_markdown_format.dart';
 import 'package:clair/features/history/presentation/providers/history_provider.dart';
 import 'package:clair/features/chat/presentation/widgets/message_report_sheet.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
@@ -35,7 +36,8 @@ class ChatScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends ConsumerState<ChatScreen> {
+class _ChatScreenState extends ConsumerState<ChatScreen>
+    with WidgetsBindingObserver {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _lastMsgKey = GlobalKey();
@@ -47,17 +49,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _ensureBottomOnEntry();
+      _refreshLawyerReportFlagsIfNeeded();
       // Silently fetch location in the background so it's ready for the first message.
       // Does not block the UI; errors are ignored here.
       ref.read(locationProvider.notifier).fetchLocation().ignore();
     });
   }
 
+  void _refreshLawyerReportFlagsIfNeeded() {
+    final id = ref.read(chatProvider).conversationId;
+    if (id != null) {
+      ref.read(chatProvider.notifier).refreshLawyerReportFlags();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshLawyerReportFlagsIfNeeded();
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scrollController.removeListener(_onScroll);
     _controller.dispose();
     _scrollController.dispose();
@@ -562,9 +581,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     ref.listen<int>(mainShellTabProvider, (prev, next) {
       final currentMessages = ref.read(chatProvider).messages;
-      if (next == 1 && currentMessages.isNotEmpty) {
-        _jumpToLastMessage();
-        Future.delayed(const Duration(milliseconds: 140), _jumpToLastMessage);
+      if (next == 1) {
+        _refreshLawyerReportFlagsIfNeeded();
+        if (currentMessages.isNotEmpty) {
+          _jumpToLastMessage();
+          Future.delayed(const Duration(milliseconds: 140), _jumpToLastMessage);
+        }
       }
     });
 
@@ -611,7 +633,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 children: [
                   ListView.builder(
                     controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      8,
+                      20,
+                      chatState.isLoadedConversation ? 120 : 88,
+                    ),
                     itemCount:
                         chatState.messages.length + (chatState.isLoading ? 1 : 0),
                     itemBuilder: (context, index) {
@@ -684,7 +711,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Widget _buildAiMessage(ChatMessageEntity message, int index) {
     final cl = context.c;
-    final text = message.text;
+    final text = normalizeChatMarkdown(message.text);
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: Row(
@@ -738,65 +765,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   child: MarkdownBody(
                     data: text,
                     selectable: true,
-                    styleSheet: MarkdownStyleSheet(
-                      p: TextStyle(
-                        fontSize: 14,
-                        color: cl.textDark,
-                        fontFamily: 'Satoshi',
-                        height: 1.6,
-                      ),
-                      strong: TextStyle(
-                        fontSize: 14,
-                        color: cl.textDark,
-                        fontFamily: 'Satoshi',
-                        fontWeight: FontWeight.w700,
-                        height: 1.6,
-                      ),
-                      em: TextStyle(
-                        fontSize: 14,
-                        color: cl.textDark,
-                        fontFamily: 'Satoshi',
-                        fontStyle: FontStyle.italic,
-                        height: 1.6,
-                      ),
-                      h3: TextStyle(
-                        fontSize: 16,
-                        color: cl.textDark,
-                        fontFamily: 'Satoshi',
-                        fontWeight: FontWeight.w700,
-                        height: 1.4,
-                      ),
-                      listBullet: TextStyle(
-                        fontSize: 14,
-                        color: cl.textDark,
-                        fontFamily: 'Satoshi',
-                        height: 1.6,
-                      ),
-                      blockquoteDecoration: BoxDecoration(
-                        border: Border(
-                          left: BorderSide(
-                            color: cl.accent.withValues(alpha: 0.4),
-                            width: 3,
-                          ),
-                        ),
-                      ),
-                      blockquotePadding:
-                          const EdgeInsets.only(left: 12, top: 4, bottom: 4),
-                      blockSpacing: 10,
-                      code: TextStyle(
-                        fontSize: 13,
-                        fontFamily: 'monospace',
-                        color: cl.accent,
-                        backgroundColor:
-                            cl.accent.withValues(alpha: 0.06),
-                      ),
-                      codeblockDecoration: BoxDecoration(
-                        color: cl.textDark.withOpacity(0.04),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: cl.border),
-                      ),
-                      codeblockPadding: const EdgeInsets.all(12),
-                    ),
+                    shrinkWrap: true,
+                    styleSheet: chatMarkdownStyleSheet(cl),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -837,10 +807,48 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   _SuggestedLawyersList(lawyers: message.suggestedLawyers),
                 ],
                 _buildRagFootnote(message),
+                _buildLawyerReportedBanner(message),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLawyerReportedBanner(ChatMessageEntity message) {
+    if (message.isUser || !message.lawyerReported) {
+      return const SizedBox.shrink();
+    }
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.amber.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.amber.shade200),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.flag_outlined, size: 16, color: Colors.amber.shade900),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                l10n.chatLawyerReportedBanner,
+                style: GoogleFonts.nunito(
+                  fontSize: 11,
+                  height: 1.45,
+                  color: Colors.amber.shade900,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -853,7 +861,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final l10n = AppLocalizations.of(context)!;
     if (!enabled) {
       return Padding(
-        padding: const EdgeInsets.only(left: 42, top: 8),
+        padding: const EdgeInsets.only(top: 8),
         child: Text(
           l10n.chatRagDisconnectedBanner,
           style: GoogleFonts.nunito(fontSize: 11, color: Colors.orange.shade800),
@@ -862,7 +870,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
     if (message.ragSources.isEmpty) {
       return Padding(
-        padding: const EdgeInsets.only(left: 42, top: 8),
+        padding: const EdgeInsets.only(top: 8),
         child: Text(
           l10n.chatNoLawExcerpts,
           style: GoogleFonts.nunito(fontSize: 11, color: cl.textMid),
@@ -870,7 +878,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       );
     }
     return Padding(
-      padding: const EdgeInsets.only(left: 42, top: 8),
+      padding: const EdgeInsets.only(top: 8),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(12),
@@ -970,12 +978,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             child: Text(
               text,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.white,
-                fontFamily: 'Satoshi',
-                height: 1.6,
-              ),
+              style: chatUserBubbleText(),
             ),
           ),
           const SizedBox(height: 8),
