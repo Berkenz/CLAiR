@@ -29,8 +29,8 @@ _http: httpx.AsyncClient | None = None
 # Retrieve 3 chunks — enough to ground the answer without burning token budget.
 _TOP_K = 3
 
-# Only inject chunks that are clearly relevant (≥0.60 similarity).
-_MIN_SIMILARITY = 0.60
+# Only inject chunks that are clearly relevant (≥0.65 similarity).
+_MIN_SIMILARITY = 0.65
 
 # Pull extra vector hits, then re-rank with enactment date so newer laws can win
 # close ties without overriding strong semantic matches.
@@ -195,6 +195,22 @@ def _expand_retrieval_query(query: str) -> str:
     return f"{query}\n\nRelated Philippine law: {'; '.join(extras)}"
 
 
+_META_STOPWORDS = frozenset((
+    "someone", "please", "help", "about", "there", "their", "which",
+    "would", "could", "should", "where", "these", "those", "other",
+    "after", "before", "under", "between", "through", "against",
+    "private", "public", "person", "people", "state", "court",
+    "damage", "damages", "residence", "property", "complainant",
+    "right", "rights", "shall", "section", "order", "filed",
+    "action", "party", "parties", "based", "cases", "being",
+    "every", "first", "following", "general", "given", "having",
+    "issue", "issues", "known", "legal", "matter", "means",
+    "necessary", "notice", "offense", "penalty", "period",
+    "provided", "provisions", "purpose", "reason", "referred",
+    "respect", "service", "subject", "terms", "thereof", "within",
+))
+
+
 def _metadata_search_terms(query: str) -> list[str]:
     q = query.lower()
     terms: list[str] = []
@@ -202,7 +218,7 @@ def _metadata_search_terms(query: str) -> list[str]:
         if any(needle in q for needle in needles):
             terms.extend(meta_terms)
     for word in re.findall(r"[a-z]{5,}", q):
-        if word not in ("someone", "please", "help", "about", "there", "their"):
+        if word not in _META_STOPWORDS:
             terms.append(word)
     # Stable dedupe
     seen: set[str] = set()
@@ -286,7 +302,6 @@ async def _search_chunks_by_metadata(
                 FROM law_chunks
                 WHERE number ILIKE ANY($1::text[])
                    OR title ILIKE ANY($1::text[])
-                   OR text ILIKE ANY($1::text[])
                 ORDER BY date_enacted DESC NULLS LAST, chunk_index ASC
                 LIMIT $2
                 """,
