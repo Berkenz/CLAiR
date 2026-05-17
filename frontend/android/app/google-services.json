@@ -58,6 +58,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "84517594334-fns9nadtee5o56i4i3b3tdgc3fpfngsa.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ph.clair.app",
+            "certificate_hash": "099bc5203c32fc1ae3494b59e893b061b551d858"
+          }
+        },
+        {
           "client_id": "84517594334-ftnp4nbbtsc737q4mov4vqm6jibj41fq.apps.googleusercontent.com",
           "client_type": 3
         }
