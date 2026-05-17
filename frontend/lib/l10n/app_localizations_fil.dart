@@ -552,7 +552,7 @@ class AppLocalizationsFil extends AppLocalizations {
   String get libTabSaved => 'Saved';
 
   @override
-  String get libSearchChatsHint => 'Maghanap ng chat...';
+  String get libSearchChatsHint => 'Maghanap sa pamagat at mensahe...';
 
   @override
   String get libPreviewEmpty => 'Magsimula ng bagong mensahe';

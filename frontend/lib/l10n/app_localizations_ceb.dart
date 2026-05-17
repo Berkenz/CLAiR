@@ -552,7 +552,7 @@ class AppLocalizationsCeb extends AppLocalizations {
   String get libTabSaved => 'Saved';
 
   @override
-  String get libSearchChatsHint => 'Pangitaa ang chat...';
+  String get libSearchChatsHint => 'Pangitaa ang titulo ug mensahe...';
 
   @override
   String get libPreviewEmpty => 'Sugdi og bag-ong mensahe';

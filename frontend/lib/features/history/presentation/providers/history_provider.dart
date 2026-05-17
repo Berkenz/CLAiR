@@ -17,10 +17,17 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
   HistoryNotifier(this._repository) : super(const HistoryState());
 
   final HistoryRepository _repository;
+  int _searchGeneration = 0;
 
   Future<void> loadConversations() async {
     if (state.isLoading) return;
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(
+      isLoading: true,
+      error: null,
+      clearSearchResults: true,
+      clearActiveSearchQuery: true,
+      isSearchLoading: false,
+    );
 
     try {
       final conversations = await _repository.getConversations();
@@ -34,6 +41,46 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
         error: friendlyErrorMessage(e),
       );
     }
+  }
+
+  /// Search titles and message bodies on the server (debounce in the UI).
+  Future<void> searchConversations(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) {
+      clearSearch();
+      return;
+    }
+
+    final generation = ++_searchGeneration;
+    state = state.copyWith(
+      activeSearchQuery: trimmed,
+      isSearchLoading: true,
+      clearSearchResults: true,
+    );
+
+    try {
+      final results = await _repository.getConversations(query: trimmed);
+      if (generation != _searchGeneration) return;
+      state = state.copyWith(
+        searchResults: results,
+        isSearchLoading: false,
+      );
+    } catch (e) {
+      if (generation != _searchGeneration) return;
+      state = state.copyWith(
+        isSearchLoading: false,
+        error: friendlyErrorMessage(e),
+      );
+    }
+  }
+
+  void clearSearch() {
+    _searchGeneration++;
+    state = state.copyWith(
+      activeSearchQuery: null,
+      searchResults: null,
+      isSearchLoading: false,
+    );
   }
 
   Future<void> renameConversation(String id, String newTitle) async {
@@ -96,24 +143,41 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
 
 class HistoryState {
   final List<ConversationEntity> conversations;
+  final List<ConversationEntity>? searchResults;
+  final String? activeSearchQuery;
+  final bool isSearchLoading;
   final bool isLoading;
   final String? error;
 
   const HistoryState({
     this.conversations = const [],
+    this.searchResults,
+    this.activeSearchQuery,
+    this.isSearchLoading = false,
     this.isLoading = false,
     this.error,
   });
 
   HistoryState copyWith({
     List<ConversationEntity>? conversations,
+    List<ConversationEntity>? searchResults,
+    String? activeSearchQuery,
+    bool? isSearchLoading,
     bool? isLoading,
     String? error,
+    bool clearSearchResults = false,
+    bool clearActiveSearchQuery = false,
   }) =>
       HistoryState(
         conversations: conversations ?? this.conversations,
+        searchResults:
+            clearSearchResults ? null : (searchResults ?? this.searchResults),
+        activeSearchQuery: clearActiveSearchQuery
+            ? null
+            : (activeSearchQuery ?? this.activeSearchQuery),
+        isSearchLoading: isSearchLoading ?? this.isSearchLoading,
         isLoading: isLoading ?? this.isLoading,
-        error: error ?? this.error,
+        error: error,
       );
 }
 

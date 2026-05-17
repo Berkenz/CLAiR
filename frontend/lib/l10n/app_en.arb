@@ -232,7 +232,7 @@
   "libScreenTitle": "Library",
   "libTabHistory": "History",
   "libTabSaved": "Saved",
-  "libSearchChatsHint": "Search chats...",
+  "libSearchChatsHint": "Search titles and messages...",
   "libPreviewEmpty": "Start a new message",
   "libPreviewYou": "You",
   "libPreviewRecent": "Recent: {text}",

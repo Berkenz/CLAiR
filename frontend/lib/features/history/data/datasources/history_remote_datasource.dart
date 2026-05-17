@@ -11,10 +11,13 @@ class HistoryRemoteDataSource {
 
   final Dio _dio;
 
-  Future<List<ConversationEntity>> getConversations() async {
+  Future<List<ConversationEntity>> getConversations({String? query}) async {
     try {
+      final q = query?.trim();
       final response = await _dio.get<Map<String, dynamic>>(
         ApiEndpoints.conversations,
+        queryParameters:
+            q != null && q.isNotEmpty ? <String, dynamic>{'q': q} : null,
       );
 
       final data = response.data;

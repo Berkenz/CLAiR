@@ -232,7 +232,7 @@
   "libScreenTitle": "Library",
   "libTabHistory": "History",
   "libTabSaved": "Saved",
-  "libSearchChatsHint": "Pangitaa ang chat...",
+  "libSearchChatsHint": "Pangitaa ang titulo ug mensahe...",
   "libPreviewEmpty": "Sugdi og bag-ong mensahe",
   "libPreviewYou": "Ikaw",
   "libPreviewRecent": "Bag-o lang: {text}",

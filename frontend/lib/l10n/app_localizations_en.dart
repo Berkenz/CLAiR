@@ -551,7 +551,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get libTabSaved => 'Saved';
 
   @override
-  String get libSearchChatsHint => 'Search chats...';
+  String get libSearchChatsHint => 'Search titles and messages...';
 
   @override
   String get libPreviewEmpty => 'Start a new message';

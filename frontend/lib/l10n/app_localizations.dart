@@ -1123,7 +1123,7 @@ abstract class AppLocalizations {
   /// No description provided for @libSearchChatsHint.
   ///
   /// In en, this message translates to:
-  /// **'Search chats...'**
+  /// **'Search titles and messages...'**
   String get libSearchChatsHint;
 
   /// No description provided for @libPreviewEmpty.

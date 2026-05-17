@@ -12,8 +12,8 @@ class HistoryRepositoryImpl implements HistoryRepository {
   final HistoryRemoteDataSource _remote;
 
   @override
-  Future<List<ConversationEntity>> getConversations() =>
-      _remote.getConversations();
+  Future<List<ConversationEntity>> getConversations({String? query}) =>
+      _remote.getConversations(query: query);
 
   @override
   Future<List<ChatMessageEntity>> getConversationMessages(

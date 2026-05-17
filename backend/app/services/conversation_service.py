@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select, func as sa_func
+from sqlalchemy import exists, or_, select, func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -67,6 +67,36 @@ class ConversationService:
         result = await db.execute(
             select(Conversation)
             .where(Conversation.user_id == user_id)
+            .order_by(Conversation.is_pinned.desc(), Conversation.updated_at.desc())
+        )
+        return list(result.scalars().all())
+
+    async def search_conversations(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+        query: str,
+    ) -> list[Conversation]:
+        """Match conversation title or any message body (case-insensitive)."""
+        escaped = (
+            query.replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+        )
+        pattern = f"%{escaped}%"
+        message_match = exists().where(
+            Message.conversation_id == Conversation.id,
+            Message.text.ilike(pattern, escape="\\"),
+        )
+        result = await db.execute(
+            select(Conversation)
+            .where(
+                Conversation.user_id == user_id,
+                or_(
+                    Conversation.title.ilike(pattern, escape="\\"),
+                    message_match,
+                ),
+            )
             .order_by(Conversation.is_pinned.desc(), Conversation.updated_at.desc())
         )
         return list(result.scalars().all())

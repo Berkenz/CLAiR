@@ -2,7 +2,7 @@ import logging
 from typing import Annotated
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,8 +32,16 @@ router = APIRouter(prefix="/conversations", tags=["conversations"])
 async def list_conversations(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    q: Annotated[str | None, Query(min_length=1, max_length=200)] = None,
 ):
-    conversations = await conversation_service.list_conversations(db, current_user.id)
+    if q and q.strip():
+        conversations = await conversation_service.search_conversations(
+            db, current_user.id, q.strip()
+        )
+    else:
+        conversations = await conversation_service.list_conversations(
+            db, current_user.id
+        )
     return ConversationListResponse(
         conversations=[
             ConversationSummary.model_validate(c) for c in conversations
