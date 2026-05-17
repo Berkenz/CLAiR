@@ -817,35 +817,41 @@ class _InputBar extends StatelessWidget {
             const SizedBox(width: 8),
             // Text field
             Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: cl.fieldBg,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: cl.border),
+              child: TextField(
+                controller: controller,
+                minLines: 1,
+                maxLines: 4,
+                textCapitalization: TextCapitalization.sentences,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: cl.textDark,
+                  fontFamily: 'Satoshi',
                 ),
-                child: TextField(
-                  controller: controller,
-                  minLines: 1,
-                  maxLines: 4,
-                  textCapitalization: TextCapitalization.sentences,
-                  style: TextStyle(
+                decoration: InputDecoration(
+                  hintText: 'Type a message…',
+                  hintStyle: TextStyle(
                     fontSize: 14,
-                    color: cl.textDark,
+                    color: cl.textLight,
                     fontFamily: 'Satoshi',
                   ),
-                  decoration: InputDecoration(
-                    hintText: 'Type a message…',
-                    hintStyle: TextStyle(
-                      fontSize: 14,
-                      color: cl.textLight,
-                      fontFamily: 'Satoshi',
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  filled: true,
+                  fillColor: cl.fieldBg,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(color: cl.border),
                   ),
-                  onSubmitted: (_) => onSend(),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(color: cl.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(color: cl.accent, width: 1.5),
+                  ),
                 ),
+                onSubmitted: (_) => onSend(),
               ),
             ),
             const SizedBox(width: 8),
