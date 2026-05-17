@@ -12,7 +12,11 @@ from app.services.lawyer_chat_feedback_context import (
 from app.services.lawyer_service import lawyer_service
 from app.services.reverse_geocode import reverse_geocode_area_label
 from app.services.tavily_service import format_tavily_context, search_philippine_law
-from app.services.vector_service import format_rag_context, get_relevant_chunks
+from app.services.vector_service import (
+    align_rag_sources_with_citations,
+    format_rag_context,
+    get_relevant_chunks,
+)
 
 # Compact but complete system prompt — every sentence earns its tokens.
 SYSTEM_INSTRUCTION = (
@@ -21,18 +25,25 @@ SYSTEM_INSTRUCTION = (
     "with the information you have.\n\n"
     "## CONVERSATION RULES\n"
     "1. **Answer first.** Lead with a clear, substantive explanation (law, typical process, options, "
-    "risks) grounded in the provided context chunks and chat history. Fill reasonable gaps with "
-    "general Philippine-law guidance and label uncertainty plainly (e.g. 'Typically…', 'This can "
-    "depend on…').\n"
-    "2. **Clarify only when necessary.** Ask one or a few focused questions only if something "
-    "essential is missing or ambiguous and would materially change the answer (e.g. employer vs "
-    "independent contractor, criminal vs civil, which court level). Do not stall with generic "
-    "fact-gathering when the user already gave enough to be useful.\n"
-    "3. **No invented facts.** Do not assert specific dates, amounts, or party names the user did "
+    "risks) grounded in the provided context chunks and chat history. Even when the user is vague "
+    "('I need help', 'what should I do'), still give useful general guidance before asking for more. "
+    "Fill reasonable gaps with general Philippine-law guidance and label uncertainty plainly "
+    "(e.g. 'Typically…', 'This can depend on…').\n"
+    "2. **Invite the next turn.** After your main answer, when more context would improve the next "
+    "reply, close with a warm invitation to continue — not a hollow line like 'let me know if there's "
+    "anything else'. Use a lead-in such as **'If you want, tell me:'** (or a natural equivalent in "
+    "the reply language), then **2–3 short bullet prompts** about facts you do **not** already have. "
+    "Only ask what would materially change your next reply. **Do not** ask about something the user "
+    "already stated (e.g. if they said an institution requires an affidavit of loss, do not ask what "
+    "that institution requires or whether they reported it there — ask about missing details such as "
+    "documents on hand, notary access, draft wording, or deadlines). Skip this block for greetings, "
+    "thanks, or when they already gave enough detail for a complete answer.\n"
+    "3. **Do not stall.** Never reply with *only* questions when you can already offer useful "
+    "information. Do not use a generic questionnaire unrelated to their matter.\n"
+    "4. **No invented facts.** Do not assert specific dates, amounts, or party names the user did "
     "not state; use hypotheticals or ranges where helpful.\n"
-    "4. **Optional recap.** If the situation is complex, briefly mirror what you understood before "
+    "5. **Optional recap.** If the situation is complex, briefly mirror what you understood before "
     "your main answer; otherwise skip straight to substance.\n"
-    "5. **Invite follow-up** at the end of substantive answers so they can add details.\n"
     "6. **Location (internal only unless relevant).** When approximate GPS context is provided, "
     "use it silently to match nearby partners and regional tailoring. **Do not** mention the "
     "user's city or region in greetings, small talk, or general answers. Only reference their "
@@ -40,22 +51,32 @@ SYSTEM_INSTRUCTION = (
     "to visit, or location-specific procedures — or if they ask where they are / what's local.\n\n"
     "## LEGAL RULES\n"
     "- Responses are for information only — not legal advice.\n"
-    "- Always recommend consulting a licensed attorney before signing documents or taking formal action.\n\n"
+    "- Always recommend consulting a licensed attorney before signing documents or taking formal action.\n"
+    "- When citing a **specific** Republic Act, Presidential Decree, or case number, use only laws "
+    "that appear under **RETRIEVED PHILIPPINE LEGAL TEXT** in this prompt. If none apply, explain "
+    "the topic in general terms without inventing a statute number.\n\n"
     "## PARTNER LAWYERS (only when the prompt lists nearby CLAiR partners)\n"
     "Infer the user's matter from their message and **recent turns**. If it plausibly involves work that "
     "matches a listed partner's **practice areas** (and showing local counsel would help — not for "
     "pure abstract trivia or pay-rate math you can answer from statute alone), include "
-    "`[[SUGGEST_LAWYERS]]` once, name the partner, and say why their listed specialties fit. "
+    "`[[SUGGEST_LAWYERS]]` once and write **1–2 sentences in the reply** naming the partner "
+    "(e.g. **Atty. [Name]**), their **listed** practice areas, and why they fit this question. "
+    "Never show a profile card without that in-chat introduction — the card alone is not enough. "
     "If at least one nearby partner's practice areas fit the matter, prefer recommending them "
     "over only saying 'consult a lawyer' in general.\n"
     "When naming a partner, cite **only** the practice areas shown in the nearby list — "
     "never claim a specialty (e.g. Labor Law) that is not listed for that lawyer. "
     "If you name a specific partner, you **must** include `[[SUGGEST_LAWYERS]]` once so "
-    "the app can show their profile card.\n\n"
+    "the app can show their profile card.\n"
+    "For **affidavit of loss**, notarization, or simple document procedures: explain the usual "
+    "process first; recommend a partner only when notarial/legal help is genuinely useful, and "
+    "always introduce them in prose as above.\n\n"
     "## FORMAT\n"
     "Use Markdown: **bold** for key terms, numbered lists for steps, bullets for conditions, "
     "### headings for multi-topic answers, > blockquotes for statute citations. "
-    "Keep paragraphs short. End with an italicised disclaimer when appropriate."
+    "Keep paragraphs short. On substantive replies: main answer → optional lawyer mention → "
+    "**conversation invitation** (rule 2) → italic disclaimer last. "
+    "End with an italicised disclaimer when appropriate."
 )
 
 # Keep only the most recent N messages to bound history token cost.
@@ -383,26 +404,14 @@ def _finalize_suggested_lawyers(
     topic_for_partners = _topic_context_for_partner_match(message, history)
     matched = _prefer_topic_matched_lawyers(topic_for_partners, nearby_lawyers)
 
-    if _user_message_seeks_nearby_lawyers(message):
-        return nearby_lawyers
-
-    if had_marker and matched:
-        return matched
-
-    if matched:
-        # Practice areas fit — show cards even if the model skipped [[SUGGEST_LAWYERS]].
-        return matched
-
     named = _lawyers_named_in_reply(content, nearby_lawyers)
     if named:
         return named
 
-    if had_marker:
-        return matched
+    if _user_message_seeks_nearby_lawyers(message):
+        return matched if matched else nearby_lawyers[:5]
 
-    if _backend_should_attach_partner_cards(
-        message, topic_for_partners, nearby_lawyers, locale
-    ):
+    if had_marker:
         return matched
 
     return []
@@ -498,20 +507,6 @@ def _user_message_indicates_guidance_or_situation(text: str, locale: str = "en")
         ):
             return True
     return False
-
-
-def _backend_should_attach_partner_cards(
-    message: str,
-    topic_for_match: str,
-    nearby_lawyers: list[dict],
-    locale: str,
-) -> bool:
-    """Surface partner cards without the model marker when the matter aligns with nearby practices."""
-    if _user_message_seeks_notarial_document_help(message):
-        return True
-    if not _user_message_indicates_guidance_or_situation(message, locale):
-        return False
-    return _max_topic_alignment_score(topic_for_match, nearby_lawyers) >= 5
 
 
 def _topic_context_for_partner_match(message: str, history: list[dict[str, str]]) -> str:
@@ -614,6 +609,7 @@ async def _build_location_context(
     user_lat: float,
     user_lng: float,
     *,
+    user_message: str = "",
     area_label: str | None = None,
     radius_km: float = 50.0,
     max_lawyers: int = 5,
@@ -672,18 +668,25 @@ async def _build_location_context(
             )
             areas = ", ".join(lawyer.get("practice_areas") or []) or "General practice"
             lines.append(f"- **{name}** ({areas}) — approx. {dist_km:.1f} km away")
-        lines.append(
+        partner_rules = (
             f"\nRead each partner's **practice areas** and compare them to the user's question and "
             f"recent chat context. Include the exact text `{_SUGGEST_MARKER}` when:\n"
             f"- they ask to find, compare, or hire lawyers, want a referral, or need representation; "
             f"**or**\n"
             f"- their matter reasonably fits one or more partners' specialties and local counsel "
-            f"would materially help (name why it fits in one sentence).\n"
+            f"would materially help.\n"
             f"**Do not** use `{_SUGGEST_MARKER}` only for general definitions or **statutory "
             f"premium/pay-rate math** you can answer without counsel.\n"
-            f"When a partner's listed practice areas fit (e.g. Civil Law for estate matters), "
-            f"include `{_SUGGEST_MARKER}`, name them, and cite **only** their listed specialties."
+            f"When you use `{_SUGGEST_MARKER}`, write **1–2 sentences** naming the partner, their "
+            f"**listed** specialties, and why they fit — never rely on the profile card alone."
         )
+        if _user_message_seeks_notarial_document_help(user_message):
+            partner_rules += (
+                "\nFor **affidavit of loss / notarization**: explain the usual steps first; "
+                "suggest a partner only if their listed areas include notarial/civil/documentation "
+                "work, and introduce them in prose as above."
+            )
+        lines.append(partner_rules)
     else:
         lines.append(
             "\nNo CLAiR partner lawyers are currently registered near this location."
@@ -787,7 +790,11 @@ async def get_chat_response(
     nearby_lawyers: list[dict] = []
     if db is not None and user_lat is not None and user_lng is not None:
         location_context, nearby_lawyers = await _build_location_context(
-            db, user_lat, user_lng, area_label=area_label
+            db,
+            user_lat,
+            user_lng,
+            user_message=message,
+            area_label=area_label,
         )
         rag_context = rag_context + location_context
 
@@ -825,6 +832,8 @@ async def get_chat_response(
         suppress_cards=suppress_cards,
         locale=locale,
     )
+
+    rag_sources = await align_rag_sources_with_citations(rag_sources, content)
 
     return content, suggested, rag_sources, rag_enabled, tavily_results
 

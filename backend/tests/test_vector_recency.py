@@ -2,9 +2,11 @@ from datetime import date
 
 from app.services.vector_service import (
     _combined_rank_score,
+    _expand_retrieval_query,
     _parse_date_enacted,
     _recency_score,
     _rerank_by_recency,
+    extract_cited_law_numbers,
 )
 
 
@@ -64,3 +66,14 @@ def test_rerank_keeps_higher_similarity_when_gap_large():
 
 def test_combined_score_blend():
     assert _combined_rank_score(1.0, 1.0) > _combined_rank_score(1.0, 0.0)
+
+
+def test_expand_retrieval_query_bullying():
+    expanded = _expand_retrieval_query("I need help someone bullied me")
+    assert "10627" in expanded
+    assert "Anti-Bullying" in expanded
+
+
+def test_extract_cited_law_numbers():
+    text = "under **Republic Act No. 10627**, also known as the Anti-Bullying Act"
+    assert extract_cited_law_numbers(text) == ["10627"]

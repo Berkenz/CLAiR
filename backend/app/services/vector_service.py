@@ -56,6 +56,40 @@ _DATE_FORMATS = (
     "%m-%d-%Y",
 )
 
+# When the user message matches topic needles, append legal context to the embed
+# query and run metadata lookups (number/title) so cited statutes can be retrieved.
+_TOPIC_QUERY_EXPANSIONS: list[tuple[tuple[str, ...], str, tuple[str, ...]]] = [
+    (
+        ("bully", "bullied", "bullying", "harass", "harassed"),
+        "Republic Act 10627 Anti-Bullying Act Philippines school workplace",
+        ("10627", "anti-bullying", "bullying"),
+    ),
+    (
+        ("dismiss", "terminated", "fired", "resign", "employer"),
+        "Labor Code illegal dismissal termination Philippines",
+        ("442", "illegal dismissal", "labor code"),
+    ),
+    (
+        ("estate", "inherit", "will", "succession", "deceased"),
+        "estate succession Civil Code Philippines",
+        ("inheritance", "succession", "estate"),
+    ),
+    (
+        ("annul", "divorce", "separate", "marriage"),
+        "Family Code annulment legal separation Philippines",
+        ("family code", "annulment", "legal separation"),
+    ),
+]
+
+# Similarity assigned to metadata-matched rows (display + ranking).
+_METADATA_MATCH_SIMILARITY = 0.72
+
+_CITED_LAW_RE = re.compile(
+    r"\b(?:Republic\s+Act|R\.?\s*A\.?|Presidential\s+Decree|P\.?\s*D\.?)"
+    r"\s*(?:No\.?\s*)?(\d+)\b",
+    re.IGNORECASE,
+)
+
 
 async def _get_pool() -> asyncpg.Pool | None:
     """Return (and lazily create) the asyncpg connection pool."""
@@ -130,6 +164,70 @@ def _combined_rank_score(similarity: float, recency: float) -> float:
     return (1.0 - _RECENCY_WEIGHT) * similarity + _RECENCY_WEIGHT * recency
 
 
+def _chunk_dedupe_key(chunk: dict) -> str:
+    number = (chunk.get("number") or "").strip().lower()
+    title = (chunk.get("title") or "").strip().lower()
+    text_head = (chunk.get("text") or "")[:96].strip().lower()
+    return f"{number}|{title}|{text_head}"
+
+
+def _merge_chunk_lists(*lists: list[dict]) -> list[dict]:
+    merged: list[dict] = []
+    seen: set[str] = set()
+    for items in lists:
+        for chunk in items:
+            key = _chunk_dedupe_key(chunk)
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(chunk)
+    return merged
+
+
+def _expand_retrieval_query(query: str) -> str:
+    q = query.lower()
+    extras: list[str] = []
+    for needles, expansion, _meta in _TOPIC_QUERY_EXPANSIONS:
+        if any(needle in q for needle in needles):
+            extras.append(expansion)
+    if not extras:
+        return query
+    return f"{query}\n\nRelated Philippine law: {'; '.join(extras)}"
+
+
+def _metadata_search_terms(query: str) -> list[str]:
+    q = query.lower()
+    terms: list[str] = []
+    for needles, _expansion, meta_terms in _TOPIC_QUERY_EXPANSIONS:
+        if any(needle in q for needle in needles):
+            terms.extend(meta_terms)
+    for word in re.findall(r"[a-z]{5,}", q):
+        if word not in ("someone", "please", "help", "about", "there", "their"):
+            terms.append(word)
+    # Stable dedupe
+    seen: set[str] = set()
+    out: list[str] = []
+    for t in terms:
+        t = t.strip().lower()
+        if not t or t in seen:
+            continue
+        seen.add(t)
+        out.append(t)
+    return out[:8]
+
+
+def extract_cited_law_numbers(text: str) -> list[str]:
+    """Extract numeric IDs from RA / PD style citations in model or user text."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for m in _CITED_LAW_RE.finditer(text or ""):
+        num = m.group(1)
+        if num not in seen:
+            seen.add(num)
+            out.append(num)
+    return out
+
+
 def _rerank_by_recency(candidates: list[dict], top_k: int) -> list[dict]:
     """Prefer newer enactments among semantically similar chunks."""
     if not candidates:
@@ -161,6 +259,87 @@ async def _embed(text: str) -> list[float] | None:
     except Exception:
         logger.exception("Embed service call failed")
         return None
+
+
+async def _search_chunks_by_metadata(
+    pool: asyncpg.Pool,
+    terms: list[str],
+    *,
+    limit: int,
+) -> list[dict]:
+    if not terms:
+        return []
+
+    patterns = [f"%{t}%" for t in terms]
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT
+                    text,
+                    number,
+                    title,
+                    category,
+                    source_url,
+                    date_enacted,
+                    $3::float AS similarity
+                FROM law_chunks
+                WHERE number ILIKE ANY($1::text[])
+                   OR title ILIKE ANY($1::text[])
+                   OR text ILIKE ANY($1::text[])
+                ORDER BY date_enacted DESC NULLS LAST, chunk_index ASC
+                LIMIT $2
+                """,
+                patterns,
+                limit,
+                _METADATA_MATCH_SIMILARITY,
+            )
+        return [dict(r) for r in rows]
+    except Exception:
+        logger.exception("metadata law_chunks search failed")
+        return []
+
+
+async def fetch_chunks_by_law_numbers(
+    pool: asyncpg.Pool,
+    numbers: list[str],
+    *,
+    limit_per_number: int = 1,
+) -> list[dict]:
+    """Fetch chunks whose number/title matches cited RA/PD numbers."""
+    if not numbers:
+        return []
+
+    out: list[dict] = []
+    try:
+        async with pool.acquire() as conn:
+            for num in numbers[:6]:
+                pattern = f"%{num}%"
+                rows = await conn.fetch(
+                    """
+                    SELECT
+                        text,
+                        number,
+                        title,
+                        category,
+                        source_url,
+                        date_enacted,
+                        $3::float AS similarity
+                    FROM law_chunks
+                    WHERE number ILIKE $1 OR title ILIKE $1
+                    ORDER BY chunk_index ASC
+                    LIMIT $2
+                    """,
+                    pattern,
+                    limit_per_number,
+                    _METADATA_MATCH_SIMILARITY,
+                )
+                out.extend(dict(r) for r in rows)
+    except Exception:
+        logger.exception("law number chunk lookup failed")
+        return []
+
+    return _merge_chunk_lists(out)
 
 
 async def _search_chunks_by_embedding(
@@ -205,17 +384,75 @@ async def get_relevant_chunks(query: str, top_k: int = _TOP_K) -> list[dict]:
     Each result dict has keys:
         text, number, title, category, source_url, date_enacted, similarity (float 0–1)
 
-    Results are re-ranked to favor newer enactments when similarity is comparable.
+    Uses vector search plus topic metadata lookup, then re-ranks for recency.
     """
     pool = await _get_pool()
     if pool is None:
         return []
 
-    embedding = await _embed(query)
+    expanded = _expand_retrieval_query(query)
+    embedding = await _embed(expanded)
     if embedding is None:
         return []
 
-    return await _search_chunks_by_embedding(pool, embedding, top_k)
+    vector_hits = await _search_chunks_by_embedding(pool, embedding, top_k)
+    meta_terms = _metadata_search_terms(query)
+    meta_hits = await _search_chunks_by_metadata(
+        pool, meta_terms, limit=max(top_k, 6)
+    )
+    merged = _merge_chunk_lists(vector_hits, meta_hits)
+    return _rerank_by_recency(merged, top_k)
+
+
+async def align_rag_sources_with_citations(
+    rag_sources: list[dict],
+    reply_text: str,
+    *,
+    top_k: int = _TOP_K,
+) -> list[dict]:
+    """
+    Ensure laws cited in the assistant reply appear in rag_sources when they
+    exist in law_chunks (UI 'Retrieved for this answer' matches citations).
+    """
+    pool = await _get_pool()
+    if pool is None:
+        return rag_sources
+
+    cited = extract_cited_law_numbers(reply_text)
+    if not cited:
+        return rag_sources
+
+    existing_numbers = {
+        (s.get("number") or "").lower() for s in rag_sources if s.get("number")
+    }
+    missing = [n for n in cited if not any(n in num for num in existing_numbers)]
+    if not missing:
+        return rag_sources
+
+    extra = await fetch_chunks_by_law_numbers(pool, missing)
+    if not extra:
+        return rag_sources
+
+    combined = _merge_chunk_lists(
+        [_rag_source_row_from_chunk(c) for c in extra],
+        rag_sources,
+    )
+    return combined[:top_k]
+
+
+def _rag_source_row_from_chunk(chunk: dict) -> dict:
+    sim = chunk.get("similarity")
+    try:
+        sim_f = float(sim) if sim is not None else _METADATA_MATCH_SIMILARITY
+    except (TypeError, ValueError):
+        sim_f = _METADATA_MATCH_SIMILARITY
+    return {
+        "number": chunk.get("number"),
+        "title": (chunk.get("title") or "")[:400],
+        "category": chunk.get("category"),
+        "similarity": round(sim_f, 4),
+        "source_url": chunk.get("source_url"),
+    }
 
 
 async def rag_self_test(query: str) -> dict:
