@@ -509,7 +509,7 @@ export function ProfilePage() {
                   <p className="text-xs text-red-600 mt-2">{photoError}</p>
                 )}
                 <p className="text-[11px] text-[#c490aa] mt-2">
-                  JPEG, PNG, WebP, or GIF · max 5 MB. Requires Supabase storage on the server.
+                  JPEG, PNG, WebP, or GIF · max 5 MB.
                 </p>
               </div>
             </div>
