@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent, type ChangeEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Check, X, RefreshCw, Loader2, Smartphone, CalendarClock,
   FileText, ChevronDown, ChevronUp, WifiOff, Download, Bot, User,
@@ -28,6 +29,7 @@ import { getApiErrorMessage, isApiNetworkError } from "@/lib/api-error";
 import { cn } from "@/lib/cn";
 import { ChatMarkdown } from "@/components/chat-markdown";
 import { useAuth } from "@/features/auth/auth-provider";
+import { useRefreshNotificationBadge } from "@/layouts/dashboard-layout";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -302,6 +304,7 @@ function SortablePortalCaseRow({
   onAccept,
   openReject,
   acceptingId,
+  unreadCount,
 }: {
   appt: Appointment;
   index: number;
@@ -312,6 +315,7 @@ function SortablePortalCaseRow({
   onAccept?: (a: Appointment) => void;
   openReject?: (a: Appointment) => void;
   acceptingId: string | null;
+  unreadCount?: number;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: appt.id,
@@ -353,7 +357,14 @@ function SortablePortalCaseRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <p className="text-[15px] font-bold text-[#241715] truncate leading-snug min-w-0">{displayCaseTitle(appt)}</p>
-            <CaseSourceBadge appt={appt} className="shrink-0 mt-0.5" />
+            <div className="flex items-center gap-1.5 shrink-0">
+              {!!unreadCount && unreadCount > 0 && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+              <CaseSourceBadge appt={appt} className="mt-0.5" />
+            </div>
           </div>
           <p className="text-xs text-[#957186] truncate mt-0.5">{appt.client_name}</p>
           <p className={metaClass}>{caseCardMetaLine(variant, appt)}</p>
@@ -429,6 +440,7 @@ function PortalCaseSectionDnd({
   onAccept,
   openReject,
   acceptingId,
+  unreadByAppt,
 }: {
   items: Appointment[];
   reorderDisabled: boolean;
@@ -439,6 +451,7 @@ function PortalCaseSectionDnd({
   onAccept?: (a: Appointment) => void;
   openReject?: (a: Appointment) => void;
   acceptingId: string | null;
+  unreadByAppt?: Record<string, number>;
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -492,6 +505,7 @@ function PortalCaseSectionDnd({
               onAccept={onAccept}
               openReject={openReject}
               acceptingId={acceptingId}
+              unreadCount={unreadByAppt?.[a.id] ?? 0}
             />
           ))}
         </div>
@@ -769,6 +783,7 @@ function AddCaseModal({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function CasesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [backendDown, setBackendDown] = useState(false);
@@ -781,12 +796,36 @@ export function CasesPage() {
   const [rejectError, setRejectError] = useState<string | null>(null);
 
   const [selected, setSelected] = useState<Appointment | null>(null);
+  const [pendingDetailTab, setPendingDetailTab] = useState<DetailTab | null>(null);
   const [search, setSearch] = useState("");
   const [pendingCollapsed, setPendingCollapsed] = useState(false);
   const [resolvedCollapsed, setResolvedCollapsed] = useState(true);
   const [closedCollapsed, setClosedCollapsed] = useState(true);
   const [addCaseOpen, setAddCaseOpen] = useState(false);
   const [reorderSaving, setReorderSaving] = useState(false);
+
+  const [unreadByAppt, setUnreadByAppt] = useState<Record<string, number>>({});
+  const [chatUnreadByAppt, setChatUnreadByAppt] = useState<Record<string, number>>({});
+
+  const fetchUnreadByAppt = useCallback(async () => {
+    try {
+      const { data } = await api.get<{ notifications: { is_read: boolean; notification_type: string; payload: Record<string, unknown> | null }[] }>("/lawyer/notifications");
+      const map: Record<string, number> = {};
+      const chatMap: Record<string, number> = {};
+      for (const n of data.notifications) {
+        if (n.is_read) continue;
+        const apptId = n.payload?.appointment_id;
+        if (typeof apptId === "string") {
+          map[apptId] = (map[apptId] ?? 0) + 1;
+          if (n.notification_type === "new_direct_message") {
+            chatMap[apptId] = (chatMap[apptId] ?? 0) + 1;
+          }
+        }
+      }
+      setUnreadByAppt(map);
+      setChatUnreadByAppt(chatMap);
+    } catch { /* silent */ }
+  }, []);
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true);
@@ -810,7 +849,39 @@ export function CasesPage() {
     }
   }, []);
 
-  useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
+  useEffect(() => { fetchAppointments(); fetchUnreadByAppt(); }, [fetchAppointments, fetchUnreadByAppt]);
+
+  useEffect(() => {
+    const interval = setInterval(() => void fetchUnreadByAppt(), 30_000);
+    return () => clearInterval(interval);
+  }, [fetchUnreadByAppt]);
+
+  const refreshBadge = useRefreshNotificationBadge();
+
+  const markChatReadForAppt = useCallback(async (appointmentId: string) => {
+    try {
+      const { data } = await api.get<{ notifications: { id: string; is_read: boolean; notification_type: string; payload: Record<string, unknown> | null }[] }>("/lawyer/notifications");
+      const toMark = data.notifications.filter(
+        (n) => !n.is_read && n.notification_type === "new_direct_message" && n.payload?.appointment_id === appointmentId,
+      );
+      await Promise.all(toMark.map((n) => api.patch(`/lawyer/notifications/${n.id}/read`)));
+      void fetchUnreadByAppt();
+      refreshBadge();
+    } catch { /* silent */ }
+  }, [fetchUnreadByAppt, refreshBadge]);
+
+  // Deep-link: auto-select appointment from ?appt=<id>&tab=<tab> (e.g. from notifications)
+  useEffect(() => {
+    const apptId = searchParams.get("appt");
+    const tab = searchParams.get("tab") as DetailTab | null;
+    if (!apptId || appointments.length === 0) return;
+    const match = appointments.find((a) => a.id === apptId);
+    if (match) {
+      setSelected(match);
+      if (tab) setPendingDetailTab(tab);
+      setSearchParams({}, { replace: true });
+    }
+  }, [appointments, searchParams, setSearchParams]);
 
   // Keep selected in sync after re-fetch
   useEffect(() => {
@@ -1005,6 +1076,7 @@ export function CasesPage() {
                   onAccept={handleAccept}
                   openReject={openReject}
                   acceptingId={accepting}
+                  unreadByAppt={unreadByAppt}
                 />
               )}
             </div>
@@ -1042,6 +1114,7 @@ export function CasesPage() {
                 onSelect={setSelected}
                 variant="confirmed"
                 acceptingId={accepting}
+                unreadByAppt={unreadByAppt}
               />
             )}
         </div>
@@ -1067,6 +1140,7 @@ export function CasesPage() {
                 onSelect={setSelected}
                 variant="resolved"
                 acceptingId={accepting}
+                unreadByAppt={unreadByAppt}
               />
             )}
           </div>
@@ -1089,6 +1163,7 @@ export function CasesPage() {
                 onSelect={setSelected}
                 variant="cancelled"
                 acceptingId={accepting}
+                unreadByAppt={unreadByAppt}
               />
             )}
           </div>
@@ -1105,6 +1180,10 @@ export function CasesPage() {
             accepting={accepting === selected.id}
             onReject={() => openReject(selected)}
             onApptUpdated={handleApptUpdated}
+            initialTab={pendingDetailTab}
+            onInitialTabConsumed={() => setPendingDetailTab(null)}
+            chatUnreadCount={chatUnreadByAppt[selected.id] ?? 0}
+            onChatOpened={() => markChatReadForAppt(selected.id)}
           />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center rounded-2xl border border-[#d9b8c4]/40 bg-white">
@@ -1165,20 +1244,30 @@ export function CasesPage() {
 
 // ─── Case Detail Panel ────────────────────────────────────────────────────────
 
-function CaseDetail({ appt, onAccept, accepting, onReject, onApptUpdated }: {
+function CaseDetail({ appt, onAccept, accepting, onReject, onApptUpdated, initialTab, onInitialTabConsumed, chatUnreadCount, onChatOpened }: {
   appt: Appointment;
   onAccept: () => void;
   accepting: boolean;
   onReject: () => void;
   onApptUpdated: (a: Appointment) => void;
+  initialTab?: DetailTab | null;
+  onInitialTabConsumed?: () => void;
+  chatUnreadCount?: number;
+  onChatOpened?: () => void;
 }) {
   const manual = isManualCase(appt);
-  const [tab, setTab] = useState<DetailTab>("overview");
+  const [tab, setTab] = useState<DetailTab>(initialTab ?? "overview");
   const [resolveBusy, setResolveBusy] = useState(false);
 
   useEffect(() => {
-    setTab("overview");
-  }, [appt.id]);
+    if (initialTab) {
+      setTab(initialTab);
+      onInitialTabConsumed?.();
+      if (initialTab === "chat") onChatOpened?.();
+    } else {
+      setTab("overview");
+    }
+  }, [appt.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tabs: { key: DetailTab; label: string; icon: React.ReactNode }[] = manual
     ? [
@@ -1293,7 +1382,7 @@ function CaseDetail({ appt, onAccept, accepting, onReject, onApptUpdated }: {
           <button
             key={t.key}
             type="button"
-            onClick={() => setTab(t.key)}
+            onClick={() => { setTab(t.key); if (t.key === "chat") onChatOpened?.(); }}
             className={cn(
               "flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors shrink-0",
               tab === t.key
@@ -1302,6 +1391,11 @@ function CaseDetail({ appt, onAccept, accepting, onReject, onApptUpdated }: {
             )}
           >
             {t.icon}{t.label}
+            {t.key === "chat" && !!chatUnreadCount && chatUnreadCount > 0 && (
+              <span className="ml-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                {chatUnreadCount > 99 ? "99+" : chatUnreadCount}
+              </span>
+            )}
           </button>
         ))}
       </div>

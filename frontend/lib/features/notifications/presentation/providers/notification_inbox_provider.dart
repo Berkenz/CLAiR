@@ -186,9 +186,16 @@ class NotificationInboxNotifier extends StateNotifier<NotificationInboxState> {
     await refresh();
   }
 
-  /// Marks unread inbox rows whose payload matches [appointmentId] (e.g. after
-  /// opening that appointment from the list).
-  Future<void> markReadForAppointment(String appointmentId) async {
+  /// Marks unread inbox rows whose payload matches [appointmentId].
+  ///
+  /// When [notificationTypes] is provided, only notifications whose
+  /// [InAppNotificationEntity.notificationType] is in the set are touched.
+  /// This prevents opening an appointment detail from also clearing unread
+  /// DM notifications that the user hasn't viewed yet.
+  Future<void> markReadForAppointment(
+    String appointmentId, {
+    Set<String>? notificationTypes,
+  }) async {
     final id = appointmentId.trim();
     if (id.isEmpty) return;
 
@@ -198,7 +205,9 @@ class NotificationInboxNotifier extends StateNotifier<NotificationInboxState> {
             (n) =>
                 !n.isRead &&
                 n.appointmentId != null &&
-                n.appointmentId == id,
+                n.appointmentId == id &&
+                (notificationTypes == null ||
+                    notificationTypes.contains(n.notificationType)),
           )
           .map((n) => n.id)
           .toList();

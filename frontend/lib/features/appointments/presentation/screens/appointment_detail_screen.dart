@@ -34,7 +34,14 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
     Future.microtask(() async {
       ref
           .read(notificationInboxProvider.notifier)
-          .markReadForAppointment(widget.appointment.id);
+          .markReadForAppointment(
+            widget.appointment.id,
+            notificationTypes: const {
+              'appointment_accepted',
+              'appointment_rejected',
+              'appointment_resolved',
+            },
+          );
       await ref
           .read(appointmentNewBadgeSeenProvider.notifier)
           .markSeen(widget.appointment);

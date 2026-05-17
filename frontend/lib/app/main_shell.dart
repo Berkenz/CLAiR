@@ -206,13 +206,7 @@ class _MainShellState extends ConsumerState<MainShell>
     final cl = context.c;
     final bottom = MediaQuery.of(context).viewPadding.bottom;
     final inbox = ref.watch(notificationInboxProvider);
-    final lawyerChatUnread = inbox.notifications
-        .where(
-          (n) =>
-              !n.isRead &&
-              n.notificationType == 'new_direct_message',
-        )
-        .length;
+    final totalUnread = inbox.unreadCount;
 
     return Container(
       padding: EdgeInsets.only(bottom: bottom > 0 ? bottom : 8),
@@ -238,8 +232,7 @@ class _MainShellState extends ConsumerState<MainShell>
                   i,
                   currentIndex,
                   labels,
-                  lawyerChatUnread,
-                  badgeDotOnly: true,
+                  totalUnread,
                 );
               }
               return _navItem(i, currentIndex, labels, 0);

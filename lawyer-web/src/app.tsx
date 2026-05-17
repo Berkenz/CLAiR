@@ -9,6 +9,7 @@ import { DashboardPage } from "@/features/dashboard/pages/dashboard-page";
 import { CasesPage } from "@/features/cases/pages/cases-page";
 import { ProfilePage } from "@/features/profile/pages/profile-page";
 import { AiAssessmentPage } from "@/features/ai-assessment/pages/ai-assessment-page";
+import { NotificationsPage } from "@/features/notifications/pages/notifications-page";
 import {
   getNextStep,
   hasChangedPassword,
@@ -72,6 +73,7 @@ export function App() {
         <Route path="/conversations"  element={<Navigate to="/" replace />} />
         <Route path="/documents"      element={<Navigate to="/" replace />} />
         <Route path="/ai-assessment"  element={<AiAssessmentPage />} />
+        <Route path="/notifications"  element={<NotificationsPage />} />
         <Route path="/profile"        element={<ProfilePage />} />
       </Route>
 

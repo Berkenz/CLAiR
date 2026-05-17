@@ -5,7 +5,7 @@ from app.api.v1.endpoints.appointments import lawyer_router as appt_lawyer_route
 from app.api.v1.endpoints.appointments import mobile_router as appt_mobile_router
 from app.api.v1.endpoints.direct_messages import client_router as dm_client_router
 from app.api.v1.endpoints.direct_messages import lawyer_router as dm_lawyer_router
-from app.api.v1.endpoints import debug_rag, notifications
+from app.api.v1.endpoints import debug_rag, lawyer_notifications, notifications
 
 api_router = APIRouter()
 
@@ -17,6 +17,7 @@ api_router.include_router(lawyer_auth.router)
 api_router.include_router(lawyer_profile.router)
 api_router.include_router(lawyer_ai_assessment.router)
 api_router.include_router(notifications.router)
+api_router.include_router(lawyer_notifications.router)
 api_router.include_router(appt_mobile_router)
 api_router.include_router(appt_lawyer_router)
 api_router.include_router(dm_client_router)
