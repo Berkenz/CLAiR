@@ -1,15 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/core/theme/app_colors.dart';
-import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/chat/utils/guest_chat_reset.dart';
@@ -113,14 +108,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // Pick first 2 lawyers
     final suggestedLawyers = lawyerState.lawyers.take(2).toList();
 
-    // Most recent 3 conversations
-    final recentConvs = [...historyState.conversations]
+    // Most recent 3 saved/pinned conversations
+    final savedConvs = historyState.conversations
+        .where((c) => c.isPinned)
+        .toList()
       ..sort((a, b) {
         final ta = a.updatedAt ?? a.createdAt;
         final tb = b.updatedAt ?? b.createdAt;
         return tb.compareTo(ta);
       });
-    final recentDocs = recentConvs.take(3).toList();
+    final recentSaved = savedConvs.take(3).toList();
 
     return Column(children: [
       const ClairAppBar(),
@@ -271,19 +268,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
               const SizedBox(height: 28),
 
-              // ── Generated Documents (only when conversations exist) ─────────
-              if (recentDocs.isNotEmpty) ...[
+              // ── Saved Chats quick-access ──────────────────────────────────
+              if (recentSaved.isNotEmpty) ...[
                 _fadeSlide(
                   _sectionHead(
-                    l10n.homeGeneratedDocuments,
-                    l10n.homeViewAll,
-                    () => ref.read(mainShellTabProvider.notifier).state = 2,
+                    l10n.homeSavedChats,
+                    l10n.homeSeeAll,
+                    () {
+                      ref.read(librarySegmentProvider.notifier).state = 1;
+                      ref.read(mainShellTabProvider.notifier).state = 2;
+                    },
                   ),
                   0.35,
                 ),
                 const SizedBox(height: 10),
-                ...recentDocs.asMap().entries.map((e) => _fadeSlide(
-                    _docRow(e.value), 0.4 + e.key * 0.05)),
+                ...recentSaved.asMap().entries.map((e) => _fadeSlide(
+                    _savedChatRow(e.value), 0.4 + e.key * 0.05)),
               ],
 
               const SizedBox(height: 28),
@@ -409,18 +409,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  // ── Documents section ────────────────────────────────────────────────────
+  // ── Saved chats section ──────────────────────────────────────────────────
 
-  Widget _docRow(ConversationEntity conv) {
+  Widget _savedChatRow(ConversationEntity conv) {
     final cl = context.c;
-    final l10n = AppLocalizations.of(context)!;
     final date = DateFormat('MMM d, y')
         .format(conv.updatedAt ?? conv.createdAt);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: SpringButton(
-        onTap: () => _downloadConversation(conv),
+        onTap: () {
+          ref.read(chatProvider.notifier).loadConversation(
+                conv.id,
+                title: conv.title,
+                isPinned: conv.isPinned,
+              );
+          ref.read(mainShellTabProvider.notifier).state = 1;
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
@@ -439,11 +445,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: const Color(0xFFFFF8EE),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.picture_as_pdf_outlined,
-                    color: Color(0xFFDC6B6B), size: 17)),
+                child: const Icon(Icons.bookmark_rounded,
+                    color: Color(0xFFE9A020), size: 17)),
             const SizedBox(width: 12),
             Expanded(
                 child: Column(
@@ -458,60 +464,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 1),
                   Text(
-                    '$date  ·  ${l10n.chatMenuDownloadPdf}',
+                    date,
                     style: GoogleFonts.nunito(fontSize: 11, color: cl.textMid),
                   ),
                 ])),
-            Icon(Icons.download_outlined, size: 18, color: cl.textLight),
+            Icon(Icons.chevron_right_rounded, size: 18, color: cl.textLight),
           ]),
         ),
       ),
     );
-  }
-
-  Future<void> _downloadConversation(ConversationEntity conversation) async {
-    final cl = context.c;
-    final l10n = AppLocalizations.of(context)!;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l10n.histGeneratingPdf),
-        backgroundColor: cl.textDark,
-        duration: const Duration(seconds: 10),
-      ),
-    );
-
-    try {
-      await ref.read(chatProvider.notifier).loadConversation(
-            conversation.id,
-            title: conversation.title,
-            isPinned: conversation.isPinned,
-          );
-
-      final bytes = await ref.read(chatProvider.notifier).downloadPdf();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      if (bytes == null) return;
-
-      final dir = await getTemporaryDirectory();
-      final safeName = conversation.title
-          .replaceAll(RegExp(r'[^\w\s-]'), '_')
-          .trim();
-      final file = File('${dir.path}/CLAiR_$safeName.pdf');
-      await file.writeAsBytes(bytes);
-
-      await SharePlus.instance.share(
-        ShareParams(files: [XFile(file.path)]),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.histDownloadFailed(friendlyErrorMessage(e))),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
-    }
   }
 
   // ── Shared widgets ───────────────────────────────────────────────────────
@@ -566,13 +527,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget _sectionHead(String title, String action, VoidCallback onAction) {
     final cl = context.c;
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(title,
-            style: GoogleFonts.nunito(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: cl.textDark)),
+        Flexible(
+          child: Text(title,
+              style: GoogleFonts.nunito(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: cl.textDark),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
+        ),
+        const SizedBox(width: 8),
         GestureDetector(
           onTap: onAction,
           child: Container(
@@ -585,7 +550,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 style: GoogleFonts.nunito(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: cl.accent)),
+                    color: cl.accent),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
           ),
         ),
       ],

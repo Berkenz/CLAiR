@@ -83,6 +83,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     ref.listen<int>(mainShellTabProvider, (prev, next) {
       if (next == 2) {
         ref.read(historyProvider.notifier).loadConversations();
+        // Apply any pending segment request (e.g. "See All Saved" from home)
+        // then reset so the next normal Library navigation starts on History.
+        final requestedSegment = ref.read(librarySegmentProvider);
+        if (requestedSegment != 0) {
+          setState(() => _segment = requestedSegment);
+          ref.read(librarySegmentProvider.notifier).state = 0;
+        }
       }
     });
 

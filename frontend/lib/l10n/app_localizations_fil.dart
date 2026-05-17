@@ -420,6 +420,9 @@ class AppLocalizationsFil extends AppLocalizations {
   String get homeGeneratedDocuments => 'Mga dokumentong ginawa';
 
   @override
+  String get homeSavedChats => 'Mga naka-save na chat';
+
+  @override
   String get homeViewAll => 'Tingnan lahat';
 
   @override

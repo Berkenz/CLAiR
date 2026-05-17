@@ -838,6 +838,12 @@ abstract class AppLocalizations {
   /// **'Generated Documents'**
   String get homeGeneratedDocuments;
 
+  /// No description provided for @homeSavedChats.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved Chats'**
+  String get homeSavedChats;
+
   /// No description provided for @homeViewAll.
   ///
   /// In en, this message translates to:

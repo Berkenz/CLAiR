@@ -420,6 +420,9 @@ class AppLocalizationsCeb extends AppLocalizations {
   String get homeGeneratedDocuments => 'Mga dokumentong gihimo';
 
   @override
+  String get homeSavedChats => 'Mga na-save nga chat';
+
+  @override
   String get homeViewAll => 'Tan-awa tanan';
 
   @override

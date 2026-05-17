@@ -419,6 +419,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeGeneratedDocuments => 'Generated Documents';
 
   @override
+  String get homeSavedChats => 'Saved Chats';
+
+  @override
   String get homeViewAll => 'View All';
 
   @override
