@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { Eye, EyeOff } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { api } from "@/lib/api";
 import {
@@ -23,6 +24,7 @@ export function LoginPage() {
   const { setLawyerState } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -154,15 +156,24 @@ export function LoginPage() {
               <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide">
                 Password
               </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                placeholder="••••••••"
-                className="w-full rounded-xl border border-[#d9b8c4] bg-white px-4 py-3 text-sm text-[#241715] outline-none transition focus:border-[#703d57] focus:ring-2 focus:ring-[#703d57]/10"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-[#d9b8c4] bg-white px-4 py-3 pr-11 text-sm text-[#241715] outline-none transition focus:border-[#703d57] focus:ring-2 focus:ring-[#703d57]/10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#957186] hover:text-[#703d57] transition"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             {error && (
