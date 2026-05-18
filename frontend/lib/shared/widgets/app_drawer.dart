@@ -24,6 +24,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
   Widget build(BuildContext context) {
     final cl = context.c;
     final l10n = AppLocalizations.of(context)!;
+    final currentTab = ref.watch(mainShellTabProvider);
     final historyState = ref.watch(historyProvider);
     
     // Load recent chats once; avoid re-fetch (sets isLoading) on every drawer open.
@@ -104,11 +105,11 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             children: [
               _label(context, l10n.drawerNavigate),
-              _item(context, Icons.home_outlined, l10n.drawerHome, true, () {
+              _item(context, Icons.home_outlined, l10n.drawerHome, currentTab == 0, () {
                 Navigator.pop(context);
                 ref.read(mainShellTabProvider.notifier).state = 0;
               }),
-              _item(context, Icons.chat_bubble_outline, l10n.drawerNewChat, false, () async {
+              _item(context, Icons.chat_bubble_outline, l10n.drawerNewChat, currentTab == 1, () async {
                 Navigator.pop(context);
                 if (!await resetChatWithGuestGuard(context: context, ref: ref) ||
                     !context.mounted) {
@@ -116,15 +117,15 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 }
                 ref.read(mainShellTabProvider.notifier).state = 1;
               }),
-              _item(context, Icons.library_books_rounded, l10n.drawerChatLibrary, false, () {
+              _item(context, Icons.library_books_rounded, l10n.drawerChatLibrary, currentTab == 2, () {
                 Navigator.pop(context);
                 ref.read(mainShellTabProvider.notifier).state = 2;
               }),
-              _item(context, Icons.balance_rounded, l10n.drawerFindLawyer, false, () {
+              _item(context, Icons.balance_rounded, l10n.drawerFindLawyer, currentTab == 3, () {
                 Navigator.pop(context);
                 ref.read(mainShellTabProvider.notifier).state = 3;
               }),
-              _item(context, Icons.event_note_outlined, l10n.drawerAppointments, false, () {
+              _item(context, Icons.event_note_outlined, l10n.drawerAppointments, currentTab == 4, () {
                 Navigator.pop(context);
                 ref.read(mainShellTabProvider.notifier).state = 4;
               }),

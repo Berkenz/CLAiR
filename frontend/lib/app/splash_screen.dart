@@ -6,7 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:clair/core/theme/appearance_provider.dart';
+import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -84,7 +87,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (dur - pos <= _navTrigger) _navigate();
   }
 
-  void _navigate() {
+  Future<void> _navigate() async {
     if (_navigated || !mounted) return;
     _navigated = true;
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -92,7 +95,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       statusBarColor: Colors.transparent,
       systemNavigationBarColor: Colors.transparent,
     ));
-    context.go('/login');
+
+    // Check for an existing Firebase session so users don't have to
+    // re-login every time they close and reopen the app.
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser != null && !firebaseUser.isAnonymous) {
+      final user = await ref.read(authRepositoryProvider).getCurrentUser();
+      if (user != null && mounted) {
+        ref.read(currentUserProvider.notifier).state = user;
+        context.go('/home');
+        return;
+      }
+    }
+
+    if (mounted) context.go('/login');
   }
 
   @override

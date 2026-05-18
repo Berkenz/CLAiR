@@ -20,7 +20,7 @@ fun localOrEnv(key: String): String? =
     localProps.getProperty(key) ?: System.getenv(key)
 
 android {
-    namespace = "ph.clair.app"
+    namespace = "com.example.clair"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 
