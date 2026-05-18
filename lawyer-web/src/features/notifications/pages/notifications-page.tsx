@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Bell, BellOff, Check, CheckCheck, Loader2, RefreshCw,
   Briefcase, MessageCircle, UserCheck, AlertTriangle,
-  Clock, Trash2, WifiOff, Filter,
+  Clock, Trash2, WifiOff, Filter, XCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
@@ -25,6 +25,7 @@ const ICON_MAP: Record<string, typeof Bell> = {
   appointment_accepted: UserCheck,
   appointment_rejected: AlertTriangle,
   appointment_resolved: Check,
+  appointment_cancelled_by_client: XCircle,
   new_direct_message: MessageCircle,
 };
 
@@ -33,6 +34,7 @@ const ICON_BG_MAP: Record<string, string> = {
   appointment_accepted: "bg-emerald-100 text-emerald-700",
   appointment_rejected: "bg-red-100 text-red-600",
   appointment_resolved: "bg-slate-100 text-slate-600",
+  appointment_cancelled_by_client: "bg-orange-100 text-orange-700",
   new_direct_message: "bg-violet-100 text-violet-700",
 };
 

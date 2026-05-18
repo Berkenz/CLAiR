@@ -122,7 +122,25 @@ async def book_appointment(
         await db.refresh(appt)
 
     await appointment_service._persist_legacy_split_if_needed(db, appt)
-    return await appointment_service.reload_appointment_for_response(db, appt.id)
+    final_appt = await appointment_service.reload_appointment_for_response(db, appt.id)
+
+    lawyer_profile = final_appt.lawyer_profile
+    if lawyer_profile is not None:
+        try:
+            client_label = (current_user.full_name or current_user.email or "A client").strip()
+            case_label = ((final_appt.case_title or "").strip() or final_appt.appointment_type)
+            await notification_service.create_notification(
+                db,
+                user_id=lawyer_profile.user_id,
+                notification_type="new_appointment",
+                title="New appointment request",
+                body=f"{client_label} requested an appointment for {case_label}.",
+                payload={"appointment_id": str(final_appt.id)},
+            )
+        except Exception:
+            logger.exception("Failed to record lawyer notification for new appointment booking")
+
+    return final_appt
 
 
 @mobile_router.get("", response_model=AppointmentListResponse)
