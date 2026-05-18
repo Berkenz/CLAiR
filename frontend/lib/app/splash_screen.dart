@@ -98,13 +98,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     // Check for an existing Firebase session so users don't have to
     // re-login every time they close and reopen the app.
+    // Use a timeout + catch so a slow/unreachable backend never blocks navigation.
     final firebaseUser = FirebaseAuth.instance.currentUser;
     if (firebaseUser != null && !firebaseUser.isAnonymous) {
-      final user = await ref.read(authRepositoryProvider).getCurrentUser();
-      if (user != null && mounted) {
-        ref.read(currentUserProvider.notifier).state = user;
-        context.go('/home');
-        return;
+      try {
+        final user = await ref
+            .read(authRepositoryProvider)
+            .getCurrentUser()
+            .timeout(const Duration(seconds: 4));
+        if (user != null && mounted) {
+          ref.read(currentUserProvider.notifier).state = user;
+          context.go('/home');
+          return;
+        }
+      } catch (_) {
+        // Network unavailable, timeout, or any error — fall through to login.
       }
     }
 
