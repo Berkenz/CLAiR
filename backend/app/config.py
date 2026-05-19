@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     GCP_VERTEX_LOCATION: str = "us-central1"
     # Path to service-account JSON (inside container often /app/gcp-vertex-key.json).
     GCP_VERTEX_CREDENTIALS_PATH: str | None = None
+    # Standard Google ADC env var (also set in Docker / Render).
+    GOOGLE_APPLICATION_CREDENTIALS: str | None = None
     VERTEX_CHAT_MODEL: str = "gemini-2.5-flash"
     VERTEX_TITLE_MODEL: str = "gemini-2.5-flash"
     # Primary chat model (Groq).
@@ -58,10 +60,14 @@ class Settings(BaseSettings):
     # When true and the reply cites laws, UI may show cited laws only; verified
     # retrieval is still shown if citation parsing finds nothing.
     RAG_DISPLAY_ONLY_MATCHING: bool = False
+    # File storage: supabase (default) or gcs (Google Cloud Storage — uses GCP credits).
+    STORAGE_BACKEND: str = "supabase"
+    GCS_BUCKET_NAME: str | None = None
+    GCS_PROJECT_ID: str | None = None  # defaults to GCP_PROJECT_ID
     SUPABASE_URL: str | None = None
     SUPABASE_SERVICE_ROLE_KEY: str | None = None
     SUPABASE_DB_URL: str | None = None
-    EMBED_SERVICE_URL: str | None = None  # e.g. http://34.143.181.61:8001
+    EMBED_SERVICE_URL: str | None = None  # e.g. http://your-vm-ip:8001
     TAVILY_API_KEY: str | None = None
     # SMTP — used for sending report notification emails
     SMTP_HOST: str = "smtp.gmail.com"

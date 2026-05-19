@@ -35,7 +35,7 @@ async def upload_profile_photo_endpoint(
     db: Annotated[AsyncSession, Depends(get_db)],
     file: Annotated[UploadFile, File()],
 ) -> User:
-    """Upload profile photo to Supabase Storage and update user."""
+    """Upload profile photo (GCS or Supabase) and update user."""
     content_type = (file.content_type or "image/jpeg").split(";")[0].strip().lower()
     if not content_type.startswith("image/"):
         raise HTTPException(400, "File must be an image (JPEG, PNG, WebP, or GIF)")
