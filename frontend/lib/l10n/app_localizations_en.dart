@@ -158,6 +158,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lawyerList => 'List';
 
   @override
+  String get lawyerExpandMap => 'Expand';
+
+  @override
   String get lawyerSearchHint => 'Search by name or specialty…';
 
   @override

@@ -5,11 +5,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:clair/core/services/location_service.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 import 'package:clair/features/lawyer/presentation/sheets/lawyer_booking_sheet.dart';
 import 'package:clair/features/lawyer/presentation/sheets/lawyer_concern_sheet.dart';
 import 'package:clair/features/lawyer/presentation/widgets/lawyer_display_avatar.dart';
+import 'package:clair/features/lawyer/presentation/widgets/lawyer_map_view.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
 
 // ─── Days meta ────────────────────────────────────────────────────────────────
@@ -249,6 +251,29 @@ class _LocationCard extends StatelessWidget {
   }
 }
 
+void _openFullLawyerMap(BuildContext context, LawyerEntity lawyer) {
+  Navigator.push(
+    context,
+    MaterialPageRoute<void>(
+      builder: (_) => _FullMapScreen(lawyer: lawyer),
+    ),
+  );
+}
+
+Marker _lawyerOfficeMarker(LawyerEntity lawyer) {
+  return Marker(
+    point: LatLng(lawyer.latitude!, lawyer.longitude!),
+    width: kLawyerPinMarkerWidthSelected,
+    height: kLawyerPinMarkerHeightSelected,
+    alignment: Alignment.topCenter,
+    child: LawyerMapPin(
+      lawyer: lawyer,
+      selected: true,
+      onTap: () {},
+    ),
+  );
+}
+
 /// Compact non-interactive map preview that opens a full-screen map on tap.
 class _MiniMap extends StatelessWidget {
   const _MiniMap({required this.lawyer, required this.cl});
@@ -270,75 +295,58 @@ class _MiniMap extends StatelessWidget {
           ),
           const SizedBox(height: 10),
         ],
-        GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute<void>(
-              builder: (_) => _FullMapScreen(lawyer: lawyer),
-            ),
-          ),
-          child: Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  height: 160,
-                  child: FlutterMap(
-                    options: MapOptions(
-                      initialCenter: point,
-                      initialZoom: 15,
-                      interactionOptions: const InteractionOptions(
-                        flags: InteractiveFlag.none,
-                      ),
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.clair.app',
-                      ),
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            point: point,
-                            child: const Icon(Icons.location_on_rounded,
-                                color: Colors.red, size: 36),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Tap-to-expand hint overlay
-              Positioned(
-                bottom: 8,
-                right: 8,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.open_in_full_rounded,
-                          size: 11, color: Colors.white),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Tap to expand',
-                        style: GoogleFonts.nunito(
-                            fontSize: 10.5,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: cl.border),
+            boxShadow: [
+              BoxShadow(
+                color: cl.cardShadow,
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
             ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: SizedBox(
+              height: 176,
+              child: Stack(
+                children: [
+                  LawyerMapChrome(
+                    cl: cl,
+                    topFade: false,
+                    bottomFade: true,
+                    child: FlutterMap(
+                      options: MapOptions(
+                        initialCenter: point,
+                        initialZoom: kLawyerMapPinZoom,
+                        interactionOptions: const InteractionOptions(
+                          flags: InteractiveFlag.none,
+                        ),
+                      ),
+                      children: [
+                        lawyerBasemapTileLayer(context),
+                        MarkerLayer(markers: [_lawyerOfficeMarker(lawyer)]),
+                      ],
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _openFullLawyerMap(context, lawyer),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 10,
+                    right: 10,
+                    child: IgnorePointer(
+                      child: _TapToExpandHint(cl: cl),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ],
@@ -346,15 +354,118 @@ class _MiniMap extends StatelessWidget {
   }
 }
 
+class _TapToExpandHint extends StatelessWidget {
+  const _TapToExpandHint({required this.cl});
+  final AppColorTheme cl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: cl.surface.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: cl.border.withValues(alpha: 0.9)),
+        boxShadow: [
+          BoxShadow(
+            color: cl.cardShadow,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.open_in_full_rounded, size: 12, color: cl.accent),
+          const SizedBox(width: 5),
+          Text(
+            'Tap to expand',
+            style: GoogleFonts.nunito(
+              fontSize: 11,
+              color: cl.textDark,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Full-screen map screen pushed when the user taps the mini-map.
-class _FullMapScreen extends StatelessWidget {
+class _FullMapScreen extends ConsumerStatefulWidget {
   const _FullMapScreen({required this.lawyer});
   final LawyerEntity lawyer;
 
   @override
+  ConsumerState<_FullMapScreen> createState() => _FullMapScreenState();
+}
+
+class _FullMapScreenState extends ConsumerState<_FullMapScreen> {
+  final _mapCtrl = MapController();
+
+  LatLng get _officePoint =>
+      LatLng(widget.lawyer.latitude!, widget.lawyer.longitude!);
+
+  void _frameMap() {
+    final hasAddress =
+        widget.lawyer.officeLocation?.trim().isNotEmpty ?? false;
+    fitLawyerMapToOfficeAndUser(
+      _mapCtrl,
+      office: _officePoint,
+      loc: ref.read(locationProvider),
+      padding: EdgeInsets.fromLTRB(48, 48, 48, hasAddress ? 120 : 48),
+    );
+  }
+
+  Future<void> _goToMyLocation() async {
+    var loc = ref.read(locationProvider);
+    if (!loc.hasLocation) {
+      final ok = await ref.read(locationProvider.notifier).fetchLocation();
+      if (!ok || !mounted) return;
+      loc = ref.read(locationProvider);
+    }
+    if (!loc.hasLocation) return;
+    _mapCtrl.move(
+      LatLng(loc.latitude!, loc.longitude!),
+      kLawyerMapPinZoom,
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final loc = ref.read(locationProvider);
+      if (!loc.hasLocation && !loc.loading) {
+        await ref.read(locationProvider.notifier).fetchLocation();
+      }
+      if (mounted) _frameMap();
+    });
+  }
+
+  @override
+  void dispose() {
+    _mapCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cl = context.c;
-    final point = LatLng(lawyer.latitude!, lawyer.longitude!);
+    final lawyer = widget.lawyer;
+    final point = _officePoint;
+    final hasAddress = lawyer.officeLocation?.trim().isNotEmpty ?? false;
+    final locState = ref.watch(locationProvider);
+
+    ref.listen<LocationState>(locationProvider, (prev, next) {
+      if (next.hasLocation && !(prev?.hasLocation ?? false) && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _frameMap();
+        });
+      }
+    });
 
     return Scaffold(
       backgroundColor: cl.bg,
@@ -375,30 +486,37 @@ class _FullMapScreen extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          FlutterMap(
-            options: MapOptions(
-              initialCenter: point,
-              initialZoom: 15,
+          LawyerMapChrome(
+            cl: cl,
+            topFade: false,
+            bottomFade: hasAddress,
+            child: FlutterMap(
+              mapController: _mapCtrl,
+              options: MapOptions(
+                initialCenter: point,
+                initialZoom: kLawyerMapPinZoom,
+                onMapReady: _frameMap,
+                onMapEvent: (_) => setState(() {}),
+              ),
+              children: [
+                lawyerBasemapTileLayer(context),
+                ...lawyerMapUserLocationLayers(loc: locState, cl: cl),
+                MarkerLayer(markers: [_lawyerOfficeMarker(lawyer)]),
+              ],
             ),
-            children: [
-              TileLayer(
-                urlTemplate:
-                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.clair.app',
-              ),
-              MarkerLayer(
-                markers: [
-                  Marker(
-                    point: point,
-                    child: const Icon(Icons.location_on_rounded,
-                        color: Colors.red, size: 44),
-                  ),
-                ],
-              ),
-            ],
           ),
-          // Info overlay at bottom
-          if (lawyer.officeLocation?.trim().isNotEmpty ?? false)
+          Positioned(
+            right: 16,
+            bottom: hasAddress ? 88 : 24,
+            child: LawyerMapControlRail(
+              cl: cl,
+              mapController: _mapCtrl,
+              loading: locState.loading,
+              locationActive: locState.hasLocation,
+              onMyLocation: locState.loading ? null : _goToMyLocation,
+            ),
+          ),
+          if (hasAddress)
             Positioned(
               bottom: 20,
               left: 16,
@@ -732,7 +850,7 @@ class _ProfileHeader extends StatelessWidget {
                   ),
                   const SizedBox(width: 16),
 
-                  // Name + designation + specialty
+                  // Name + designation
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -766,17 +884,6 @@ class _ProfileHeader extends StatelessWidget {
                             ),
                           ),
                         ],
-                        const SizedBox(height: 6),
-                        Text(
-                          lawyer.specialty,
-                          style: GoogleFonts.nunito(
-                            fontSize: 12.5,
-                            color: cl.textMid,
-                            height: 1.3,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
                       ],
                     ),
                   ),

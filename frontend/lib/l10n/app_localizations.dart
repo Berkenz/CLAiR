@@ -394,6 +394,12 @@ abstract class AppLocalizations {
   /// **'List'**
   String get lawyerList;
 
+  /// No description provided for @lawyerExpandMap.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand'**
+  String get lawyerExpandMap;
+
   /// No description provided for @lawyerSearchHint.
   ///
   /// In en, this message translates to:

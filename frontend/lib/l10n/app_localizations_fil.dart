@@ -158,6 +158,9 @@ class AppLocalizationsFil extends AppLocalizations {
   String get lawyerList => 'Listahan';
 
   @override
+  String get lawyerExpandMap => 'Palakihin';
+
+  @override
   String get lawyerSearchHint => 'Maghanap ayon sa pangalan o espesyalidad…';
 
   @override

@@ -158,6 +158,9 @@ class AppLocalizationsCeb extends AppLocalizations {
   String get lawyerList => 'Lista';
 
   @override
+  String get lawyerExpandMap => 'Palaparon';
+
+  @override
   String get lawyerSearchHint => 'Pangitaa pinaagi sa ngalan o specialty…';
 
   @override

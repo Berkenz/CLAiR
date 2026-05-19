@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -16,11 +17,313 @@ import 'package:clair/l10n/app_localizations.dart';
 
 const _kDefaultCentre = LatLng(12.8797, 121.7740);
 const _kDefaultZoom = 6.0;
-const _kUserLocationZoom = 14.0;
 
 /// Minimal basemap — less visual noise than default OSM streets.
-const _kTileUrl =
+const kLawyerMapTileUrl =
     'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+const kLawyerMapTileSubdomains = ['a', 'b', 'c', 'd'];
+const kLawyerMapPinZoom = 14.0;
+const _kUserLocationZoom = kLawyerMapPinZoom;
+
+/// Marker box must fit [LawyerMapPin] (avatar + ring + tail + ground shadow + scale).
+const kLawyerPinMarkerWidth = 48.0;
+const kLawyerPinMarkerHeight = 60.0;
+const kLawyerPinMarkerWidthSelected = 60.0;
+const kLawyerPinMarkerHeightSelected = 74.0;
+
+/// Circle + marker layers for the device location, when available.
+List<Widget> lawyerMapUserLocationLayers({
+  required LocationState loc,
+  required AppColorTheme cl,
+}) {
+  if (!loc.hasLocation) return [];
+  final point = LatLng(loc.latitude!, loc.longitude!);
+  return [
+    CircleLayer(
+      circles: [
+        CircleMarker(
+          point: point,
+          radius: 36,
+          color: cl.accent.withValues(alpha: 0.1),
+          borderColor: cl.accent.withValues(alpha: 0.22),
+          borderStrokeWidth: 1.5,
+        ),
+      ],
+    ),
+    MarkerLayer(
+      markers: [
+        Marker(
+          point: point,
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          child: LawyerMapUserLocationMarker(cl: cl),
+        ),
+      ],
+    ),
+  ];
+}
+
+/// Frame the map to show both the office pin and the user, or just the office.
+void fitLawyerMapToOfficeAndUser(
+  MapController controller, {
+  required LatLng office,
+  required LocationState loc,
+  EdgeInsets padding = const EdgeInsets.all(56),
+}) {
+  if (loc.hasLocation) {
+    final user = LatLng(loc.latitude!, loc.longitude!);
+    controller.fitCamera(
+      CameraFit.bounds(
+        bounds: LatLngBounds.fromPoints([office, user]),
+        padding: padding,
+      ),
+    );
+  } else {
+    controller.move(office, kLawyerMapPinZoom);
+  }
+}
+
+/// Frame the map to show all pinned lawyers and the user, when possible.
+void fitLawyerMapToPinsAndUser(
+  MapController controller, {
+  required List<LawyerEntity> lawyers,
+  required LocationState loc,
+  EdgeInsets padding = const EdgeInsets.all(56),
+}) {
+  final points = <LatLng>[];
+  for (final l in lawyers) {
+    if (l.latitude != null && l.longitude != null) {
+      points.add(LatLng(l.latitude!, l.longitude!));
+    }
+  }
+  if (loc.hasLocation) {
+    points.add(LatLng(loc.latitude!, loc.longitude!));
+  }
+  if (points.isEmpty) {
+    controller.move(_kDefaultCentre, _kDefaultZoom);
+    return;
+  }
+  if (points.length == 1) {
+    controller.move(points.first, kLawyerMapPinZoom);
+    return;
+  }
+  controller.fitCamera(
+    CameraFit.bounds(
+      bounds: LatLngBounds.fromPoints(points),
+      padding: padding,
+    ),
+  );
+}
+
+TileLayer lawyerBasemapTileLayer(BuildContext context) => TileLayer(
+      urlTemplate: kLawyerMapTileUrl,
+      subdomains: kLawyerMapTileSubdomains,
+      userAgentPackageName: 'com.clair.app',
+      retinaMode: RetinaMode.isHighDensity(context),
+      maxZoom: 20,
+    );
+
+/// Vignette overlays so UI and pins read clearly over the basemap.
+class LawyerMapChrome extends StatelessWidget {
+  const LawyerMapChrome({
+    super.key,
+    required this.cl,
+    required this.child,
+    this.topFade = true,
+    this.bottomFade = false,
+    this.brandTint = true,
+  });
+
+  final AppColorTheme cl;
+  final Widget child;
+  final bool topFade;
+  final bool bottomFade;
+  final bool brandTint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        child,
+        if (brandTint)
+          IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    cl.accent.withValues(alpha: 0.05),
+                    Colors.transparent,
+                    cl.accentDark.withValues(alpha: 0.06),
+                  ],
+                  stops: const [0.0, 0.55, 1.0],
+                ),
+              ),
+            ),
+          ),
+        if (topFade)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 56,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      cl.surface.withValues(alpha: 0.92),
+                      cl.surface.withValues(alpha: 0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        if (bottomFade)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 72,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      cl.surface.withValues(alpha: 0.88),
+                      cl.surface.withValues(alpha: 0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Stacked map controls (compass + my location).
+class LawyerMapControlRail extends StatelessWidget {
+  const LawyerMapControlRail({
+    super.key,
+    required this.cl,
+    required this.mapController,
+    this.onMyLocation,
+    this.loading = false,
+    this.locationActive = false,
+    this.showLocationButton = true,
+  });
+
+  final AppColorTheme cl;
+  final MapController mapController;
+  final VoidCallback? onMyLocation;
+  final bool loading;
+  final bool locationActive;
+  final bool showLocationButton;
+
+  @override
+  Widget build(BuildContext context) {
+    final rotation = normalizedMapRotation(mapController.camera.rotation);
+    final showCompass = rotation.abs() > 1.5;
+
+    if (!showLocationButton && !showCompass) {
+      return const SizedBox.shrink();
+    }
+
+    return Material(
+      color: cl.surface.withValues(alpha: 0.96),
+      elevation: 4,
+      shadowColor: cl.cardShadow,
+      borderRadius: BorderRadius.circular(14),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: cl.border.withValues(alpha: 0.85)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              child: showCompass
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        LawyerMapCompassButton(
+                          mapController: mapController,
+                          cl: cl,
+                          compact: true,
+                        ),
+                        if (showLocationButton)
+                          Divider(height: 1, thickness: 1, color: cl.border),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            if (showLocationButton)
+              _MapCircleButton(
+                cl: cl,
+                loading: loading,
+                active: locationActive,
+                onTap: onMyLocation,
+                icon: Icons.my_location_rounded,
+                tooltip: 'My location',
+                compact: true,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Normalizes map rotation to [-180, 180] where 0° is north.
+double normalizedMapRotation(double degrees) {
+  var d = degrees % 360;
+  if (d > 180) d -= 360;
+  if (d < -180) d += 360;
+  return d;
+}
+
+/// Compass button — icon follows bearing; tap resets rotation to north.
+class LawyerMapCompassButton extends StatelessWidget {
+  const LawyerMapCompassButton({
+    super.key,
+    required this.mapController,
+    required this.cl,
+    this.compact = false,
+  });
+
+  final MapController mapController;
+  final AppColorTheme cl;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final rotation = normalizedMapRotation(mapController.camera.rotation);
+
+    return Transform.rotate(
+      angle: -rotation * math.pi / 180,
+      child: _MapCircleButton(
+        cl: cl,
+        icon: Icons.navigation_rounded,
+        tooltip: 'Orient north',
+        onTap: () => mapController.rotate(0),
+        compact: compact,
+      ),
+    );
+  }
+}
 
 class LawyerMapView extends ConsumerStatefulWidget {
   const LawyerMapView({
@@ -29,6 +332,10 @@ class LawyerMapView extends ConsumerStatefulWidget {
     required this.onTap,
     this.directoryEmpty = false,
     this.noFilterMatches = false,
+    this.edgeToEdge = false,
+    this.frameAllPinsOnReady = false,
+    this.onExpand,
+    this.mapController,
   });
 
   /// Lawyers to show (already filtered by search / practice area).
@@ -36,14 +343,75 @@ class LawyerMapView extends ConsumerStatefulWidget {
   final void Function(LawyerEntity) onTap;
   final bool directoryEmpty;
   final bool noFilterMatches;
+  final bool edgeToEdge;
+  final bool frameAllPinsOnReady;
+  final VoidCallback? onExpand;
+  final MapController? mapController;
 
   @override
   ConsumerState<LawyerMapView> createState() => _LawyerMapViewState();
 }
 
+/// Full-screen lawyer directory map (from the Lawyers tab).
+class LawyerExpandedMapScreen extends ConsumerWidget {
+  const LawyerExpandedMapScreen({
+    super.key,
+    required this.lawyers,
+    required this.onLawyerTap,
+    this.directoryEmpty = false,
+    this.noFilterMatches = false,
+  });
+
+  final List<LawyerEntity> lawyers;
+  final void Function(LawyerEntity) onLawyerTap;
+  final bool directoryEmpty;
+  final bool noFilterMatches;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cl = context.c;
+    final l10n = AppLocalizations.of(context)!;
+    final pinCount = lawyers
+        .where((l) => l.latitude != null && l.longitude != null)
+        .length;
+
+    return Scaffold(
+      backgroundColor: cl.bg,
+      appBar: AppBar(
+        backgroundColor: cl.surface,
+        foregroundColor: cl.textDark,
+        elevation: 0,
+        titleTextStyle: GoogleFonts.nunito(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: cl.textDark,
+        ),
+        title: Text(
+          pinCount > 0
+              ? l10n.lawyerMapPinsCount(pinCount)
+              : l10n.lawyerMap,
+        ),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_rounded, color: cl.textDark),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: LawyerMapView(
+        lawyers: lawyers,
+        onTap: onLawyerTap,
+        directoryEmpty: directoryEmpty,
+        noFilterMatches: noFilterMatches,
+        edgeToEdge: true,
+        frameAllPinsOnReady: true,
+      ),
+    );
+  }
+}
+
 class _LawyerMapViewState extends ConsumerState<LawyerMapView> {
   LawyerEntity? _selected;
-  final _mapCtrl = MapController();
+  late final MapController _mapCtrl;
+  bool _ownsMapController = true;
   bool _autoCenteredOnUser = false;
   late final StateController<bool> _mapSheetOpenCtrl;
 
@@ -60,6 +428,18 @@ class _LawyerMapViewState extends ConsumerState<LawyerMapView> {
 
   double _zoomFor(LocationState loc) =>
       loc.hasLocation ? _kUserLocationZoom : _kDefaultZoom;
+
+  void _frameMap() {
+    if (widget.frameAllPinsOnReady) {
+      fitLawyerMapToPinsAndUser(
+        _mapCtrl,
+        lawyers: widget.lawyers,
+        loc: ref.read(locationProvider),
+      );
+    } else {
+      _centerOnUser();
+    }
+  }
 
   void _centerOnUser({bool force = false}) {
     final loc = ref.read(locationProvider);
@@ -101,18 +481,24 @@ class _LawyerMapViewState extends ConsumerState<LawyerMapView> {
   @override
   void initState() {
     super.initState();
+    _ownsMapController = widget.mapController == null;
+    _mapCtrl = widget.mapController ?? MapController();
+    _mapSheetOpenCtrl = ref.read(lawyerMapSheetOpenProvider.notifier);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final loc = ref.read(locationProvider);
       if (!loc.hasLocation && !loc.loading) {
         await ref.read(locationProvider.notifier).fetchLocation();
       }
-      if (mounted) _centerOnUser();
+      if (mounted) _frameMap();
     });
   }
 
   @override
   void dispose() {
     _mapSheetOpenCtrl.state = false;
+    if (_ownsMapController) {
+      _mapCtrl.dispose();
+    }
     super.dispose();
   }
 
@@ -135,10 +521,135 @@ class _LawyerMapViewState extends ConsumerState<LawyerMapView> {
     ref.listen<LocationState>(locationProvider, (prev, next) {
       if (next.hasLocation && !(prev?.hasLocation ?? false)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _centerOnUser();
+          if (mounted) _frameMap();
         });
       }
     });
+
+    final mapStack = Stack(
+      children: [
+        LawyerMapChrome(
+          cl: cl,
+          topFade: !widget.edgeToEdge,
+          bottomFade: _selected != null,
+          child: FlutterMap(
+            mapController: _mapCtrl,
+            options: MapOptions(
+              initialCenter: _centerFor(locState),
+              initialZoom: _zoomFor(locState),
+              onMapReady: _frameMap,
+              onMapEvent: (_) => setState(() {}),
+              onTap: (_, __) => _updateSelection(null),
+            ),
+                children: [
+                  lawyerBasemapTileLayer(context),
+                  ...lawyerMapUserLocationLayers(loc: locState, cl: cl),
+                  MarkerLayer(
+                    markers: pinned.map((lawyer) {
+                      final isSelected = _selected?.id == lawyer.id;
+                      return Marker(
+                        point: LatLng(lawyer.latitude!, lawyer.longitude!),
+                        width: isSelected
+                            ? kLawyerPinMarkerWidthSelected
+                            : kLawyerPinMarkerWidth,
+                        height: isSelected
+                            ? kLawyerPinMarkerHeightSelected
+                            : kLawyerPinMarkerHeight,
+                        alignment: Alignment.topCenter,
+                        child: LawyerMapPin(
+                          lawyer: lawyer,
+                          selected: isSelected,
+                          onTap: () => _selectLawyer(lawyer),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+
+        if (pinned.isNotEmpty)
+          Positioned(
+            top: 12,
+            left: 12,
+            child: _MapChip(
+              icon: Icons.gavel_rounded,
+              label: l10n.lawyerMapPinsCount(pinned.length),
+              cl: cl,
+            ),
+          ),
+
+        if (widget.onExpand != null)
+          Positioned(
+            top: 12,
+            right: 12,
+            child: _MapExpandButton(
+              cl: cl,
+              label: l10n.lawyerExpandMap,
+              onTap: widget.onExpand!,
+            ),
+          ),
+
+        if (widget.noFilterMatches)
+          Center(
+              child: _MapMessageState(
+                  cl: cl,
+                  message: l10n.lawyerMapNoFilterMatches,
+                  icon: Icons.search_off_rounded))
+        else if (widget.directoryEmpty)
+          Center(child: _MapEmptyState(cl: cl))
+        else if (widget.lawyers.isNotEmpty && pinned.isEmpty)
+          Center(
+              child: _MapMessageState(
+                  cl: cl,
+                  message: l10n.lawyerMapNoPinsForResults,
+                  icon: Icons.location_off_rounded))
+        else if (pinned.isEmpty)
+          Center(child: _MapEmptyState(cl: cl)),
+
+        Positioned(
+          right: 12,
+          bottom: _selected != null ? 108 : 16,
+          child: LawyerMapControlRail(
+            cl: cl,
+            mapController: _mapCtrl,
+            loading: locState.loading,
+            locationActive: locState.hasLocation,
+            onMyLocation: locState.loading ? null : _goToMyLocation,
+          ),
+        ),
+
+        if (locState.error != null)
+          Positioned(
+            top: 52,
+            left: 12,
+            right: 12,
+            child: _MapBanner(
+              message: locState.error!,
+              cl: cl,
+              isError: true,
+            ),
+          ),
+
+        if (_selected != null)
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 12,
+            child: _LawyerMapSheet(
+              lawyer: _selected!,
+              cl: cl,
+              l10n: l10n,
+              onOpen: () => widget.onTap(_selected!),
+              onClose: () => _updateSelection(null),
+            ),
+          ),
+      ],
+    );
+
+    if (widget.edgeToEdge) {
+      return mapStack;
+    }
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
@@ -154,134 +665,54 @@ class _LawyerMapViewState extends ConsumerState<LawyerMapView> {
             ),
           ],
         ),
-        child: Stack(
-          children: [
-            FlutterMap(
-              mapController: _mapCtrl,
-              options: MapOptions(
-                initialCenter: _centerFor(locState),
-                initialZoom: _zoomFor(locState),
-                onMapReady: () => _centerOnUser(),
-                onTap: (_, __) => _updateSelection(null),
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: _kTileUrl,
-                  subdomains: const ['a', 'b', 'c', 'd'],
-                  userAgentPackageName: 'com.clair.app',
-                ),
-                if (locState.hasLocation)
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: LatLng(locState.latitude!, locState.longitude!),
-                        width: 32,
-                        height: 32,
-                        alignment: Alignment.center,
-                        child: const _UserLocationMarker(),
-                      ),
-                    ],
-                  ),
-                MarkerLayer(
-                  markers: pinned.map((lawyer) {
-                    final isSelected = _selected?.id == lawyer.id;
-                    return Marker(
-                      point: LatLng(lawyer.latitude!, lawyer.longitude!),
-                      width: 48,
-                      height: 58,
-                      alignment: Alignment.topCenter,
-                      child: _LawyerMapPin(
-                        lawyer: lawyer,
-                        selected: isSelected,
-                        onTap: () => _selectLawyer(lawyer),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
+        child: mapStack,
+      ),
+    );
+  }
+}
 
-            // Soft top fade so header/search reads cleanly over the map
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 48,
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        cl.surface.withValues(alpha: 0.85),
-                        cl.surface.withValues(alpha: 0),
-                      ],
-                    ),
-                  ),
+class _MapExpandButton extends StatelessWidget {
+  const _MapExpandButton({
+    required this.cl,
+    required this.label,
+    required this.onTap,
+  });
+
+  final AppColorTheme cl;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: cl.surface.withValues(alpha: 0.96),
+      elevation: 3,
+      shadowColor: cl.cardShadow,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: cl.border.withValues(alpha: 0.85)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.open_in_full_rounded, size: 14, color: cl.accent),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: GoogleFonts.nunito(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: cl.textDark,
                 ),
               ),
-            ),
-
-            if (pinned.isNotEmpty)
-              Positioned(
-                top: 12,
-                left: 12,
-                child: _MapChip(
-                  icon: Icons.gavel_rounded,
-                  label: l10n.lawyerMapPinsCount(pinned.length),
-                  cl: cl,
-                ),
-              ),
-
-            if (widget.noFilterMatches)
-              Center(child: _MapMessageState(cl: cl, message: l10n.lawyerMapNoFilterMatches, icon: Icons.search_off_rounded))
-            else if (widget.directoryEmpty)
-              Center(child: _MapEmptyState(cl: cl))
-            else if (widget.lawyers.isNotEmpty && pinned.isEmpty)
-              Center(child: _MapMessageState(cl: cl, message: l10n.lawyerMapNoPinsForResults, icon: Icons.location_off_rounded))
-            else if (pinned.isEmpty)
-              Center(child: _MapEmptyState(cl: cl)),
-
-            Positioned(
-              right: 12,
-              bottom: _selected != null ? 108 : 16,
-              child: _MapCircleButton(
-                cl: cl,
-                loading: locState.loading,
-                active: locState.hasLocation,
-                onTap: locState.loading ? null : _goToMyLocation,
-                icon: Icons.my_location_rounded,
-                tooltip: 'My location',
-              ),
-            ),
-
-            if (locState.error != null)
-              Positioned(
-                top: 52,
-                left: 12,
-                right: 12,
-                child: _MapBanner(
-                  message: locState.error!,
-                  cl: cl,
-                  isError: true,
-                ),
-              ),
-
-            if (_selected != null)
-              Positioned(
-                left: 12,
-                right: 12,
-                bottom: 12,
-                child: _LawyerMapSheet(
-                  lawyer: _selected!,
-                  cl: cl,
-                  l10n: l10n,
-                  onOpen: () => widget.onTap(_selected!),
-                  onClose: () => _updateSelection(null),
-                ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -290,8 +721,9 @@ class _LawyerMapViewState extends ConsumerState<LawyerMapView> {
 
 // ─── User location ───────────────────────────────────────────────────────────
 
-class _UserLocationMarker extends StatelessWidget {
-  const _UserLocationMarker();
+class LawyerMapUserLocationMarker extends StatelessWidget {
+  const LawyerMapUserLocationMarker({super.key, required this.cl});
+  final AppColorTheme cl;
 
   @override
   Widget build(BuildContext context) {
@@ -306,7 +738,7 @@ class _UserLocationMarker extends StatelessWidget {
             height: 30,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF2563EB).withValues(alpha: 0.18),
+              color: cl.accent.withValues(alpha: 0.16),
             ),
           ),
           Container(
@@ -314,11 +746,11 @@ class _UserLocationMarker extends StatelessWidget {
             height: 14,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF2563EB),
+              color: cl.accent,
               border: Border.all(color: Colors.white, width: 3),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF2563EB).withValues(alpha: 0.45),
+                  color: cl.accent.withValues(alpha: 0.4),
                   blurRadius: 8,
                   spreadRadius: 1,
                 ),
@@ -333,8 +765,8 @@ class _UserLocationMarker extends StatelessWidget {
 
 // ─── Lawyer pin ──────────────────────────────────────────────────────────────
 
-class _LawyerMapPin extends StatelessWidget {
-  const _LawyerMapPin({
+class LawyerMapPin extends StatelessWidget {
+  const LawyerMapPin({
     required this.lawyer,
     required this.selected,
     required this.onTap,
@@ -350,6 +782,9 @@ class _LawyerMapPin extends StatelessWidget {
     final ring = selected ? cl.accentDark : cl.accent;
     final scale = selected ? 1.08 : 1.0;
 
+    final pinSize = selected ? 46.0 : 42.0;
+    final avatarSize = selected ? 40.0 : 38.0;
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedScale(
@@ -360,50 +795,71 @@ class _LawyerMapPin extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: cl.surface,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: ring,
-                  width: selected ? 3 : 2.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: ring.withValues(alpha: 0.35),
-                    blurRadius: selected ? 12 : 8,
-                    offset: const Offset(0, 3),
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: LawyerDisplayAvatar(
-                lawyer: lawyer,
-                size: 38,
+              padding: EdgeInsets.all(selected ? 3 : 0),
+              decoration: selected
+                  ? BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: ring.withValues(alpha: 0.35),
+                        width: 2,
+                      ),
+                    )
+                  : null,
+              child: Container(
+                width: pinSize,
+                height: pinSize,
                 decoration: BoxDecoration(
+                  color: cl.surface,
                   shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [ring, cl.accent],
+                  border: Border.all(
+                    color: ring,
+                    width: selected ? 3 : 2.5,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: ring.withValues(alpha: selected ? 0.42 : 0.3),
+                      blurRadius: selected ? 14 : 8,
+                      offset: const Offset(0, 4),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.14),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-                initialsStyle: GoogleFonts.nunito(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
+                child: LawyerDisplayAvatar(
+                  lawyer: lawyer,
+                  size: avatarSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [ring, cl.accent],
+                    ),
+                  ),
+                  initialsStyle: GoogleFonts.nunito(
+                    fontSize: selected ? 14 : 13,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                  clipBehavior: Clip.antiAlias,
                 ),
-                clipBehavior: Clip.antiAlias,
               ),
             ),
             CustomPaint(
-              size: const Size(12, 7),
+              size: Size(selected ? 14 : 12, selected ? 8 : 7),
               painter: _PinTailPainter(color: ring),
+            ),
+            Container(
+              width: selected ? 20 : 16,
+              height: 5,
+              margin: const EdgeInsets.only(top: 1),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
           ],
         ),
@@ -485,6 +941,7 @@ class _MapCircleButton extends StatelessWidget {
     this.loading = false,
     this.active = false,
     this.tooltip,
+    this.compact = false,
   });
 
   final AppColorTheme cl;
@@ -493,25 +950,29 @@ class _MapCircleButton extends StatelessWidget {
   final bool loading;
   final bool active;
   final String? tooltip;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final size = compact ? 40.0 : 44.0;
+    final iconSize = compact ? 20.0 : 22.0;
+
     final button = Material(
-      color: cl.surface,
-      elevation: 3,
+      color: compact ? Colors.transparent : cl.surface,
+      elevation: compact ? 0 : 3,
       shadowColor: cl.cardShadow,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: SizedBox(
-          width: 44,
-          height: 44,
+          width: size,
+          height: size,
           child: Center(
             child: loading
                 ? SizedBox(
-                    width: 20,
-                    height: 20,
+                    width: 18,
+                    height: 18,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       color: cl.accent,
@@ -519,8 +980,8 @@ class _MapCircleButton extends StatelessWidget {
                   )
                 : Icon(
                     icon,
-                    size: 22,
-                    color: active ? const Color(0xFF2563EB) : cl.accent,
+                    size: iconSize,
+                    color: active ? cl.accentDark : cl.accent,
                   ),
           ),
         ),

@@ -131,7 +131,10 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
 
   void _setMapView(bool showMap) {
     if (_showMap == showMap) return;
-    setState(() => _showMap = showMap);
+    setState(() {
+      _showMap = showMap;
+      _practiceAreasExpanded = !showMap;
+    });
     _mapViewActiveCtrl.state = showMap;
     if (!showMap) _mapSheetOpenCtrl.state = false;
   }
@@ -178,6 +181,23 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
       _searchCtrl.clear();
       _searching = false;
     });
+  }
+
+  void _openExpandedMap(
+    List<LawyerEntity> filtered,
+    LawyerState state,
+  ) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => LawyerExpandedMapScreen(
+          lawyers: filtered,
+          onLawyerTap: _openLawyer,
+          directoryEmpty: !state.isLoading && state.lawyers.isEmpty,
+          noFilterMatches:
+              _isFiltered && filtered.isEmpty && !state.isLoading,
+        ),
+      ),
+    );
   }
 
   void _openLawyer(LawyerEntity l) {
@@ -255,6 +275,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
                         noFilterMatches:
                             _isFiltered && filtered.isEmpty && !state.isLoading,
                         onTap: _openLawyer,
+                        onExpand: () => _openExpandedMap(filtered, state),
                       ),
                     ),
                   ),
@@ -380,44 +401,15 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
                 child: CircularProgressIndicator(
                     strokeWidth: 2, color: cl.accent),
               ),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () => _setMapView(!_showMap),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: _showMap ? cl.accent : cl.surface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: _showMap ? cl.accent : cl.border,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _showMap
-                          ? Icons.list_rounded
-                          : Icons.map_outlined,
-                      size: 16,
-                      color: _showMap ? Colors.white : cl.accent,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _showMap ? l10n.lawyerList : l10n.lawyerMap,
-                      style: GoogleFonts.nunito(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: _showMap ? Colors.white : cl.accent,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ]),
+          const SizedBox(height: 12),
+          _LawyerViewModeToggle(
+            cl: cl,
+            l10n: l10n,
+            showMap: _showMap,
+            onList: () => _setMapView(false),
+            onMap: () => _setMapView(true),
+          ),
           const SizedBox(height: 14),
           // Search bar
           Container(
@@ -1220,6 +1212,123 @@ class _SharingBanner extends StatelessWidget {
           ),
         ),
       ]),
+    );
+  }
+}
+
+// ── List / Map segmented toggle ───────────────────────────────────────────────
+
+class _LawyerViewModeToggle extends StatelessWidget {
+  const _LawyerViewModeToggle({
+    required this.cl,
+    required this.l10n,
+    required this.showMap,
+    required this.onList,
+    required this.onMap,
+  });
+
+  final AppColorTheme cl;
+  final AppLocalizations l10n;
+  final bool showMap;
+  final VoidCallback onList;
+  final VoidCallback onMap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: cl.fieldBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cl.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _LawyerViewModeSegment(
+              cl: cl,
+              icon: Icons.view_list_rounded,
+              label: l10n.lawyerList,
+              selected: !showMap,
+              onTap: onList,
+            ),
+          ),
+          Expanded(
+            child: _LawyerViewModeSegment(
+              cl: cl,
+              icon: Icons.map_rounded,
+              label: l10n.lawyerMap,
+              selected: showMap,
+              onTap: onMap,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LawyerViewModeSegment extends StatelessWidget {
+  const _LawyerViewModeSegment({
+    required this.cl,
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final AppColorTheme cl;
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(9),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? cl.surface : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: cl.cardShadow,
+                      blurRadius: 6,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? cl.accent : cl.textMid,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: GoogleFonts.nunito(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? cl.accentDark : cl.textMid,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
