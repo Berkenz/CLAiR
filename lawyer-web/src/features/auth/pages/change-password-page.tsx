@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { updatePassword } from "firebase/auth";
+import {
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  signOut,
+  updatePassword,
+} from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { api } from "@/lib/api";
 import { useAuth, type LawyerState } from "@/features/auth/auth-provider";
-import { markPasswordChanged } from "@/features/auth/onboarding-storage";
+import {
+  clearPasswordChanged,
+  clearProfileComplete,
+  markPasswordChanged,
+} from "@/features/auth/onboarding-storage";
 import { Eye, EyeOff } from "lucide-react";
 import clairIcon from "@/assets/images/CLAiR-icon.png";
 
@@ -19,33 +28,63 @@ const MIN_LENGTH = 8;
 export function ChangePasswordPage() {
   const navigate = useNavigate();
   const { setLawyerState } = useAuth();
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   function validate(): string | null {
-    if (newPassword.length < MIN_LENGTH)
+    if (!currentPassword.trim()) {
+      return "Enter your current (temporary) password.";
+    }
+    if (newPassword.length < MIN_LENGTH) {
       return `Password must be at least ${MIN_LENGTH} characters.`;
-    if (newPassword !== confirmPassword)
+    }
+    if (newPassword !== confirmPassword) {
       return "Passwords do not match.";
+    }
+    if (newPassword === currentPassword) {
+      return "New password must be different from your current password.";
+    }
     return null;
+  }
+
+  async function handleSignOut() {
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      clearPasswordChanged(uid);
+      clearProfileComplete(uid);
+    }
+    await signOut(auth);
+    navigate("/login", { replace: true });
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const validationError = validate();
-    if (validationError) { setError(validationError); return; }
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
     setError(null);
     setLoading(true);
 
     try {
       const currentUser = auth.currentUser;
-      if (!currentUser) throw new Error("Not authenticated");
+      if (!currentUser?.email) {
+        throw new Error("Not authenticated");
+      }
 
+      const credential = EmailAuthProvider.credential(
+        currentUser.email,
+        currentPassword,
+      );
+      await reauthenticateWithCredential(currentUser, credential);
       await updatePassword(currentUser, newPassword);
 
       const token = await currentUser.getIdToken(true);
@@ -58,22 +97,30 @@ export function ChangePasswordPage() {
       markPasswordChanged(currentUser.uid);
 
       navigate("/profile-setup", { replace: true });
-
     } catch (err: unknown) {
       const code =
         err != null && typeof err === "object" && "code" in err
           ? String((err as { code?: string }).code)
           : "";
-      if (code.includes("requires-recent-login")) {
-        setError("Your session has expired. Please log out and log in again.");
+      if (
+        code.includes("wrong-password") ||
+        code.includes("invalid-credential")
+      ) {
+        setError(
+          "Current password is incorrect. Use the temporary password from your invite.",
+        );
+      } else if (code.includes("requires-recent-login")) {
+        setError(
+          "Your session has expired. Sign out below, sign in again with your temporary password, then set a new password.",
+        );
       } else if (
         err != null &&
         typeof err === "object" &&
         "response" in err &&
         (err as { response?: { status?: number } }).response?.status != null
       ) {
-        const detail = (err as { response?: { data?: { detail?: string } } }).response?.data
-          ?.detail;
+        const detail = (err as { response?: { data?: { detail?: string } } })
+          .response?.data?.detail;
         setError(
           typeof detail === "string"
             ? detail
@@ -148,7 +195,7 @@ export function ChangePasswordPage() {
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-[#241715]">Set your password</h1>
             <p className="mt-1.5 text-sm text-[#957186]">
-              Your account was created with a temporary password. Please set a new password before continuing.
+              Your account was created with a temporary password. Enter it below, then choose a new password.
             </p>
           </div>
 
@@ -158,6 +205,31 @@ export function ChangePasswordPage() {
                 {error}
               </div>
             )}
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide">
+                Current password (temporary)
+              </label>
+              <div className="relative">
+                <input
+                  id="current-password"
+                  type={showCurrent ? "text" : "password"}
+                  required
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Temporary password from your invite"
+                  autoComplete="current-password"
+                  className="w-full rounded-xl border border-[#d9b8c4] bg-white px-4 py-3 pr-11 text-sm text-[#241715] placeholder-[#c490aa] outline-none transition focus:border-[#703d57] focus:ring-2 focus:ring-[#703d57]/10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrent((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#957186] hover:text-[#703d57] transition"
+                >
+                  {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
 
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide">
@@ -172,10 +244,14 @@ export function ChangePasswordPage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Minimum 8 characters"
+                  autoComplete="new-password"
                   className="w-full rounded-xl border border-[#d9b8c4] bg-white px-4 py-3 pr-11 text-sm text-[#241715] placeholder-[#c490aa] outline-none transition focus:border-[#703d57] focus:ring-2 focus:ring-[#703d57]/10"
                 />
-                <button type="button" onClick={() => setShowNew((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#957186] hover:text-[#703d57] transition">
+                <button
+                  type="button"
+                  onClick={() => setShowNew((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#957186] hover:text-[#703d57] transition"
+                >
                   {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
@@ -183,10 +259,15 @@ export function ChangePasswordPage() {
                 <div className="space-y-1 pt-1">
                   <div className="flex gap-1">
                     {[1, 2, 3].map((n) => (
-                      <div key={n} className={`h-1 flex-1 rounded-full transition-all ${strength.level >= n ? strength.color : "bg-[#d9b8c4]"}`} />
+                      <div
+                        key={n}
+                        className={`h-1 flex-1 rounded-full transition-all ${strength.level >= n ? strength.color : "bg-[#d9b8c4]"}`}
+                      />
                     ))}
                   </div>
-                  <p className={`text-xs font-medium ${strength.level === 1 ? "text-red-500" : strength.level === 2 ? "text-amber-500" : "text-emerald-600"}`}>
+                  <p
+                    className={`text-xs font-medium ${strength.level === 1 ? "text-red-500" : strength.level === 2 ? "text-amber-500" : "text-emerald-600"}`}
+                  >
                     {strength.label}
                   </p>
                 </div>
@@ -205,16 +286,24 @@ export function ChangePasswordPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter your new password"
+                  autoComplete="new-password"
                   className="w-full rounded-xl border border-[#d9b8c4] bg-white px-4 py-3 pr-11 text-sm text-[#241715] placeholder-[#c490aa] outline-none transition focus:border-[#703d57] focus:ring-2 focus:ring-[#703d57]/10"
                 />
-                <button type="button" onClick={() => setShowConfirm((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#957186] hover:text-[#703d57] transition">
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#957186] hover:text-[#703d57] transition"
+                >
                   {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
               {confirmPassword && (
-                <p className={`text-xs font-medium ${newPassword === confirmPassword ? "text-emerald-600" : "text-red-500"}`}>
-                  {newPassword === confirmPassword ? "Passwords match" : "Passwords do not match"}
+                <p
+                  className={`text-xs font-medium ${newPassword === confirmPassword ? "text-emerald-600" : "text-red-500"}`}
+                >
+                  {newPassword === confirmPassword
+                    ? "Passwords match"
+                    : "Passwords do not match"}
                 </p>
               )}
             </div>
@@ -225,6 +314,15 @@ export function ChangePasswordPage() {
               className="w-full rounded-xl bg-[#703d57] py-3 text-sm font-semibold text-white transition hover:bg-[#5a3046] disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? "Saving..." : "Set new password"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void handleSignOut()}
+              disabled={loading}
+              className="w-full rounded-xl border border-[#d9b8c4] bg-white py-3 text-sm font-semibold text-[#703d57] transition hover:bg-[#f7f0f4] disabled:opacity-60"
+            >
+              Sign out and return to login
             </button>
           </form>
         </div>

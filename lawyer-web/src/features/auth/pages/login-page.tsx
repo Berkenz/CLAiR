@@ -4,12 +4,7 @@ import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { Eye, EyeOff } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { api } from "@/lib/api";
-import {
-  clearPasswordChanged,
-  clearProfileComplete,
-  markPasswordChanged,
-  markProfileComplete,
-} from "@/features/auth/onboarding-storage";
+import { syncOnboardingFromProfile } from "@/features/auth/onboarding-storage";
 import { useAuth, type LawyerState } from "@/features/auth/auth-provider";
 import clairIcon from "@/assets/images/CLAiR-icon.png";
 
@@ -41,18 +36,7 @@ export function LoginPage() {
       });
       setLawyerState(data);
 
-      // Keep local onboarding flags aligned with the backend (stale keys redirect incorrectly).
-      if (data.profile.must_change_password) {
-        clearPasswordChanged(uid);
-        clearProfileComplete(uid);
-      } else {
-        markPasswordChanged(uid);
-      }
-      if (data.profile.is_profile_complete) {
-        markProfileComplete(uid);
-      } else {
-        clearProfileComplete(uid);
-      }
+      syncOnboardingFromProfile(uid, data.profile);
 
       if (data.profile.must_change_password) {
         navigate("/change-password", { replace: true });

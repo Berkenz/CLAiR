@@ -10,47 +10,54 @@ import { CasesPage } from "@/features/cases/pages/cases-page";
 import { ProfilePage } from "@/features/profile/pages/profile-page";
 import { AiAssessmentPage } from "@/features/ai-assessment/pages/ai-assessment-page";
 import { NotificationsPage } from "@/features/notifications/pages/notifications-page";
-import {
-  getNextStep,
-  hasChangedPassword,
-  hasCompletedProfile,
-} from "@/features/auth/onboarding-storage";
+import { getNextStep, hasChangedPassword } from "@/features/auth/onboarding-storage";
 import { SplashScreen } from "@/components/splash-screen";
 
-function useAuthStatus() {
-  const { firebaseUser, loading } = useAuth();
-  return { firebaseUser, isLoggedIn: !!firebaseUser, loading };
-}
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { firebaseUser, isLoggedIn, loading } = useAuthStatus();
+  const { firebaseUser, lawyerState, loading } = useAuth();
   if (loading) return <SplashScreen />;
-  if (isLoggedIn && firebaseUser) return <Navigate to={getNextStep(firebaseUser.uid)} replace />;
+  if (firebaseUser) {
+    return (
+      <Navigate
+        to={getNextStep(firebaseUser.uid, lawyerState?.profile ?? null)}
+        replace
+      />
+    );
+  }
   return <>{children}</>;
 }
 
 function ChangePasswordRoute({ children }: { children: React.ReactNode }) {
-  const { firebaseUser, isLoggedIn, loading } = useAuthStatus();
+  const { firebaseUser, lawyerState, loading } = useAuth();
   if (loading) return <SplashScreen />;
-  if (!isLoggedIn || !firebaseUser) return <Navigate to="/login" replace />;
-  if (hasChangedPassword(firebaseUser.uid)) return <Navigate to={getNextStep(firebaseUser.uid)} replace />;
+  if (!firebaseUser) return <Navigate to="/login" replace />;
+  const profile = lawyerState?.profile ?? null;
+  if (profile && !profile.must_change_password) {
+    return <Navigate to={getNextStep(firebaseUser.uid, profile)} replace />;
+  }
+  if (!profile && hasChangedPassword(firebaseUser.uid)) {
+    return <Navigate to={getNextStep(firebaseUser.uid)} replace />;
+  }
   return <>{children}</>;
 }
 
 function ProfileSetupRoute({ children }: { children: React.ReactNode }) {
-  const { firebaseUser, isLoggedIn, loading } = useAuthStatus();
+  const { firebaseUser, lawyerState, loading } = useAuth();
   if (loading) return <SplashScreen />;
-  if (!isLoggedIn || !firebaseUser) return <Navigate to="/login" replace />;
-  if (!hasChangedPassword(firebaseUser.uid)) return <Navigate to="/change-password" replace />;
-  if (hasCompletedProfile(firebaseUser.uid)) return <Navigate to="/" replace />;
+  if (!firebaseUser) return <Navigate to="/login" replace />;
+  const profile = lawyerState?.profile ?? null;
+  const next = getNextStep(firebaseUser.uid, profile);
+  if (next === "/change-password") return <Navigate to="/change-password" replace />;
+  if (next === "/") return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { firebaseUser, isLoggedIn, loading } = useAuthStatus();
+  const { firebaseUser, lawyerState, loading } = useAuth();
   if (loading) return <SplashScreen />;
-  if (!isLoggedIn || !firebaseUser) return <Navigate to="/login" replace />;
-  const next = getNextStep(firebaseUser.uid);
+  if (!firebaseUser) return <Navigate to="/login" replace />;
+  const next = getNextStep(firebaseUser.uid, lawyerState?.profile ?? null);
   if (next !== "/") return <Navigate to={next} replace />;
   return <>{children}</>;
 }

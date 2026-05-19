@@ -10,6 +10,7 @@ import {
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { api } from "@/lib/api";
+import { syncOnboardingFromProfile } from "@/features/auth/onboarding-storage";
 
 export interface LawyerProfile {
   id: string;
@@ -86,6 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data } = await api.get<LawyerState>("/lawyer/profile");
       setLawyerState(data);
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        syncOnboardingFromProfile(uid, data.profile);
+      }
       return true;
     } catch {
       setLawyerState(null);
