@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str | None = None
     GROQ_API_KEY: str | None = None
     OPENROUTER_API_KEY: str | None = None
+    # Vertex AI (Google Cloud — bills to GCP credits). Set project + credentials JSON.
+    GCP_PROJECT_ID: str | None = None
+    GCP_VERTEX_LOCATION: str = "us-central1"
+    # Path to service-account JSON (inside container often /app/gcp-vertex-key.json).
+    GCP_VERTEX_CREDENTIALS_PATH: str | None = None
+    VERTEX_CHAT_MODEL: str = "gemini-2.5-flash"
+    VERTEX_TITLE_MODEL: str = "gemini-2.5-flash"
     # Primary chat model (Groq).
     GROQ_CHAT_MODEL: str = "llama-3.3-70b-versatile"
     GROQ_TITLE_MODEL: str = "llama-3.1-8b-instant"

@@ -29,6 +29,8 @@ services:
       - .env
     volumes:
       - ./backend:/app
+      # Vertex AI service account (place JSON at backend/gcp-vertex-key.json)
+      - ./backend/gcp-vertex-key.json:/app/gcp-vertex-key.json:ro
     depends_on:
       db:
         condition: service_healthy

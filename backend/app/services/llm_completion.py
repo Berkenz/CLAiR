@@ -1,8 +1,9 @@
-"""Chat/title completions with Groq → Gemini → OpenRouter fallback on rate limits."""
+"""Chat/title completions with Groq → Vertex → Gemini Studio → OpenRouter fallbacks."""
 
 from __future__ import annotations
 
 import logging
+import os
 import re
 from typing import Any
 
@@ -19,6 +20,7 @@ OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 _groq_client: AsyncGroq | None = None
 _gemini_client: genai.Client | None = None
+_vertex_client: genai.Client | None = None
 
 
 class AllProvidersRateLimitedError(Exception):
@@ -63,9 +65,40 @@ def _gemini() -> genai.Client | None:
     return _gemini_client
 
 
+def _ensure_vertex_credentials() -> bool:
+    path = (
+        settings.GCP_VERTEX_CREDENTIALS_PATH
+        or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    )
+    if not path:
+        return False
+    if not os.path.isfile(path):
+        logger.warning("Vertex credentials file not found: %s", path)
+        return False
+    os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", path)
+    return True
+
+
+def _vertex() -> genai.Client | None:
+    global _vertex_client
+    if not settings.GCP_PROJECT_ID or not settings.GCP_VERTEX_LOCATION:
+        return None
+    if not _ensure_vertex_credentials():
+        return None
+    if _vertex_client is None:
+        _vertex_client = genai.Client(
+            vertexai=True,
+            project=settings.GCP_PROJECT_ID,
+            location=settings.GCP_VERTEX_LOCATION,
+        )
+    return _vertex_client
+
+
 def _provider_available(name: str) -> bool:
     if name == "groq":
         return bool(settings.GROQ_API_KEY)
+    if name == "vertex":
+        return _vertex() is not None
     if name == "gemini":
         return bool(settings.GEMINI_API_KEY)
     if name == "openrouter":
@@ -119,16 +152,14 @@ async def _complete_groq(
     return (response.choices[0].message.content or "").strip()
 
 
-async def _complete_gemini(
+async def _complete_genai(
+    client: genai.Client,
     messages: list[dict[str, str]],
     *,
     model: str,
     max_tokens: int,
     temperature: float,
 ) -> str:
-    client = _gemini()
-    assert client is not None
-
     system_instruction, dialog = _split_system_messages(messages)
     contents: list[genai_types.Content] = []
     for m in dialog:
@@ -158,6 +189,34 @@ async def _complete_gemini(
         config=config,
     )
     return (response.text or "").strip()
+
+
+async def _complete_gemini(
+    messages: list[dict[str, str]],
+    *,
+    model: str,
+    max_tokens: int,
+    temperature: float,
+) -> str:
+    client = _gemini()
+    assert client is not None
+    return await _complete_genai(
+        client, messages, model=model, max_tokens=max_tokens, temperature=temperature
+    )
+
+
+async def _complete_vertex(
+    messages: list[dict[str, str]],
+    *,
+    model: str,
+    max_tokens: int,
+    temperature: float,
+) -> str:
+    client = _vertex()
+    assert client is not None
+    return await _complete_genai(
+        client, messages, model=model, max_tokens=max_tokens, temperature=temperature
+    )
 
 
 async def _complete_openrouter(
@@ -205,12 +264,13 @@ async def chat_completion(
     preferred_groq_model: str | None = None,
 ) -> str:
     """
-    Try Groq, then Gemini, then OpenRouter. Only advances to the next provider
-    when the previous fails with a rate-limit / quota style error.
+    Try Groq, then Vertex AI (GCP), then Gemini Studio, then OpenRouter.
+    Only advances when the previous provider hits a rate-limit / quota error.
     """
     if title:
         chain: list[tuple[str, str, Any]] = [
             ("groq", settings.GROQ_TITLE_MODEL, _complete_groq),
+            ("vertex", settings.VERTEX_TITLE_MODEL, _complete_vertex),
             ("gemini", settings.GEMINI_TITLE_MODEL, _complete_gemini),
             ("openrouter", settings.OPENROUTER_TITLE_MODEL, _complete_openrouter),
         ]
@@ -218,6 +278,7 @@ async def chat_completion(
         groq_model = preferred_groq_model or settings.GROQ_CHAT_MODEL
         chain = [
             ("groq", groq_model, _complete_groq),
+            ("vertex", settings.VERTEX_CHAT_MODEL, _complete_vertex),
             ("gemini", settings.GEMINI_CHAT_MODEL, _complete_gemini),
             ("openrouter", settings.OPENROUTER_CHAT_MODEL, _complete_openrouter),
         ]

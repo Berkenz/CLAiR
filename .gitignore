@@ -71,6 +71,7 @@ data/administrative_orders/*.json
 # Credentials & secrets — never commit these
 *service-account*.json
 *service_account*.json
+gcp-vertex-key.json
 credentials.json
 *.keystore
 *.jks
