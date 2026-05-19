@@ -1,6 +1,9 @@
 import asyncio
+import logging
 import math
 import re
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +18,7 @@ from app.services.lawyer_chat_feedback_context import (
 from app.services.lawyer_service import lawyer_service
 from app.services.reverse_geocode import reverse_geocode_area_label
 from app.services.tavily_service import format_tavily_context, search_philippine_law
+from app.services.rag_router_service import should_retrieve_legal_context
 from app.services.vector_service import (
     align_rag_sources_with_citations,
     format_rag_context,
@@ -57,7 +61,9 @@ SYSTEM_INSTRUCTION = (
     "- Always recommend consulting a licensed attorney before signing documents or taking formal action.\n"
     "- When citing a **specific** Republic Act, Presidential Decree, or case number, use only laws "
     "that appear under **RETRIEVED PHILIPPINE LEGAL TEXT** in this prompt. If none apply, explain "
-    "the topic in general terms without inventing a statute number.\n\n"
+    "the topic in general terms without inventing a statute number. Always include the law number "
+    "in your answer when you rely on retrieved text (e.g. **Republic Act No. 7610**) so sources "
+    "match what the user sees.\n\n"
     "## PARTNER LAWYERS (only when the prompt lists nearby CLAiR partners)\n"
     "Infer the user's matter from their message and **recent turns**. If it plausibly involves work that "
     "matches a listed partner's **practice areas** (and showing local counsel would help — not for "
@@ -783,13 +789,36 @@ async def get_chat_response(
             area_label=area_label,
         )
 
-    chunks_task = asyncio.create_task(get_relevant_chunks(message))
+    history_for_rag = [
+        {"role": m["role"], "text": m["text"]}
+        for m in history[-_MAX_HISTORY_MESSAGES:]
+    ]
+    router_task = asyncio.create_task(
+        should_retrieve_legal_context(message, history_for_rag)
+    )
     feedback_task = asyncio.create_task(_lawyer_feedback())
     location_task = asyncio.create_task(_location_bundle())
+
+    should_rag = await router_task
+
+    async def _fetch_chunks() -> list[dict]:
+        return await get_relevant_chunks(
+            message,
+            history=history_for_rag,
+            retrieve=should_rag,
+        )
+
+    chunks_task = asyncio.create_task(_fetch_chunks())
 
     chunks = await chunks_task
     rag_sources = _rag_sources_from_chunks(chunks)
     rag_context = format_rag_context(chunks)
+    logger.info(
+        "RAG turn: chunks=%d sources=%d should_rag=%s",
+        len(chunks),
+        len(rag_sources),
+        should_rag,
+    )
 
     tavily_task = asyncio.create_task(
         search_philippine_law(message, rag_chunk_count=len(chunks))
@@ -843,8 +872,10 @@ async def get_chat_response(
         locale=locale,
     )
 
-    if settings.CHAT_ALIGN_RAG_SOURCES:
-        rag_sources = await align_rag_sources_with_citations(rag_sources, content)
+    if settings.CHAT_ALIGN_RAG_SOURCES and should_rag:
+        injected_sources = list(rag_sources)
+        aligned = await align_rag_sources_with_citations(injected_sources, content)
+        rag_sources = aligned if aligned else injected_sources
 
     return content, suggested, rag_sources, rag_enabled, tavily_results
 

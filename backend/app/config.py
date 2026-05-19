@@ -34,6 +34,23 @@ class Settings(BaseSettings):
     TAVILY_TIMEOUT_SECONDS: float = 2.5
     LAWYER_DIRECTORY_CACHE_TTL_SECONDS: int = 300
     CHAT_ALIGN_RAG_SOURCES: bool = True
+    # LLM decides whether to query law_chunks (see rag_router_service.py).
+    RAG_ROUTER_ENABLED: bool = True
+    GROQ_RAG_ROUTER_MODEL: str = "llama-3.1-8b-instant"
+    # After retrieval: drop results when the best vector match is below this (0–1).
+    RAG_MIN_TOP_SIMILARITY: float = 0.72
+    # How much enactment date affects ranking (lower = trust semantic match more).
+    RAG_RECENCY_WEIGHT: float = 0.10
+    # Max supreme_court_decisions chunks in top-k unless the query asks for case law.
+    RAG_MAX_SC_DECISIONS: int = 1
+    # Grade each retrieved excerpt with an LLM before injecting/showing.
+    RAG_RELEVANCE_FILTER_ENABLED: bool = True
+    RAG_RELEVANCE_FALLBACK_MIN_SIMILARITY: float = 0.80
+    # Re-check candidates against the user's message (not expanded query).
+    RAG_ORIGINAL_QUERY_MIN_SIMILARITY: float = 0.70
+    # When true and the reply cites laws, UI may show cited laws only; verified
+    # retrieval is still shown if citation parsing finds nothing.
+    RAG_DISPLAY_ONLY_MATCHING: bool = False
     SUPABASE_URL: str | None = None
     SUPABASE_SERVICE_ROLE_KEY: str | None = None
     SUPABASE_DB_URL: str | None = None

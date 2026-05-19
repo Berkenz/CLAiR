@@ -1064,14 +1064,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         ),
       );
     }
+    // Only show retrieval UI when sources were actually returned (not greetings).
     if (message.ragSources.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 8),
-        child: Text(
-          l10n.chatNoLawExcerpts,
-          style: GoogleFonts.nunito(fontSize: 11, color: cl.textMid),
-        ),
-      );
+      return const SizedBox.shrink();
     }
     return Padding(
       padding: const EdgeInsets.only(top: 8),
