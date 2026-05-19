@@ -1,3 +1,4 @@
+import logging
 import uuid
 from typing import Any
 
@@ -5,6 +6,9 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user_notification import UserNotification
+from app.services import push_notification_service
+
+logger = logging.getLogger(__name__)
 
 
 async def create_notification(
@@ -27,6 +31,24 @@ async def create_notification(
     db.add(row)
     await db.flush()
     await db.refresh(row)
+
+    try:
+        await push_notification_service.send_push_to_user(
+            db,
+            user_id=user_id,
+            title=title,
+            body=body,
+            notification_type=notification_type,
+            payload=payload,
+        )
+    except Exception:
+        logger.warning(
+            "Push notification failed for user_id=%s type=%s",
+            user_id,
+            notification_type,
+            exc_info=True,
+        )
+
     return row
 
 

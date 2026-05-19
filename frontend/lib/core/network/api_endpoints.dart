@@ -10,6 +10,7 @@ class ApiEndpoints {
   static const String deleteAccount = '/auth/account';
   static const String updateProfile = '/users/me';
   static const String uploadProfilePhoto = '/users/me/photo';
+  static const String registerFcmToken = '/users/me/fcm-token';
 
   static const String chatSend = '/chat/send';
   static const String chatExtractFile = '/chat/extract-file';

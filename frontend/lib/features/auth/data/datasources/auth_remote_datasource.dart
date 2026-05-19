@@ -436,6 +436,9 @@ class AuthRemoteDataSource {
   }
 
   Future<void> signOut() async {
+    try {
+      await _dio.delete<void>(ApiEndpoints.registerFcmToken);
+    } catch (_) {}
     await Future.wait([
       _firebaseAuth.signOut(),
       _googleSignIn.signOut(),

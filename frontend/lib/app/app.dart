@@ -7,6 +7,7 @@ import 'package:clair/core/locale/framework_locale_fallback.dart';
 import 'package:clair/core/theme/app_theme.dart';
 import 'package:clair/core/theme/appearance_provider.dart';
 import 'package:clair/app/router.dart';
+import 'package:clair/core/notifications/push_notification_bootstrap.dart';
 import 'package:clair/l10n/app_localizations.dart';
 
 class CLAiRApp extends ConsumerWidget {
@@ -17,7 +18,8 @@ class CLAiRApp extends ConsumerWidget {
     final appearance = ref.watch(appearanceProvider);
     final locale = ref.watch(appLocaleProvider);
 
-    return MaterialApp.router(
+    return PushNotificationBootstrap(
+      child: MaterialApp.router(
       title: 'CLAiR',
       debugShowCheckedModeBanner: false,
       locale: locale,
@@ -38,6 +40,7 @@ class CLAiRApp extends ConsumerWidget {
         child: child!,
       ),
       routerConfig: ref.watch(routerProvider),
+    ),
     );
   }
 }

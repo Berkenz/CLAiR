@@ -37,6 +37,10 @@ class UserUpdate(BaseModel):
     location: str | None = None
 
 
+class FcmTokenRegisterRequest(BaseModel):
+    token: str
+
+
 # --- Response schemas ---
 
 class UserResponse(BaseModel):

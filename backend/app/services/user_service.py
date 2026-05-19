@@ -80,6 +80,18 @@ class UserService:
         result = await db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 
+    async def set_fcm_token(
+        self, db: AsyncSession, user_id: uuid.UUID, token: str | None
+    ) -> User | None:
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if user is None:
+            return None
+        user.fcm_token = token
+        await db.flush()
+        await db.refresh(user)
+        return user
+
     async def delete_user(self, db: AsyncSession, user: User) -> None:
         """
         Remove the user row. Related rows with ON DELETE CASCADE are removed too

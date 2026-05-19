@@ -82,6 +82,8 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ]
+    # Mobile push (FCM) — requires FIREBASE_SERVICE_ACCOUNT_KEY with FCM scope.
+    PUSH_NOTIFICATIONS_ENABLED: bool = True
     # Chat abuse protection (see app.core.rate_limit).
     CHAT_RATE_LIMIT_ENABLED: bool = True
     CHAT_RATE_LIMIT_REGISTERED: str = "15/minute"

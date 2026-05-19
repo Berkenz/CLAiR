@@ -16,7 +16,9 @@ import 'package:clair/features/lawyer/presentation/screens/lawyer_screen.dart';
 import 'package:clair/features/appointments/presentation/screens/appointment_screen.dart';
 import 'package:clair/app/main_shell_tab.dart';
 import 'package:clair/features/appointments/presentation/providers/direct_message_provider.dart';
+import 'package:clair/core/notifications/push_notification_service.dart';
 import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
+import 'package:clair/features/notifications/presentation/utils/push_notification_navigation.dart';
 import 'package:clair/features/notifications/presentation/widgets/realtime_notification_banner.dart';
 import 'package:clair/core/tutorial/tutorial_overlay.dart';
 import 'package:clair/core/tutorial/tutorial_provider.dart';
@@ -63,6 +65,11 @@ class _MainShellState extends ConsumerState<MainShell>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(notificationInboxProvider.notifier).refresh();
       ref.read(locationProvider.notifier).prefetchIfNeeded();
+      final pending = ref.read(pendingPushNotificationProvider);
+      if (pending != null) {
+        applyPushNotificationNavigation(ref, pending);
+        ref.read(pendingPushNotificationProvider.notifier).state = null;
+      }
     });
     _notificationPollTimer = Timer.periodic(
       const Duration(seconds: 8),
@@ -142,6 +149,12 @@ class _MainShellState extends ConsumerState<MainShell>
       if (next == 4 && prev != next) {
         ref.read(notificationInboxProvider.notifier).refresh();
       }
+    });
+
+    ref.listen(pendingPushNotificationProvider, (prev, next) {
+      if (next == null) return;
+      applyPushNotificationNavigation(ref, next);
+      ref.read(pendingPushNotificationProvider.notifier).state = null;
     });
 
     final tutorialActive = ref.watch(tutorialProvider).show;

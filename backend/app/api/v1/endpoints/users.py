@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
-from app.schemas.user import UserResponse, UserUpdate
+from app.schemas.user import FcmTokenRegisterRequest, UserResponse, UserUpdate
 from app.services.user_service import user_service
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -27,6 +27,30 @@ async def update_current_user_profile(
 ) -> User:
     """Update current user profile (protected)."""
     return await user_service.update_user(db, current_user.id, update_data)
+
+
+@router.put("/me/fcm-token", status_code=204)
+async def register_fcm_token(
+    body: FcmTokenRegisterRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    """Register the device FCM token for push notifications (mobile clients)."""
+    if current_user.is_anonymous:
+        raise HTTPException(400, "Guest accounts cannot enable push notifications")
+    token = body.token.strip()
+    if not token:
+        raise HTTPException(400, "FCM token is required")
+    await user_service.set_fcm_token(db, current_user.id, token)
+
+
+@router.delete("/me/fcm-token", status_code=204)
+async def clear_fcm_token(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    """Remove the device FCM token (e.g. on sign-out)."""
+    await user_service.set_fcm_token(db, current_user.id, None)
 
 
 @router.post("/me/photo", response_model=UserResponse)
