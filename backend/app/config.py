@@ -82,6 +82,10 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ]
+    # Chat abuse protection (see app.core.rate_limit).
+    CHAT_RATE_LIMIT_ENABLED: bool = True
+    CHAT_RATE_LIMIT_REGISTERED: str = "15/minute"
+    CHAT_RATE_LIMIT_ANONYMOUS: str = "5/minute"
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
     APP_NAME: str = "CLAiR API"

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
+from app.core.rate_limit import enforce_chat_rate_limit
 from app.models.user import User
 from app.schemas.chat import ChatRequest, ChatResponse, RagSourceItem, SuggestedLawyer, TavilySourceItem
 from app.services.chat_service import get_chat_response
@@ -82,6 +83,7 @@ async def send_message(
     body: ChatRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[None, Depends(enforce_chat_rate_limit)],
 ):
     try:
         if current_user.is_anonymous:

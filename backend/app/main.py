@@ -4,17 +4,15 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 from starlette.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.config import settings
+from app.core.rate_limit import limiter
 
 _is_dev = settings.ENVIRONMENT == "development" or settings.DEBUG
-
-limiter = Limiter(key_func=get_remote_address)
 
 
 def _configure_logging() -> None:
