@@ -237,10 +237,6 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
     _applySort(sorted);
     final seenRefs = ref.watch(appointmentNewBadgeSeenProvider);
 
-    if (sorted.isEmpty) {
-      return _buildNoFilterMatches(cl, l10n);
-    }
-
     return RefreshIndicator(
       color: cl.accent,
       onRefresh: () =>
@@ -252,7 +248,14 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
             child: _buildHeader(state, l10n, cl, sorted, seenRefs),
           ),
           SliverToBoxAdapter(child: _buildFilterSortRow(cl, l10n)),
-          if (_filter == _AppointmentListFilter.all)
+          if (sorted.isEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(32, 32, 32, 48),
+                child: Center(child: _buildNoFilterMatches(cl, l10n)),
+              ),
+            )
+          else if (_filter == _AppointmentListFilter.all)
             ..._buildGroupedSlivers(cl, sorted, l10n, seenRefs)
           else ...[
             _buildSectionHeader(_filterSectionTitle(l10n), sorted.length),
@@ -563,56 +566,53 @@ class _AppointmentTabScreenState extends ConsumerState<AppointmentTabScreen> {
   }
 
   Widget _buildNoFilterMatches(AppColorTheme cl, AppLocalizations l10n) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 68,
-              height: 68,
-              decoration: BoxDecoration(
-                color: cl.fieldBg,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.filter_alt_off_rounded,
-                  size: 30, color: cl.textLight),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              l10n.apptNoFilterMatch,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: cl.textDark,
-                fontFamily: 'Satoshi',
-              ),
-            ),
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: () => setState(() => _filter = _AppointmentListFilter.all),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  color: cl.accent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  l10n.apptShowAll,
-                  style: GoogleFonts.nunito(
-                    fontWeight: FontWeight.w700,
-                    color: cl.accent,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ),
-          ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 68,
+          height: 68,
+          decoration: BoxDecoration(
+            color: cl.fieldBg,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.filter_alt_off_rounded,
+            size: 30,
+            color: cl.textLight,
+          ),
         ),
-      ),
+        const SizedBox(height: 16),
+        Text(
+          l10n.apptNoFilterMatch,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: cl.textDark,
+            fontFamily: 'Satoshi',
+          ),
+        ),
+        const SizedBox(height: 10),
+        GestureDetector(
+          onTap: () => setState(() => _filter = _AppointmentListFilter.all),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            decoration: BoxDecoration(
+              color: cl.accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              l10n.apptShowAll,
+              style: GoogleFonts.nunito(
+                fontWeight: FontWeight.w700,
+                color: cl.accent,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -849,39 +849,17 @@ class _AppointmentCard extends ConsumerStatefulWidget {
 }
 
 class _AppointmentCardState extends ConsumerState<_AppointmentCard> {
-  int _dmUnread = 0;
-
   @override
   void initState() {
     super.initState();
     if (widget.appointment.canStartLawyerChat) {
       final id = widget.appointment.id;
-      _dmUnread = ref.read(directMessageProvider(id)).unreadCount;
-      ref.listenManual<DirectMessageState>(
-        directMessageProvider(id),
-        (prev, next) {
-          if (!mounted) return;
-          final u = next.unreadCount;
-          if (u != _dmUnread) {
-            setState(() => _dmUnread = u);
-            ref.read(dmUnreadAggregateProvider.notifier).update(id, u);
-          }
-        },
-      );
       Future.microtask(() {
         if (mounted) {
           ref.read(directMessageProvider(id).notifier).fetchCountOnly();
         }
       });
     }
-  }
-
-  @override
-  void dispose() {
-    if (widget.appointment.canStartLawyerChat) {
-      // Don't remove — keep the count alive for the nav badge.
-    }
-    super.dispose();
   }
 
   AppointmentEntity get appointment => widget.appointment;
@@ -899,8 +877,20 @@ class _AppointmentCardState extends ConsumerState<_AppointmentCard> {
     final lastSeen = widget.seenRefs[appointment.id.trim()];
     final isNew = appointment.showsNewAppointmentBadge(lastSeen);
 
-    final dmUnread =
-        appointment.canStartLawyerChat ? _dmUnread : 0;
+    final apptId = appointment.id.trim();
+    if (appointment.canStartLawyerChat) {
+      ref.listen<DirectMessageState>(
+        directMessageProvider(apptId),
+        (prev, next) {
+          ref
+              .read(dmUnreadAggregateProvider.notifier)
+              .update(apptId, next.unreadCount);
+        },
+      );
+    }
+    final dmUnread = appointment.canStartLawyerChat
+        ? ref.watch(directMessageProvider(apptId)).unreadCount
+        : 0;
 
     return SpringButton(
       onTap: widget.onTap,

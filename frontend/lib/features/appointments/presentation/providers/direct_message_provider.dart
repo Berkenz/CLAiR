@@ -112,14 +112,14 @@ class DirectMessageNotifier extends StateNotifier<DirectMessageState> {
     try {
       final result = await _dataSource.listMessages(_appointmentId);
       if (_tearDown) return;
+      await _dataSource.markRead(_appointmentId);
+      if (_tearDown) return;
       _setState(state.copyWith(
         messages: result.messages,
-        unreadCount: result.unreadCount,
+        unreadCount: 0,
         isLoading: false,
         error: null,
       ));
-      // Mark incoming messages as read
-      await _dataSource.markRead(_appointmentId);
     } catch (e) {
       if (_tearDown) return;
       _setState(state.copyWith(
@@ -189,7 +189,7 @@ class DirectMessageNotifier extends StateNotifier<DirectMessageState> {
   /// Fetches the unread count without loading all messages or marking as read.
   /// Safe to call from list-view cards for badge display.
   Future<void> fetchCountOnly() async {
-    if (state.isLoading || state.messages.isNotEmpty) return;
+    if (state.isLoading) return;
     try {
       final result = await _dataSource.listMessages(_appointmentId);
       if (_tearDown) return;

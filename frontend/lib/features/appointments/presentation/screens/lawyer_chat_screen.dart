@@ -109,6 +109,9 @@ class _LawyerChatScreenState extends ConsumerState<LawyerChatScreen> {
       directMessageProvider(appt.id),
       (prev, next) {
         if (!mounted) return;
+        ref
+            .read(dmUnreadAggregateProvider.notifier)
+            .update(appt.id, next.unreadCount);
         if ((prev?.messages.length ?? 0) < next.messages.length) {
           _scrollToBottom();
         }
@@ -121,7 +124,10 @@ class _LawyerChatScreenState extends ConsumerState<LawyerChatScreen> {
       // attaching before markRead mutates notification state.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ref.read(notificationInboxProvider.notifier).markReadForAppointment(appt.id);
+        ref.read(notificationInboxProvider.notifier).markReadForAppointment(
+              appt.id,
+              notificationTypes: const {'new_direct_message'},
+            );
       });
     });
   }
@@ -129,6 +135,7 @@ class _LawyerChatScreenState extends ConsumerState<LawyerChatScreen> {
   @override
   void dispose() {
     _dmNotifier?.stopPolling();
+    ref.read(dmUnreadAggregateProvider.notifier).update(appt.id, 0);
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();

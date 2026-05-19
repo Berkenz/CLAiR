@@ -56,8 +56,19 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final statusColor = _statusColor(appointment.status);
 
+    final apptId = appointment.id.trim();
+    if (appointment.canStartLawyerChat) {
+      ref.listen<DirectMessageState>(
+        directMessageProvider(apptId),
+        (prev, next) {
+          ref
+              .read(dmUnreadAggregateProvider.notifier)
+              .update(apptId, next.unreadCount);
+        },
+      );
+    }
     final dmUnread = appointment.canStartLawyerChat
-        ? ref.watch(directMessageProvider(appointment.id)).unreadCount
+        ? ref.watch(directMessageProvider(apptId)).unreadCount
         : 0;
 
     return Scaffold(
@@ -935,7 +946,7 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-class _ChatButton extends StatelessWidget {
+class _ChatButton extends ConsumerWidget {
   const _ChatButton({
     required this.appointment,
     this.unreadCount = 0,
@@ -945,17 +956,23 @@ class _ChatButton extends StatelessWidget {
   final int unreadCount;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cl = context.c;
     final l10n = AppLocalizations.of(context)!;
     final hasUnread = unreadCount > 0;
 
     return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => LawyerChatScreen(appointment: appointment),
-        ),
-      ),
+      onTap: () async {
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute<void>(
+            builder: (_) => LawyerChatScreen(appointment: appointment),
+          ),
+        );
+        if (!context.mounted) return;
+        await ref
+            .read(directMessageProvider(appointment.id.trim()).notifier)
+            .fetchCountOnly();
+      },
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
