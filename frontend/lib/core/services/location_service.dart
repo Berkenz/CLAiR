@@ -6,12 +6,16 @@ class LocationState {
   final double? longitude;
   final bool loading;
   final String? error;
+  /// True once a fetch has completed (successfully or not). Prevents
+  /// automatic re-fetches from hammering the permission dialog repeatedly.
+  final bool hasFetched;
 
   const LocationState({
     this.latitude,
     this.longitude,
     this.loading = false,
     this.error,
+    this.hasFetched = false,
   });
 
   bool get hasLocation => latitude != null && longitude != null;
@@ -21,12 +25,14 @@ class LocationState {
     double? longitude,
     bool? loading,
     String? error,
+    bool? hasFetched,
   }) =>
       LocationState(
         latitude: latitude ?? this.latitude,
         longitude: longitude ?? this.longitude,
         loading: loading ?? this.loading,
         error: error ?? this.error,
+        hasFetched: hasFetched ?? this.hasFetched,
       );
 }
 
@@ -34,9 +40,11 @@ class LocationNotifier extends Notifier<LocationState> {
   @override
   LocationState build() => const LocationState();
 
-  /// Starts a background fetch when coordinates are not cached yet.
+  /// Starts a one-shot background fetch. Skips if we already have a position,
+  /// a fetch is in flight, or a previous attempt has already completed (success
+  /// or denial) — preventing repeated permission dialogs or error flickers.
   void prefetchIfNeeded() {
-    if (state.hasLocation || state.loading) return;
+    if (state.hasLocation || state.loading || state.hasFetched) return;
     fetchLocation().ignore();
   }
 
@@ -53,6 +61,7 @@ class LocationNotifier extends Notifier<LocationState> {
         if (permission == LocationPermission.denied) {
           state = state.copyWith(
             loading: false,
+            hasFetched: true,
             error: 'Location permission denied.',
           );
           return false;
@@ -62,6 +71,7 @@ class LocationNotifier extends Notifier<LocationState> {
       if (permission == LocationPermission.deniedForever) {
         state = state.copyWith(
           loading: false,
+          hasFetched: true,
           error:
               'Location permission permanently denied. Enable it in your device settings.',
         );
@@ -79,12 +89,14 @@ class LocationNotifier extends Notifier<LocationState> {
         latitude: pos.latitude,
         longitude: pos.longitude,
         loading: false,
+        hasFetched: true,
         error: null,
       );
       return true;
     } catch (e) {
       state = state.copyWith(
         loading: false,
+        hasFetched: true,
         error: 'Could not get location. Please try again.',
       );
       return false;

@@ -84,15 +84,18 @@ class ChatNotifier extends StateNotifier<ChatState> {
     );
 
     // Best-effort GPS — cap wait so chat send is not blocked on a slow fix.
+    // Location is entirely optional; skip silently if a fetch is already in
+    // flight, one has already completed (success or denial), or any error
+    // occurs. This prevents repeated permission dialogs or error flickers.
     var loc = _ref.read(locationProvider);
-    if (!loc.hasLocation) {
+    if (!loc.hasLocation && !loc.loading && !loc.hasFetched) {
       try {
         await _ref
             .read(locationProvider.notifier)
             .fetchLocation()
             .timeout(const Duration(seconds: 2));
-      } on TimeoutException {
-        // Send without coordinates; backend still answers.
+      } catch (_) {
+        // Intentionally swallowed — location is optional.
       }
       loc = _ref.read(locationProvider);
     }
