@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
+import 'package:clair/shared/widgets/profile_photo_image.dart';
 
 class ClairAppBar extends ConsumerWidget {
   final String? chatTitle;
@@ -27,6 +28,7 @@ class ClairAppBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
+    final photoCacheVersion = ref.watch(profilePhotoCacheVersionProvider);
     final inbox = ref.watch(notificationInboxProvider);
     final cl = context.c;
 
@@ -150,9 +152,12 @@ class ClairAppBar extends ConsumerWidget {
                   ),
                   child: user?.photoUrl != null
                       ? ClipOval(
-                          child: Image.network(
-                            user!.photoUrl!,
-                            fit: BoxFit.cover,
+                          child: ProfilePhotoImage(
+                            photoUrl: user!.photoUrl!,
+                            updatedAt: user.updatedAt,
+                            cacheVersion: photoCacheVersion,
+                            width: 38,
+                            height: 38,
                           ),
                         )
                       : Center(

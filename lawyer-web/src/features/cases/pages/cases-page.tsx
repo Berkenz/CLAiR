@@ -169,6 +169,7 @@ function ProfileAvatar({
   if (url && !broken) {
     return (
       <img
+        key={url}
         src={url}
         alt=""
         className={cn(className, "rounded-full object-cover shrink-0")}
@@ -827,10 +828,13 @@ export function CasesPage() {
     } catch { /* silent */ }
   }, []);
 
-  const fetchAppointments = useCallback(async () => {
-    setLoading(true);
-    setBackendDown(false);
-    setLoadError(null);
+  const fetchAppointments = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
+    if (!silent) {
+      setLoading(true);
+      setBackendDown(false);
+      setLoadError(null);
+    }
     try {
       const { data } = await api.get<{ appointments: Appointment[] }>("/lawyer/appointments");
       setAppointments(
@@ -842,10 +846,12 @@ export function CasesPage() {
         ),
       );
     } catch (err: unknown) {
-      if (isApiNetworkError(err)) setBackendDown(true);
-      else setLoadError(getApiErrorMessage(err, "Could not load appointments."));
+      if (!silent) {
+        if (isApiNetworkError(err)) setBackendDown(true);
+        else setLoadError(getApiErrorMessage(err, "Could not load appointments."));
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -989,7 +995,7 @@ export function CasesPage() {
         <WifiOff className="h-7 w-7 text-[#957186]" />
       </div>
       <p className="text-sm font-semibold text-[#241715]">Backend not reachable</p>
-      <button onClick={fetchAppointments} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#703d57] text-sm font-semibold text-white hover:bg-[#5a3046] transition">
+      <button onClick={() => void fetchAppointments()} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#703d57] text-sm font-semibold text-white hover:bg-[#5a3046] transition">
         <RefreshCw className="h-4 w-4" />Try again
       </button>
     </div>
@@ -1017,7 +1023,7 @@ export function CasesPage() {
                 <Plus className="h-3.5 w-3.5" />
                 <span>Add case</span>
               </button>
-              <button type="button" onClick={fetchAppointments} className="p-2 rounded-xl border border-[#d9b8c4]/60 text-[#703d57] hover:bg-[#f7f0f4] transition" title="Refresh">
+              <button type="button" onClick={() => void fetchAppointments()} className="p-2 rounded-xl border border-[#d9b8c4]/60 text-[#703d57] hover:bg-[#f7f0f4] transition" title="Refresh">
                 <RefreshCw className="h-4 w-4" />
               </button>
             </div>
@@ -1183,7 +1189,10 @@ export function CasesPage() {
             initialTab={pendingDetailTab}
             onInitialTabConsumed={() => setPendingDetailTab(null)}
             chatUnreadCount={chatUnreadByAppt[selected.id] ?? 0}
-            onChatOpened={() => markChatReadForAppt(selected.id)}
+            onChatOpened={() => {
+              markChatReadForAppt(selected.id);
+              void fetchAppointments({ silent: true });
+            }}
           />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center rounded-2xl border border-[#d9b8c4]/40 bg-white">

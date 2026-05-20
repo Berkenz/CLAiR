@@ -86,4 +86,8 @@ async def upload_profile_photo_endpoint(
         raise upload_http_exception(e) from e
 
     update_data = UserUpdate(photo_url=photo_url)
-    return await user_service.update_user(db, current_user.id, update_data)
+    updated = await user_service.update_user(db, current_user.id, update_data)
+    from app.services.lawyer_service import invalidate_lawyers_directory_cache
+
+    invalidate_lawyers_directory_cache()
+    return updated

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.database import Base
+from app.utils.photo_url import photo_url_with_cache_bust
 
 if TYPE_CHECKING:
     from app.models.conversation import Conversation
@@ -115,7 +116,7 @@ class Appointment(Base):
         if user is None:
             return None
         url = (user.photo_url or "").strip()
-        return url or None
+        return photo_url_with_cache_bust(url, user.updated_at)
 
     @property
     def client_photo_url(self) -> str | None:
@@ -123,4 +124,4 @@ class Appointment(Base):
         if user is None:
             return None
         url = (user.photo_url or "").strip()
-        return url or None
+        return photo_url_with_cache_bust(url, user.updated_at)

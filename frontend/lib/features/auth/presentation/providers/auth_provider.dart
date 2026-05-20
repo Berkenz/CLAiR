@@ -15,3 +15,6 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 /// Holds the current app user fetched from the backend.
 /// Set after successful login/register/guest flows.
 final currentUserProvider = StateProvider<UserEntity?>((ref) => null);
+
+/// Bumped after profile photo upload so avatars refetch the same storage URL.
+final profilePhotoCacheVersionProvider = StateProvider<int>((ref) => 0);

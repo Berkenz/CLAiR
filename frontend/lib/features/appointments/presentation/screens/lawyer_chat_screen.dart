@@ -12,6 +12,7 @@ import 'package:clair/features/appointments/presentation/providers/direct_messag
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 import 'package:clair/features/lawyer/presentation/sheets/lawyer_concern_sheet.dart';
 import 'package:clair/features/notifications/presentation/providers/notification_inbox_provider.dart';
+import 'package:clair/shared/widgets/profile_photo_image.dart';
 
 Widget _dmChatAvatar({
   required String initials,
@@ -23,17 +24,11 @@ Widget _dmChatAvatar({
   final trimmed = photoUrl?.trim();
   if (trimmed != null && trimmed.isNotEmpty) {
     return ClipOval(
-      child: Image.network(
-        trimmed,
+      child: ProfilePhotoImage(
+        photoUrl: trimmed,
         width: size,
         height: size,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _dmChatAvatarInitials(
-          initials: initials,
-          cl: cl,
-          size: size,
-          fontSize: fontSize,
-        ),
       ),
     );
   }

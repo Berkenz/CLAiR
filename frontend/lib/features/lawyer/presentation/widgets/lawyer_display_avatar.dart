@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
+import 'package:clair/shared/widgets/profile_photo_image.dart';
 
 /// Shows the lawyer's [LawyerEntity.photoUrl] when set; otherwise [initialsStyle] text.
 ///
@@ -51,26 +52,17 @@ class LawyerDisplayAvatar extends StatelessWidget {
       height: size,
       decoration: decoration,
       clipBehavior: clipBehavior,
-      child: Image.network(
-        url,
-        fit: BoxFit.cover,
-        width: size,
-        height: size,
-        errorBuilder: (_, __, ___) => initials(),
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          final color = initialsStyle.color ?? Theme.of(context).colorScheme.primary;
-          return Center(
-            child: SizedBox(
-              width: size * 0.45,
-              height: size * 0.45,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: color,
-              ),
-            ),
-          );
-        },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          initials(),
+          ProfilePhotoImage(
+            photoUrl: url,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+          ),
+        ],
       ),
     );
   }

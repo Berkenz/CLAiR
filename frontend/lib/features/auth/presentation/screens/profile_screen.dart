@@ -18,6 +18,7 @@ import 'package:clair/features/auth/presentation/screens/terms_of_use_screen.dar
 import 'package:clair/features/auth/presentation/screens/language_screen.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/l10n/app_localizations.dart';
+import 'package:clair/shared/widgets/profile_photo_image.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -60,6 +61,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final cl = context.c;
     final l10n = AppLocalizations.of(context)!;
     final user = ref.watch(currentUserProvider);
+    final photoCacheVersion = ref.watch(profilePhotoCacheVersionProvider);
     final name = user?.displayName ?? 'User';
     final parts = name.split(' ');
     final initials = parts
@@ -134,9 +136,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: user?.photoUrl != null
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(22),
-                      child: Image.network(
-                        user!.photoUrl!,
-                        fit: BoxFit.cover,
+                      child: ProfilePhotoImage(
+                        photoUrl: user!.photoUrl!,
+                        updatedAt: user.updatedAt,
+                        cacheVersion: photoCacheVersion,
+                        width: 72,
+                        height: 72,
                       ),
                     )
                   : Center(

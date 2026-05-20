@@ -108,7 +108,10 @@ def _get_supabase_client() -> Client:
 
 
 def upload_profile_photo(user_id: str, content: bytes, content_type: str) -> str:
-    """Upload profile photo and return a public URL."""
+    """Upload profile photo and return a public URL (with cache-bust query param)."""
+    from datetime import datetime, timezone
+
+    from app.utils.photo_url import photo_url_with_cache_bust
     if content_type not in ALLOWED_CONTENT_TYPES:
         raise ValueError(f"Invalid content type. Allowed: {ALLOWED_CONTENT_TYPES}")
 
@@ -128,19 +131,21 @@ def upload_profile_photo(user_id: str, content: bytes, content_type: str) -> str
     if _use_gcs():
         from app.services.gcs_storage import upload_bytes
 
-        return upload_bytes(
+        base_url = upload_bytes(
             object_path=f"{_gcs_prefix(BUCKET)}{path}",
             content=content,
             content_type=content_type,
         )
+    else:
+        client = _get_supabase_client()
+        client.storage.from_(BUCKET).upload(
+            path,
+            content,
+            file_options={"content-type": content_type, "upsert": "true"},
+        )
+        base_url = client.storage.from_(BUCKET).get_public_url(path)
 
-    client = _get_supabase_client()
-    client.storage.from_(BUCKET).upload(
-        path,
-        content,
-        file_options={"content-type": content_type, "upsert": "true"},
-    )
-    return client.storage.from_(BUCKET).get_public_url(path)
+    return photo_url_with_cache_bust(base_url, datetime.now(timezone.utc))
 
 
 def upload_appointment_attachment(

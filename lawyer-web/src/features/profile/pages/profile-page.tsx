@@ -6,6 +6,7 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { useAuth, type LawyerState } from "@/features/auth/auth-provider";
 import { buildLawyerProfileUpdateBody } from "@/features/lawyer/profile-update-body";
 import { LocationPicker } from "@/features/profile/components/LocationPicker";
+import { ProfilePhotoCropModal } from "@/components/profile-photo-crop-modal";
 import { cn } from "@/lib/cn";
 import { Check, Camera } from "lucide-react";
 
@@ -128,6 +129,7 @@ export function ProfilePage() {
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoError, setPhotoError] = useState("");
   const [photoMsg, setPhotoMsg] = useState("");
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -348,9 +350,17 @@ export function ProfilePage() {
     }
   }
 
+  function closeCropModal() {
+    if (cropImageSrc) URL.revokeObjectURL(cropImageSrc);
+    setCropImageSrc(null);
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  }
+
   function onPhotoPicked(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setPhotoError("");
+    setPhotoMsg("");
     if (!file.type.startsWith("image/")) {
       setPhotoError("Please choose an image (JPEG, PNG, WebP, or GIF).");
       return;
@@ -359,6 +369,11 @@ export function ProfilePage() {
       setPhotoError("Image must be 5 MB or smaller.");
       return;
     }
+    setCropImageSrc(URL.createObjectURL(file));
+  }
+
+  function onCropConfirmed(file: File) {
+    closeCropModal();
     void uploadProfilePhoto(file);
   }
 
@@ -478,6 +493,7 @@ export function ProfilePage() {
                 <div className="h-20 w-20 rounded-full bg-[#703d57] overflow-hidden flex items-center justify-center text-2xl font-bold text-white shrink-0">
                   {lawyerState?.user.photo_url ? (
                     <img
+                      key={lawyerState.user.photo_url}
                       src={lawyerState.user.photo_url}
                       alt=""
                       className="h-full w-full object-cover"
@@ -509,7 +525,7 @@ export function ProfilePage() {
                   <p className="text-xs text-red-600 mt-2">{photoError}</p>
                 )}
                 <p className="text-[11px] text-[#c490aa] mt-2">
-                  JPEG, PNG, WebP, or GIF · max 5 MB.
+                  JPEG, PNG, WebP, or GIF · max 5 MB · crop before upload.
                 </p>
               </div>
             </div>
@@ -781,6 +797,15 @@ export function ProfilePage() {
             </button>
           </div>
         </div>
+      )}
+
+      {cropImageSrc && (
+        <ProfilePhotoCropModal
+          imageSrc={cropImageSrc}
+          onCancel={closeCropModal}
+          onConfirm={onCropConfirmed}
+          confirming={photoUploading}
+        />
       )}
     </div>
   );

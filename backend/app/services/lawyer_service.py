@@ -9,8 +9,15 @@ from app.config import settings
 from app.models.lawyer_profile import LawyerProfile
 from app.models.user import User
 from app.schemas.lawyer import LawyerProfileUpdate
+from app.utils.photo_url import photo_url_with_cache_bust
 
 _lawyers_directory_cache: tuple[float, list[dict]] | None = None
+
+
+def invalidate_lawyers_directory_cache() -> None:
+    """Clear in-memory lawyer list cache (e.g. after a profile photo upload)."""
+    global _lawyers_directory_cache
+    _lawyers_directory_cache = None
 
 
 class LawyerService:
@@ -143,7 +150,7 @@ class LawyerService:
                 "practice_areas": profile.practice_areas,
                 "first_name": user.first_name,
                 "last_name": user.last_name,
-                "photo_url": user.photo_url,
+                "photo_url": photo_url_with_cache_bust(user.photo_url, user.updated_at),
                 "bio": profile.bio,
                 "office_address": profile.office_address,
                 "office_hours": profile.office_hours,

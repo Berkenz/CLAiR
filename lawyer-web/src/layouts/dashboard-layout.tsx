@@ -188,6 +188,7 @@ export function DashboardLayout() {
           >
             {sidebarUser.photoUrl ? (
               <img
+                key={sidebarUser.photoUrl}
                 src={sidebarUser.photoUrl}
                 alt=""
                 className="h-7 w-7 rounded-full object-cover shrink-0 ring-1 ring-white/20"

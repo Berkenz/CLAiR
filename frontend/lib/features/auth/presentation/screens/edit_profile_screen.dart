@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
-
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/shared/utils/profile_photo_crop.dart';
 import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
+import 'package:clair/shared/widgets/profile_photo_image.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -57,8 +57,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Future<void> _pickAndUploadPhoto() async {
-    final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final file = await pickAndCropProfilePhoto(context);
     if (file == null) return;
 
     setState(() => _saving = true);
@@ -66,6 +65,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       final repo = ref.read(authRepositoryProvider);
       final updatedUser = await repo.updateProfilePhoto(file);
       ref.read(currentUserProvider.notifier).state = updatedUser;
+      ref.read(profilePhotoCacheVersionProvider.notifier).state++;
       _showSnackBar('Photo updated');
     } catch (e) {
       _showSnackBar(friendlyErrorMessage(e), isError: true);
@@ -96,6 +96,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Widget build(BuildContext context) {
     final cl = context.c;
     final user = ref.watch(currentUserProvider);
+    final photoCacheVersion = ref.watch(profilePhotoCacheVersionProvider);
 
     return Scaffold(
       backgroundColor: cl.bg,
@@ -131,7 +132,16 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               borderRadius: BorderRadius.circular(24),
             ),
             child: user?.photoUrl != null
-                ? ClipRRect(borderRadius: BorderRadius.circular(24), child: Image.network(user!.photoUrl!, fit: BoxFit.cover))
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: ProfilePhotoImage(
+                      photoUrl: user!.photoUrl!,
+                      updatedAt: user.updatedAt,
+                      cacheVersion: photoCacheVersion,
+                      width: 80,
+                      height: 80,
+                    ),
+                  )
                 : Center(child: Text(_initials, style: GoogleFonts.nunito(fontSize: 28, fontWeight: FontWeight.w800, color: cl.accent))),
           ),
           const SizedBox(height: 8),

@@ -11,6 +11,7 @@ class UserEntity {
     required this.isAnonymous,
     required this.isActive,
     required this.createdAt,
+    this.updatedAt,
   });
 
   final String id;
@@ -24,6 +25,7 @@ class UserEntity {
   final bool isAnonymous;
   final bool isActive;
   final DateTime createdAt;
+  final DateTime? updatedAt;
 
   String get displayName {
     if (firstName != null && lastName != null) {
@@ -49,6 +51,9 @@ class UserEntity {
       isAnonymous: json['is_anonymous'] as bool? ?? false,
       isActive: json['is_active'] as bool? ?? true,
       createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
+          : null,
     );
   }
 }
