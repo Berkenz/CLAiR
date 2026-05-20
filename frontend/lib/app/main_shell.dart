@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -50,6 +51,8 @@ class _MainShellState extends ConsumerState<MainShell>
   bool _fabOpen = false;
   late final AnimationController _fabAnim;
   Timer? _notificationPollTimer;
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+  DateTime? _lastBackPress;
 
   // Keys for each bottom-nav item so the tutorial can spotlight them.
   final _navKeys = List.generate(5, (_) => GlobalKey());
@@ -125,6 +128,51 @@ class _MainShellState extends ConsumerState<MainShell>
     ref.read(mainShellTabProvider.notifier).state = 3;
   }
 
+  void _handleBack() {
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      Navigator.of(context).pop();
+      return;
+    }
+    if (_fabOpen) {
+      _closeFab();
+      return;
+    }
+    if (ref.read(lawyerMapSheetOpenProvider)) {
+      ref.read(lawyerMapSheetOpenProvider.notifier).state = false;
+      return;
+    }
+    if (ref.read(lawyerMapViewActiveProvider)) {
+      ref.read(lawyerMapViewActiveProvider.notifier).state = false;
+      return;
+    }
+
+    final currentIndex = ref.read(mainShellTabProvider);
+    if (currentIndex != 0) {
+      ref.read(mainShellTabProvider.notifier).state = 0;
+      return;
+    }
+
+    final now = DateTime.now();
+    if (_lastBackPress == null ||
+        now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
+      _lastBackPress = now;
+      final l10n = AppLocalizations.of(context)!;
+      final scaffoldContext = _scaffoldKey.currentContext;
+      if (scaffoldContext == null) return;
+      final messenger = ScaffoldMessenger.of(scaffoldContext);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(l10n.pressBackAgainToExit),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    SystemNavigator.pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
@@ -159,9 +207,16 @@ class _MainShellState extends ConsumerState<MainShell>
 
     final tutorialActive = ref.watch(tutorialProvider).show;
 
-    return Stack(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _handleBack();
+      },
+      child: Stack(
       children: [
         Scaffold(
+          key: _scaffoldKey,
           backgroundColor: cl.bg,
           drawer: const AppDrawer(),
           body: GestureDetector(
@@ -213,6 +268,7 @@ class _MainShellState extends ConsumerState<MainShell>
           ),
         ),
       ],
+    ),
     );
   }
 

@@ -62,6 +62,7 @@
   "resetAllToDefault": "Reset All to Default",
   "logOut": "Log Out",
   "exitGuestSession": "Exit Guest Session",
+  "pressBackAgainToExit": "Press back again to exit",
   "deleteAccount": "Delete Account",
   "settingsResetDialogTitle": "Reset all settings?",
   "settingsResetDialogBody": "Appearance options (theme, accent, and font size) will return to their defaults.",

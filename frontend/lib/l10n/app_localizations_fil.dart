@@ -208,6 +208,9 @@ class AppLocalizationsFil extends AppLocalizations {
   String get exitGuestSession => 'Lumabas sa Guest Session';
 
   @override
+  String get pressBackAgainToExit => 'Pindutin muli ang back para lumabas';
+
+  @override
   String get deleteAccount => 'Burahin ang account';
 
   @override

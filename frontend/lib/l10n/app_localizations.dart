@@ -472,6 +472,12 @@ abstract class AppLocalizations {
   /// **'Exit Guest Session'**
   String get exitGuestSession;
 
+  /// No description provided for @pressBackAgainToExit.
+  ///
+  /// In en, this message translates to:
+  /// **'Press back again to exit'**
+  String get pressBackAgainToExit;
+
   /// No description provided for @deleteAccount.
   ///
   /// In en, this message translates to:

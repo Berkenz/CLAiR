@@ -208,6 +208,9 @@ class AppLocalizationsCeb extends AppLocalizations {
   String get exitGuestSession => 'Biyaan ang Guest Session';
 
   @override
+  String get pressBackAgainToExit => 'Pindota pag-usab ang back aron mobiya';
+
+  @override
   String get deleteAccount => 'Tangtangon ang account';
 
   @override

@@ -62,6 +62,7 @@
   "resetAllToDefault": "Ibalik sa default",
   "logOut": "Mag-log out",
   "exitGuestSession": "Lumabas sa Guest Session",
+  "pressBackAgainToExit": "Pindutin muli ang back para lumabas",
   "deleteAccount": "Burahin ang account",
   "settingsResetDialogTitle": "I-reset ang lahat ng setting?",
   "settingsResetDialogBody": "Ang tema, accent, at laki ng font ay babalik sa default.",

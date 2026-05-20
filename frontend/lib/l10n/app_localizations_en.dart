@@ -208,6 +208,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exitGuestSession => 'Exit Guest Session';
 
   @override
+  String get pressBackAgainToExit => 'Press back again to exit';
+
+  @override
   String get deleteAccount => 'Delete Account';
 
   @override
