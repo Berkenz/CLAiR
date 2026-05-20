@@ -58,6 +58,12 @@ android {
     }
 
     buildTypes {
+        // Debug uses com.example.clair so Google Sign-In matches the debug
+        // keystore SHA already registered in google-services.json. Release
+        // keeps ph.clair.app (Play Store package + release signing cert).
+        getByName("debug") {
+            applicationId = "com.example.clair"
+        }
         release {
             signingConfig = signingConfigs.getByName("release")
         }

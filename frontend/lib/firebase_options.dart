@@ -2,7 +2,7 @@
 // ignore_for_file: type=lint
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+    show defaultTargetPlatform, kDebugMode, kIsWeb, TargetPlatform;
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
@@ -49,13 +49,27 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions android = FirebaseOptions(
+  /// Production Android app (`ph.clair.app`, release keystore).
+  static const FirebaseOptions _androidProduction = FirebaseOptions(
     apiKey: 'AIzaSyAIj96e3iCVEdwyFtQEfUWoNup8fkhqemE',
     appId: '1:84517594334:android:2f4cd719fe5c9d28480e4f',
     messagingSenderId: '84517594334',
     projectId: 'clair-67',
     storageBucket: 'clair-67.firebasestorage.app',
   );
+
+  /// Debug Android app (`com.example.clair`, debug keystore) — matches
+  /// `applicationId` override in `android/app/build.gradle.kts` debug builds.
+  static const FirebaseOptions _androidDebug = FirebaseOptions(
+    apiKey: 'AIzaSyAIj96e3iCVEdwyFtQEfUWoNup8fkhqemE',
+    appId: '1:84517594334:android:c760bab1ac0ff59d480e4f',
+    messagingSenderId: '84517594334',
+    projectId: 'clair-67',
+    storageBucket: 'clair-67.firebasestorage.app',
+  );
+
+  static FirebaseOptions get android =>
+      kDebugMode ? _androidDebug : _androidProduction;
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBqADp8JzoQ9exTzq-RxXBL_q2LaO3c5OA',

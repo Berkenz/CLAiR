@@ -48,6 +48,12 @@ String friendlyErrorMessage(Object e) {
       case 'network_error':
         return 'No internet connection. Check your network and try again.';
       case 'sign_in_failed':
+        final detail = '${e.message ?? ''} ${e.details ?? ''}'.toLowerCase();
+        if (detail.contains('apiexception: 10') ||
+            detail.contains('developer_error')) {
+          return 'Google Sign-In is not configured for this build. '
+              'Add your debug SHA-1 to Firebase for ph.clair.app, or use a debug build.';
+        }
         return 'Google Sign-In failed. Please try again.';
       case 'sign_in_required':
         return 'Please sign in to continue.';
