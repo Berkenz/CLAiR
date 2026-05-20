@@ -658,8 +658,16 @@ async def get_relevant_chunks(
     """
     if retrieve is None:
         retrieve = await should_retrieve_legal_context(query, history)
+
+    cited_in_query = extract_cited_law_numbers(query)
     if not retrieve:
-        return []
+        if not cited_in_query:
+            return []
+        pool = await _get_pool()
+        if pool is None:
+            return []
+        hits = await fetch_chunks_by_law_numbers(pool, cited_in_query)
+        return hits[:top_k]
 
     pool = await _get_pool()
     if pool is None:

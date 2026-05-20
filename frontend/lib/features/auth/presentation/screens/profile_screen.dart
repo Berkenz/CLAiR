@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/core/theme/appearance_provider.dart';
 import 'package:clair/core/utils/error_helpers.dart';
+import 'package:clair/features/auth/presentation/dialogs/guest_auth_prompt.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/auth/presentation/screens/appearance_screen.dart';
 import 'package:clair/features/auth/presentation/screens/email_screen.dart';
@@ -16,6 +17,7 @@ import 'package:clair/features/auth/presentation/screens/report_screen.dart';
 import 'package:clair/features/auth/presentation/screens/help_center_screen.dart';
 import 'package:clair/features/auth/presentation/screens/terms_of_use_screen.dart';
 import 'package:clair/features/auth/presentation/screens/language_screen.dart';
+import 'package:clair/features/auth/presentation/screens/notification_settings_screen.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/widgets/profile_photo_image.dart';
@@ -170,18 +172,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 8),
             if (user?.isAnonymous == true)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                decoration: BoxDecoration(
-                  color: cl.border.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(20),
+              GestureDetector(
+                onTap: () => showGuestAuthPrompt(
+                  context,
+                  title: l10n.guestUpgradeTitle,
+                  message: l10n.guestUpgradeMessage,
                 ),
-                child: Text(
-                  l10n.guestAccount,
-                  style: GoogleFonts.nunito(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: cl.textLight,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: cl.border.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    l10n.guestAccount,
+                    style: GoogleFonts.nunito(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: cl.textLight,
+                    ),
                   ),
                 ),
               )
@@ -223,8 +233,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 _row(
                   context,
                   Icons.notifications_outlined,
-                  l10n.notifications,
-                  () => context.push('/notifications'),
+                  l10n.notificationSettings,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationSettingsScreen(),
+                    ),
+                  ),
                 ),
                 _row(
                   context,
@@ -595,62 +610,91 @@ class _GuestUpgradeBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cl = context.c;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cl.surface,
+    final l10n = AppLocalizations.of(context)!;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => showGuestAuthPrompt(
+          context,
+          title: l10n.guestUpgradeTitle,
+          message: l10n.guestUpgradeMessage,
+        ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cl.border),
-        boxShadow: [
-          BoxShadow(
-            color: cl.cardShadow,
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: cl.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: cl.border),
+            boxShadow: [
+              BoxShadow(
+                color: cl.cardShadow,
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: cl.accent.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.person_add_alt_1_rounded,
-              color: cl.accent,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Browsing as Guest',
-                  style: GoogleFonts.nunito(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: cl.textDark,
-                  ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: cl.accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Create an account to save chats, book appointments, and more.',
-                  style: GoogleFonts.nunito(
-                    fontSize: 12,
-                    color: cl.textMid,
-                    height: 1.4,
-                  ),
+                child: Icon(
+                  Icons.person_add_alt_1_rounded,
+                  color: cl.accent,
+                  size: 20,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.guestUpgradeTitle,
+                      style: GoogleFonts.nunito(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: cl.textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      l10n.guestUpgradeMessage,
+                      style: GoogleFonts.nunito(
+                        fontSize: 12,
+                        color: cl.textMid,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      l10n.chatGuestSignInAction,
+                      style: GoogleFonts.nunito(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: cl.accent,
+                        decoration: TextDecoration.underline,
+                        decorationColor: cl.accent.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 22,
+                color: cl.textLight,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

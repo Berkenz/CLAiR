@@ -66,6 +66,26 @@ class AppLocalizationsFil extends AppLocalizations {
   String get guestAccount => 'Guest Account';
 
   @override
+  String get guestUpgradeTitle => 'Nakatingin bilang Guest';
+
+  @override
+  String get guestUpgradeMessage =>
+      'Gumawa ng account para i-save ang mga chat, mag-book ng appointment, at higit pa.';
+
+  @override
+  String get guestAuthCreateAccount => 'Gumawa ng libreng account';
+
+  @override
+  String get guestAuthNotNow => 'Hindi muna';
+
+  @override
+  String get guestAuthBookingTitle => 'Mag-sign in para mag-book';
+
+  @override
+  String get guestAuthBookingMessage =>
+      'Kailangan mo ng libreng account para mag-book ng appointment sa mga abogado.';
+
+  @override
   String get editProfile => 'Edit Profile';
 
   @override
@@ -76,6 +96,80 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get notifications => 'Notifications';
+
+  @override
+  String get notificationSettings => 'Notification Settings';
+
+  @override
+  String get notificationSettingsPushSection => 'Push notifications';
+
+  @override
+  String get notificationSettingsPushSubtitle =>
+      'Alerts for messages, appointments, and case updates on this device.';
+
+  @override
+  String get notificationSettingsPushToggle => 'Push alerts';
+
+  @override
+  String get notificationSettingsPushToggleSubtitle =>
+      'Requires permission from your device. Turn off in system settings if needed.';
+
+  @override
+  String get notificationSettingsPushDisabledHint =>
+      'To stop push alerts, turn off notifications for CLAiR in your device settings.';
+
+  @override
+  String get notificationSettingsEmailSection => 'Email notifications';
+
+  @override
+  String get notificationSettingsEmailSubtitle =>
+      'Choose which emails you want to receive from CLAiR.';
+
+  @override
+  String get notificationSettingsEmailSecurity => 'Security Alerts';
+
+  @override
+  String get notificationSettingsEmailSecuritySub =>
+      'Account sign-ins, password changes, and suspicious activity.';
+
+  @override
+  String get notificationSettingsEmailCase => 'Case & Chat Activity';
+
+  @override
+  String get notificationSettingsEmailCaseSub =>
+      'Replies, case updates, and new lawyer messages.';
+
+  @override
+  String get notificationSettingsEmailAppointments => 'Appointment Reminders';
+
+  @override
+  String get notificationSettingsEmailAppointmentsSub =>
+      'Upcoming consultations and scheduling confirmations.';
+
+  @override
+  String get notificationSettingsEmailTips => 'Legal Tips & Resources';
+
+  @override
+  String get notificationSettingsEmailTipsSub =>
+      'Helpful legal guides, articles, and CLAiR feature updates.';
+
+  @override
+  String get notificationSettingsEmailNewsletter => 'CLAiR Newsletter';
+
+  @override
+  String get notificationSettingsEmailNewsletterSub =>
+      'Periodic product news and announcements.';
+
+  @override
+  String get notificationSettingsEmailFooter =>
+      'Security alert emails cannot be disabled. You can unsubscribe from marketing emails via the link at the bottom of any CLAiR email.';
+
+  @override
+  String get notificationSettingsViewInbox => 'Notification history';
+
+  @override
+  String get notificationSettingsViewInboxSub =>
+      'View past alerts and messages from CLAiR.';
 
   @override
   String get security => 'Security';

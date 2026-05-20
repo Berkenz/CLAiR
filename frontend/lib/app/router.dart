@@ -18,6 +18,7 @@ import 'package:clair/features/auth/presentation/screens/verify_email_screen.dar
 import 'package:clair/features/chat/presentation/screens/chat_screen.dart';
 import 'package:clair/features/history/presentation/screens/history_screen.dart';
 import 'package:clair/features/lawyer/presentation/screens/lawyer_screen.dart';
+import 'package:clair/features/auth/presentation/screens/notification_settings_screen.dart';
 import 'package:clair/features/notifications/presentation/screens/notification_screen.dart';
 import 'package:clair/app/main_shell.dart';
 import 'package:clair/app/splash_screen.dart';
@@ -130,6 +131,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/notifications',
         builder: (context, state) => const NotificationFullScreen(),
+      ),
+      GoRoute(
+        path: '/notification-settings',
+        builder: (context, state) => const NotificationSettingsScreen(),
       ),
       GoRoute(
         path: '/email-settings',

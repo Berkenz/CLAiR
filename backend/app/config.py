@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     # LLM decides whether to query law_chunks (see rag_router_service.py).
     RAG_ROUTER_ENABLED: bool = True
     GROQ_RAG_ROUTER_MODEL: str = "llama-3.1-8b-instant"
+    # LLM rejects off-topic messages before the main chat model (scope_router_service.py).
+    SCOPE_ROUTER_ENABLED: bool = True
+    GROQ_SCOPE_ROUTER_MODEL: str = "llama-3.1-8b-instant"
     # After retrieval: drop results when the best vector match is below this (0–1).
     RAG_MIN_TOP_SIMILARITY: float = 0.72
     # How much enactment date affects ranking (lower = trust semantic match more).

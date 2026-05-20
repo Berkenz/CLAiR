@@ -16,6 +16,7 @@ import 'package:clair/core/locale/app_locale_provider.dart';
 import 'package:clair/core/services/location_service.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/core/utils/error_helpers.dart';
+import 'package:clair/features/auth/presentation/dialogs/guest_auth_prompt.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/chat/utils/guest_chat_reset.dart';
@@ -1417,7 +1418,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   ),
                   const SizedBox(height: 4),
                   GestureDetector(
-                    onTap: () => context.push('/login'),
+                    onTap: () => showGuestAuthPrompt(
+                      context,
+                      title: l10n.guestUpgradeTitle,
+                      message: l10n.guestUpgradeMessage,
+                    ),
                     child: Text(
                       l10n.chatGuestSignInAction,
                       style: GoogleFonts.nunito(

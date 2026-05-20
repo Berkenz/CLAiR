@@ -214,6 +214,42 @@ abstract class AppLocalizations {
   /// **'Guest Account'**
   String get guestAccount;
 
+  /// No description provided for @guestUpgradeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Browsing as Guest'**
+  String get guestUpgradeTitle;
+
+  /// No description provided for @guestUpgradeMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Create an account to save chats, book appointments, and more.'**
+  String get guestUpgradeMessage;
+
+  /// No description provided for @guestAuthCreateAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a free account'**
+  String get guestAuthCreateAccount;
+
+  /// No description provided for @guestAuthNotNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get guestAuthNotNow;
+
+  /// No description provided for @guestAuthBookingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to book'**
+  String get guestAuthBookingTitle;
+
+  /// No description provided for @guestAuthBookingMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'You need a free account to book appointments with lawyers.'**
+  String get guestAuthBookingMessage;
+
   /// No description provided for @editProfile.
   ///
   /// In en, this message translates to:
@@ -237,6 +273,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Notifications'**
   String get notifications;
+
+  /// No description provided for @notificationSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification Settings'**
+  String get notificationSettings;
+
+  /// No description provided for @notificationSettingsPushSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Push notifications'**
+  String get notificationSettingsPushSection;
+
+  /// No description provided for @notificationSettingsPushSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Alerts for messages, appointments, and case updates on this device.'**
+  String get notificationSettingsPushSubtitle;
+
+  /// No description provided for @notificationSettingsPushToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Push alerts'**
+  String get notificationSettingsPushToggle;
+
+  /// No description provided for @notificationSettingsPushToggleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Requires permission from your device. Turn off in system settings if needed.'**
+  String get notificationSettingsPushToggleSubtitle;
+
+  /// No description provided for @notificationSettingsPushDisabledHint.
+  ///
+  /// In en, this message translates to:
+  /// **'To stop push alerts, turn off notifications for CLAiR in your device settings.'**
+  String get notificationSettingsPushDisabledHint;
+
+  /// No description provided for @notificationSettingsEmailSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Email notifications'**
+  String get notificationSettingsEmailSection;
+
+  /// No description provided for @notificationSettingsEmailSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which emails you want to receive from CLAiR.'**
+  String get notificationSettingsEmailSubtitle;
+
+  /// No description provided for @notificationSettingsEmailSecurity.
+  ///
+  /// In en, this message translates to:
+  /// **'Security Alerts'**
+  String get notificationSettingsEmailSecurity;
+
+  /// No description provided for @notificationSettingsEmailSecuritySub.
+  ///
+  /// In en, this message translates to:
+  /// **'Account sign-ins, password changes, and suspicious activity.'**
+  String get notificationSettingsEmailSecuritySub;
+
+  /// No description provided for @notificationSettingsEmailCase.
+  ///
+  /// In en, this message translates to:
+  /// **'Case & Chat Activity'**
+  String get notificationSettingsEmailCase;
+
+  /// No description provided for @notificationSettingsEmailCaseSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Replies, case updates, and new lawyer messages.'**
+  String get notificationSettingsEmailCaseSub;
+
+  /// No description provided for @notificationSettingsEmailAppointments.
+  ///
+  /// In en, this message translates to:
+  /// **'Appointment Reminders'**
+  String get notificationSettingsEmailAppointments;
+
+  /// No description provided for @notificationSettingsEmailAppointmentsSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming consultations and scheduling confirmations.'**
+  String get notificationSettingsEmailAppointmentsSub;
+
+  /// No description provided for @notificationSettingsEmailTips.
+  ///
+  /// In en, this message translates to:
+  /// **'Legal Tips & Resources'**
+  String get notificationSettingsEmailTips;
+
+  /// No description provided for @notificationSettingsEmailTipsSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Helpful legal guides, articles, and CLAiR feature updates.'**
+  String get notificationSettingsEmailTipsSub;
+
+  /// No description provided for @notificationSettingsEmailNewsletter.
+  ///
+  /// In en, this message translates to:
+  /// **'CLAiR Newsletter'**
+  String get notificationSettingsEmailNewsletter;
+
+  /// No description provided for @notificationSettingsEmailNewsletterSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Periodic product news and announcements.'**
+  String get notificationSettingsEmailNewsletterSub;
+
+  /// No description provided for @notificationSettingsEmailFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'Security alert emails cannot be disabled. You can unsubscribe from marketing emails via the link at the bottom of any CLAiR email.'**
+  String get notificationSettingsEmailFooter;
+
+  /// No description provided for @notificationSettingsViewInbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification history'**
+  String get notificationSettingsViewInbox;
+
+  /// No description provided for @notificationSettingsViewInboxSub.
+  ///
+  /// In en, this message translates to:
+  /// **'View past alerts and messages from CLAiR.'**
+  String get notificationSettingsViewInboxSub;
 
   /// No description provided for @security.
   ///

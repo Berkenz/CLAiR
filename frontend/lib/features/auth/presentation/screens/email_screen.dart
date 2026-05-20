@@ -2,17 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
-
-// ─── Preference keys ──────────────────────────────────────────────────────────
-const _kPrefCaseActivity    = 'email_pref_case_activity';
-const _kPrefAppointments    = 'email_pref_appointments';
-const _kPrefLegalTips       = 'email_pref_legal_tips';
-const _kPrefNewsletter      = 'email_pref_newsletter';
 
 class EmailScreen extends ConsumerStatefulWidget {
   const EmailScreen({super.key});
@@ -34,41 +26,11 @@ class _EmailScreenState extends ConsumerState<EmailScreen> {
   bool _resending       = false;
   bool _resentDone      = false;
 
-  // Email notification prefs (loaded from SharedPreferences)
-  bool _prefCaseActivity  = true;
-  bool _prefAppointments  = true;
-  bool _prefLegalTips     = true;
-  bool _prefNewsletter    = false;
-  bool _prefsLoaded       = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPrefs();
-  }
-
   @override
   void dispose() {
     _newEmailCtrl.dispose();
     _pwCtrl.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() {
-      _prefCaseActivity = prefs.getBool(_kPrefCaseActivity) ?? true;
-      _prefAppointments = prefs.getBool(_kPrefAppointments) ?? true;
-      _prefLegalTips    = prefs.getBool(_kPrefLegalTips)    ?? true;
-      _prefNewsletter   = prefs.getBool(_kPrefNewsletter)   ?? false;
-      _prefsLoaded      = true;
-    });
-  }
-
-  Future<void> _savePref(String key, bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(key, value);
   }
 
   void _snack(String msg, {bool isError = false}) {
@@ -453,118 +415,6 @@ class _EmailScreenState extends ConsumerState<EmailScreen> {
                       ),
                     ),
                   ],
-
-                  // ── Email Notifications ───────────────────────────────────
-                  const SizedBox(height: 24),
-                  _sectionLabel('Email Notifications'),
-                  const SizedBox(height: 4),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4, bottom: 10),
-                    child: Text(
-                      'Choose which emails you want to receive from CLAiR.',
-                      style: GoogleFonts.nunito(
-                          fontSize: 12, color: cl.textLight, height: 1.4),
-                    ),
-                  ),
-                  _card(cl, [
-                    // Security alerts — always on
-                    _prefTile(
-                      cl,
-                      icon: Icons.security_rounded,
-                      iconColor: const Color(0xFFDC4C4C),
-                      title: 'Security Alerts',
-                      subtitle:
-                          'Account sign-ins, password changes, and suspicious activity.',
-                      value: true,
-                      locked: true,
-                      onChanged: null,
-                    ),
-                    Divider(height: 1, indent: 60, color: cl.border),
-
-                    if (!_prefsLoaded)
-                      const Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Center(
-                          child: SizedBox(
-                            width: 20, height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ),
-                      )
-                    else ...[
-                      _prefTile(
-                        cl,
-                        icon: Icons.chat_bubble_outline_rounded,
-                        iconColor: const Color(0xFF8B5CF6),
-                        title: 'Case & Chat Activity',
-                        subtitle:
-                            'Replies, case updates, and new lawyer messages.',
-                        value: _prefCaseActivity,
-                        onChanged: (v) {
-                          setState(() => _prefCaseActivity = v);
-                          _savePref(_kPrefCaseActivity, v);
-                        },
-                      ),
-                      Divider(height: 1, indent: 60, color: cl.border),
-                      _prefTile(
-                        cl,
-                        icon: Icons.calendar_today_outlined,
-                        iconColor: const Color(0xFF0EA5E9),
-                        title: 'Appointment Reminders',
-                        subtitle:
-                            'Upcoming consultations and scheduling confirmations.',
-                        value: _prefAppointments,
-                        onChanged: (v) {
-                          setState(() => _prefAppointments = v);
-                          _savePref(_kPrefAppointments, v);
-                        },
-                      ),
-                      Divider(height: 1, indent: 60, color: cl.border),
-                      _prefTile(
-                        cl,
-                        icon: Icons.lightbulb_outline_rounded,
-                        iconColor: const Color(0xFFF59E0B),
-                        title: 'Legal Tips & Resources',
-                        subtitle:
-                            'Helpful legal guides, articles, and CLAiR feature updates.',
-                        value: _prefLegalTips,
-                        onChanged: (v) {
-                          setState(() => _prefLegalTips = v);
-                          _savePref(_kPrefLegalTips, v);
-                        },
-                      ),
-                      Divider(height: 1, indent: 60, color: cl.border),
-                      _prefTile(
-                        cl,
-                        icon: Icons.newspaper_rounded,
-                        iconColor: cl.textMid,
-                        title: 'CLAiR Newsletter',
-                        subtitle:
-                            'Periodic product news and announcements.',
-                        value: _prefNewsletter,
-                        onChanged: (v) {
-                          setState(() => _prefNewsletter = v);
-                          _savePref(_kPrefNewsletter, v);
-                        },
-                      ),
-                    ],
-                  ]),
-
-                  // ── Unsubscribe note ───────────────────────────────────────
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Text(
-                      'Security alert emails cannot be disabled. '
-                      'You can unsubscribe from marketing emails at any time '
-                      'via the link at the bottom of any CLAiR email, '
-                      'as required by the CAN-SPAM Act and GDPR Article 7(3).',
-                      style: GoogleFonts.nunito(
-                          fontSize: 11,
-                          color: cl.textLight,
-                          height: 1.5),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -598,60 +448,6 @@ class _EmailScreenState extends ConsumerState<EmailScreen> {
           ],
         ),
         child: Column(children: children),
-      );
-
-  Widget _prefTile(
-    AppColorTheme cl, {
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required bool value,
-    bool locked = false,
-    required ValueChanged<bool>? onChanged,
-  }) =>
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-        child: Row(children: [
-          Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: iconColor, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Text(title,
-                      style: GoogleFonts.nunito(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: cl.textDark)),
-                  if (locked) ...[
-                    const SizedBox(width: 6),
-                    Icon(Icons.lock_rounded, size: 12, color: cl.textLight),
-                  ],
-                ]),
-                const SizedBox(height: 2),
-                Text(subtitle,
-                    style: GoogleFonts.nunito(
-                        fontSize: 12, color: cl.textMid, height: 1.4)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Switch(
-            value: value,
-            onChanged: locked ? null : onChanged,
-            activeColor: cl.accent,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ]),
       );
 }
 

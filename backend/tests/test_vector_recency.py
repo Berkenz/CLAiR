@@ -84,6 +84,11 @@ def test_extract_cited_law_numbers():
     assert extract_cited_law_numbers(text) == ["10627"]
 
 
+def test_extract_cited_law_numbers_bare_ra():
+    text = "This involves RA 10173 and RA 9972."
+    assert extract_cited_law_numbers(text) == ["10173", "9972"]
+
+
 def test_metadata_search_terms_skip_vague_words():
     assert "concern" not in _metadata_search_terms("I have a legal concern")
 

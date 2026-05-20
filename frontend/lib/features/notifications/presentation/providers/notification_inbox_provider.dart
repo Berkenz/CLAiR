@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:clair/core/utils/error_helpers.dart';
+import 'package:clair/features/auth/data/email_notification_prefs.dart';
 import 'package:clair/features/notifications/data/datasources/notification_remote_datasource.dart';
 import 'package:clair/features/notifications/domain/entities/in_app_notification_entity.dart';
 import 'package:clair/shared/providers/shared_providers.dart';
@@ -121,11 +122,19 @@ class NotificationInboxNotifier extends StateNotifier<NotificationInboxState> {
     return null;
   }
 
+  Future<InAppNotificationEntity?> _bannerForFetch(
+    List<InAppNotificationEntity> notifications,
+  ) async {
+    final computed = _computeBannerAfterFetch(notifications);
+    if (!await EmailNotificationPrefs.inAppAlertsEnabled()) return null;
+    return computed;
+  }
+
   Future<void> refresh() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final result = await _remote.fetchInbox();
-      final banner = _computeBannerAfterFetch(result.notifications);
+      final banner = await _bannerForFetch(result.notifications);
       state = state.copyWith(
         notifications: result.notifications,
         unreadCount: result.unreadCount,
@@ -147,7 +156,7 @@ class NotificationInboxNotifier extends StateNotifier<NotificationInboxState> {
     _silentPollInFlight = true;
     try {
       final result = await _remote.fetchInbox();
-      final banner = _computeBannerAfterFetch(result.notifications);
+      final banner = await _bannerForFetch(result.notifications);
       state = state.copyWith(
         notifications: result.notifications,
         unreadCount: result.unreadCount,

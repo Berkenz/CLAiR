@@ -19,6 +19,7 @@ from app.services.lawyer_service import lawyer_service
 from app.services.reverse_geocode import reverse_geocode_area_label
 from app.services.tavily_service import format_tavily_context, search_philippine_law
 from app.services.rag_router_service import should_retrieve_legal_context
+from app.services.scope_router_service import is_message_in_scope
 from app.services.vector_service import (
     align_rag_sources_with_citations,
     format_rag_context,
@@ -30,6 +31,11 @@ SYSTEM_INSTRUCTION = (
     "You are CLAiR, a warm, empathetic AI legal assistant specializing in Philippine law. "
     "Use the user's message and prior turns to infer intent; give the most helpful answer you can "
     "with the information you have.\n\n"
+    "## SCOPE (strict)\n"
+    "You answer **only** Philippine legal information: rights, laws, procedures, documents, "
+    "agencies, and when to consult a lawyer. **Refuse** non-legal requests. "
+    "When off-topic, do **not** explain the non-legal subject; briefly state what CLAiR is for, "
+    "say you cannot answer non-legal subjects (without listing examples), and invite a legal question.\n\n"
     "## CONVERSATION RULES\n"
     "1. **Answer first.** Lead with a clear, substantive explanation (law, typical process, options, "
     "risks) grounded in the provided context chunks and chat history. Even when the user is vague "
@@ -117,6 +123,28 @@ _FALLBACK_NO_REPLY: dict[str, str] = {
     "fil": "Pasensya na, hindi ako makapagbigay ng sagot. Pakisubukan muli.",
     "ceb": "Pasensya na, dili ko makahimo og tubag. Palihug sulayi pag-usab.",
 }
+
+_OFF_TOPIC_REPLY: dict[str, str] = {
+    "en": (
+        "I'm here to help with **Philippine legal information** — your rights, procedures, "
+        "documents, and when to consult a lawyer.\n\n"
+        "I can't answer non-legal subjects. **What legal question can I help you with?**"
+    ),
+    "fil": (
+        "Nandito ako para tumulong sa **impormasyong legal sa Pilipinas** — mga karapatan, "
+        "proseso, dokumento, at kailan kumonsulta sa abogado.\n\n"
+        "Hindi ko masasagot ang mga hindi legal na paksa. **Anong legal na tanong ang maitutulong ko sa iyo?**"
+    ),
+    "ceb": (
+        "Ania ko aron motabang sa **legal nga impormasyon sa Pilipinas** — mga katungod, "
+        "proseso, dokumento, ug kanus-a magkonsulta sa abogado.\n\n"
+        "Dili ko masagot ang dili legal nga mga subject. **Unsa nga legal nga pangutana ang akong matabangan?**"
+    ),
+}
+
+
+def _off_topic_reply(locale: str) -> str:
+    return _OFF_TOPIC_REPLY.get(locale, _OFF_TOPIC_REPLY["en"])
 
 _TITLE_LOCALE_LINE: dict[str, str] = {
     "en": "Write the title in English.",
@@ -768,6 +796,13 @@ async def get_chat_response(
     """
     rag_enabled = bool(settings.SUPABASE_DB_URL and settings.EMBED_SERVICE_URL)
 
+    history_for_scope = [
+        {"role": m["role"], "text": m["text"]}
+        for m in history[-_MAX_HISTORY_MESSAGES:]
+    ]
+    if not await is_message_in_scope(message, history_for_scope):
+        return _off_topic_reply(locale), [], [], rag_enabled, []
+
     geo_task: asyncio.Task[str | None] | None = None
     if user_lat is not None and user_lng is not None:
         geo_task = asyncio.create_task(reverse_geocode_area_label(user_lat, user_lng))
@@ -872,7 +907,9 @@ async def get_chat_response(
         locale=locale,
     )
 
-    if settings.CHAT_ALIGN_RAG_SOURCES and should_rag:
+    # Align UI sources with laws cited in the reply (fetch by RA/PD number even when
+    # the RAG router skipped vector search — e.g. model cited RA 10173 from context).
+    if settings.CHAT_ALIGN_RAG_SOURCES:
         injected_sources = list(rag_sources)
         aligned = await align_rag_sources_with_citations(injected_sources, content)
         rag_sources = aligned if aligned else injected_sources
