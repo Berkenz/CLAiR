@@ -19,6 +19,13 @@ if (localPropsFile.exists()) {
 fun localOrEnv(key: String): String? =
     localProps.getProperty(key) ?: System.getenv(key)
 
+/** Release APK/AAB uses Play Store id; debug/local uses legacy id + debug SHA in Firebase. */
+fun isReleaseGradleTask(): Boolean {
+    val tasks = gradle.startParameter.taskNames.joinToString(" ").lowercase()
+    if (tasks.isEmpty()) return false
+    return tasks.contains("release") && !tasks.contains("debug")
+}
+
 android {
     namespace = "com.example.clair"
     compileSdk = flutter.compileSdkVersion
@@ -50,7 +57,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "ph.clair.app"
+        applicationId = if (isReleaseGradleTask()) "ph.clair.app" else "com.example.clair"
         minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -58,12 +65,6 @@ android {
     }
 
     buildTypes {
-        // Debug uses com.example.clair so Google Sign-In matches the debug
-        // keystore SHA already registered in google-services.json. Release
-        // keeps ph.clair.app (Play Store package + release signing cert).
-        getByName("debug") {
-            applicationId = "com.example.clair"
-        }
         release {
             signingConfig = signingConfigs.getByName("release")
         }
