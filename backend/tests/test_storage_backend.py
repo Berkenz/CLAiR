@@ -6,8 +6,21 @@ from app.services.gcs_storage import public_url
 
 def test_use_gcs_flag(monkeypatch):
     monkeypatch.setattr("app.config.settings.STORAGE_BACKEND", "gcs")
+    monkeypatch.setattr("app.services.gcs_storage.gcs_configured", lambda: True)
+    monkeypatch.setattr(
+        "app.services.gcs_storage.gcs_credentials_available", lambda: True
+    )
     assert storage_service._use_gcs() is True
+
+    monkeypatch.setattr(
+        "app.services.gcs_storage.gcs_credentials_available", lambda: False
+    )
+    assert storage_service._use_gcs() is False
+
     monkeypatch.setattr("app.config.settings.STORAGE_BACKEND", "supabase")
+    monkeypatch.setattr(
+        "app.services.gcs_storage.gcs_credentials_available", lambda: True
+    )
     assert storage_service._use_gcs() is False
 
 

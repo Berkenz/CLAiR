@@ -114,6 +114,9 @@ async def book_appointment(
         except ValueError as e:
             logger.warning("Appointment attachment upload skipped: %s", e)
             uploaded.append({"filename": fn, "url": None, "content_type": ct})
+        except Exception:
+            logger.exception("Appointment attachment upload failed for %s", fn)
+            uploaded.append({"filename": fn, "url": None, "content_type": ct})
 
     if uploaded:
         base = list(appt.attachments) if appt.attachments else []

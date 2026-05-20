@@ -43,7 +43,55 @@ _CHAT_ALLOWED_TYPES = {
 
 
 def _use_gcs() -> bool:
-    return (settings.STORAGE_BACKEND or "supabase").strip().lower() == "gcs"
+    if (settings.STORAGE_BACKEND or "supabase").strip().lower() != "gcs":
+        return False
+    from app.services.gcs_storage import gcs_configured, gcs_credentials_available
+
+    if not gcs_configured():
+        logger.warning(
+            "STORAGE_BACKEND=gcs but GCS_BUCKET_NAME/GCS_PROJECT_ID missing; "
+            "using Supabase storage"
+        )
+        return False
+    if not gcs_credentials_available():
+        logger.warning(
+            "STORAGE_BACKEND=gcs but GCP credentials missing; using Supabase storage"
+        )
+        return False
+    return True
+
+
+def upload_http_exception(exc: Exception) -> HTTPException:
+    """Map storage failures to a client-safe HTTP error."""
+    from fastapi import HTTPException
+    from google.cloud.exceptions import Forbidden
+
+    logger.exception("Storage upload failed")
+    if isinstance(exc, ValueError):
+        return HTTPException(status_code=400, detail=str(exc))
+    if isinstance(exc, Forbidden):
+        return HTTPException(
+            status_code=503,
+            detail="File storage is not configured correctly on the server.",
+        )
+    msg = str(exc).lower()
+    if any(
+        token in msg
+        for token in (
+            "credentials",
+            "permission",
+            "403",
+            "could not automatically determine credentials",
+        )
+    ):
+        return HTTPException(
+            status_code=503,
+            detail="File uploads are unavailable. Server storage is not configured.",
+        )
+    return HTTPException(
+        status_code=503,
+        detail="Could not upload file. Please try again later.",
+    )
 
 
 def _gcs_prefix(bucket_name: str) -> str:

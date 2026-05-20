@@ -1604,9 +1604,10 @@ function ManualCaseDocumentsTab({ appt, onApptUpdated }: { appt: Appointment; on
     const fd = new FormData();
     fd.append("file", f, f.name);
     try {
-      const { data } = await api.post<Appointment>(`/lawyer/appointments/${appt.id}/case-documents`, fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const { data } = await api.post<Appointment>(
+        `/lawyer/appointments/${appt.id}/case-documents`,
+        fd,
+      );
       onApptUpdated(data);
     } catch (ex: unknown) {
       setErr(getApiErrorMessage(ex, "Upload failed."));
@@ -2348,7 +2349,6 @@ function ClientChatTab({ appt }: { appt: Appointment }) {
       const { data } = await api.post<DirectMessage>(
         `/lawyer/appointments/${appt.id}/messages/upload`,
         form,
-        { headers: { "Content-Type": "multipart/form-data" } }
       );
       setMessages((prev) => [...prev, data]);
       scrollToBottom();

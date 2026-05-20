@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     GCP_VERTEX_CREDENTIALS_PATH: str | None = None
     # Standard Google ADC env var (also set in Docker / Render).
     GOOGLE_APPLICATION_CREDENTIALS: str | None = None
+    # Full service-account JSON as one line (for Render — no key file on disk).
+    GCP_SERVICE_ACCOUNT_JSON: str | None = None
     VERTEX_CHAT_MODEL: str = "gemini-2.5-flash"
     VERTEX_TITLE_MODEL: str = "gemini-2.5-flash"
     # Primary chat model (Groq).
@@ -81,6 +83,8 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "https://clair-ai.app",
+        "https://www.clair-ai.app",
     ]
     # Mobile push (FCM) — requires FIREBASE_SERVICE_ACCOUNT_KEY with FCM scope.
     PUSH_NOTIFICATIONS_ENABLED: bool = True

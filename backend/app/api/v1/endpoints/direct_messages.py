@@ -185,8 +185,12 @@ async def client_upload_attachment(
             content=raw,
             content_type=file.content_type or "application/octet-stream",
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        from app.services.storage_service import upload_http_exception
+
+        raise upload_http_exception(exc) from exc
 
     msg = await direct_message_service.send_message(
         db,
@@ -341,8 +345,12 @@ async def lawyer_upload_attachment(
             content=raw,
             content_type=file.content_type or "application/octet-stream",
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        from app.services.storage_service import upload_http_exception
+
+        raise upload_http_exception(exc) from exc
 
     msg = await direct_message_service.send_message(
         db,

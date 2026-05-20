@@ -42,7 +42,13 @@ GOOGLE_APPLICATION_CREDENTIALS=/app/gcp-vertex-key.json
 GCP_VERTEX_CREDENTIALS_PATH=/app/gcp-vertex-key.json
 ```
 
-On **Render**: add the same vars; paste the service-account JSON as a secret file or env.
+On **Render** (no key file on disk):
+
+1. Set `STORAGE_BACKEND=gcs`, `GCS_BUCKET_NAME`, `GCS_PROJECT_ID`.
+2. Add env var **`GCP_SERVICE_ACCOUNT_JSON`** = entire service-account JSON on **one line** (same key as Vertex; needs **Storage Object Admin** on the bucket).
+3. Keep **`SUPABASE_URL`** and **`SUPABASE_SERVICE_ROLE_KEY`** set as fallback — if GCS credentials are missing, uploads automatically use Supabase instead of failing with 500.
+
+Or use `STORAGE_BACKEND=supabase` only (no GCS vars) if Supabase storage still has space.
 
 `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are **not** required for uploads when using GCS (still keep `SUPABASE_DB_URL` for RAG on the VM).
 

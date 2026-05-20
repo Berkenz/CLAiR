@@ -75,13 +75,15 @@ async def upload_profile_photo_endpoint(
         raise HTTPException(400, "File is empty")
 
     try:
-        from app.services.storage_service import upload_profile_photo
+        from app.services.storage_service import upload_profile_photo, upload_http_exception
 
         photo_url = upload_profile_photo(
             str(current_user.id), content, content_type
         )
-    except ValueError as e:
-        raise HTTPException(400, str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise upload_http_exception(e) from e
 
     update_data = UserUpdate(photo_url=photo_url)
     return await user_service.update_user(db, current_user.id, update_data)

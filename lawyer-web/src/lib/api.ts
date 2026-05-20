@@ -12,6 +12,11 @@ api.interceptors.request.use(async (config) => {
     const token = await user.getIdToken();
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // FormData needs the browser-set Content-Type with boundary; the default
+  // application/json header breaks multipart uploads.
+  if (config.data instanceof FormData) {
+    delete config.headers["Content-Type"];
+  }
   return config;
 });
 
