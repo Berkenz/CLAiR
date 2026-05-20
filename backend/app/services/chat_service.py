@@ -19,7 +19,10 @@ from app.services.lawyer_service import lawyer_service
 from app.services.reverse_geocode import reverse_geocode_area_label
 from app.services.tavily_service import format_tavily_context, search_philippine_law
 from app.services.rag_router_service import should_retrieve_legal_context
-from app.services.scope_router_service import is_message_in_scope
+from app.services.scope_router_service import (
+    is_greeting_or_small_talk,
+    is_message_in_scope,
+)
 from app.services.vector_service import (
     align_rag_sources_with_citations,
     format_rag_context,
@@ -35,7 +38,10 @@ SYSTEM_INSTRUCTION = (
     "You answer **only** Philippine legal information: rights, laws, procedures, documents, "
     "agencies, and when to consult a lawyer. **Refuse** non-legal requests. "
     "When off-topic, do **not** explain the non-legal subject; briefly state what CLAiR is for, "
-    "say you cannot answer non-legal subjects (without listing examples), and invite a legal question.\n\n"
+    "say you cannot answer non-legal subjects (without listing examples), and invite a legal question.\n"
+    "**Greetings and thanks are in scope** — reply warmly (e.g. hi, hey, kumusta, salamat). "
+    "Never open a greeting with refusal language or lead with *I cannot provide legal advice*; "
+    "save disclaimers for substantive legal answers only.\n\n"
     "## CONVERSATION RULES\n"
     "1. **Answer first.** Lead with a clear, substantive explanation (law, typical process, options, "
     "risks) grounded in the provided context chunks and chat history. Even when the user is vague "
@@ -123,6 +129,30 @@ _FALLBACK_NO_REPLY: dict[str, str] = {
     "fil": "Pasensya na, hindi ako makapagbigay ng sagot. Pakisubukan muli.",
     "ceb": "Pasensya na, dili ko makahimo og tubag. Palihug sulayi pag-usab.",
 }
+
+_GREETING_REPLY: dict[str, str] = {
+    "en": (
+        "Hey! I'm **CLAiR**, your Philippine legal information assistant. "
+        "I can help with your rights, legal procedures, documents, and finding lawyers "
+        "near you.\n\n"
+        "**What would you like help with today?**"
+    ),
+    "fil": (
+        "Kumusta! Ako si **CLAiR**, ang iyong legal na assistant para sa batas ng Pilipinas. "
+        "Makakatulong ako sa mga karapatan, proseso, dokumento, at paghahanap ng abogado.\n\n"
+        "**Ano ang legal na tanong mo ngayon?**"
+    ),
+    "ceb": (
+        "Kumusta! Ako si **CLAiR**, imong assistant sa legal nga impormasyon sa Pilipinas. "
+        "Makatabang ko sa imong katungod, proseso, dokumento, ug pagpangita og abogado.\n\n"
+        "**Unsa ang imong legal nga pangutana karon?**"
+    ),
+}
+
+
+def _greeting_reply(locale: str) -> str:
+    return _GREETING_REPLY.get(locale, _GREETING_REPLY["en"])
+
 
 _OFF_TOPIC_REPLY: dict[str, str] = {
     "en": (
@@ -795,6 +825,9 @@ async def get_chat_response(
     injected when the query is time-sensitive or RAG returned no chunks.
     """
     rag_enabled = bool(settings.SUPABASE_DB_URL and settings.EMBED_SERVICE_URL)
+
+    if is_greeting_or_small_talk(message):
+        return _greeting_reply(locale), [], [], rag_enabled, []
 
     history_for_scope = [
         {"role": m["role"], "text": m["text"]}

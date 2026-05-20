@@ -42,6 +42,38 @@ _SCOPE_ROUTER_SYSTEM = (
 _IN_SCOPE_RE = re.compile(r"\bIN[_\s-]?SCOPE\b", re.IGNORECASE)
 _OUT_OF_SCOPE_RE = re.compile(r"\bOUT[_\s-]?OF[_\s-]?SCOPE\b", re.IGNORECASE)
 
+# Tokens allowed in short greetings / thanks (e.g. "hey clair", "salamat po").
+_SOCIAL_TURN_WORDS = frozenset({
+    "hi", "hey", "hello", "helo", "hiya", "yo",
+    "kumusta", "kamusta", "musta", "ug", "maayong",
+    "good", "morning", "afternoon", "evening", "day",
+    "thanks", "thank", "salamat", "you", "po", "opo",
+    "bye", "goodbye", "see", "later",
+    "clair", "there", "na", "lang", "po",
+})
+_SOCIAL_OPENERS = frozenset({
+    "hi", "hey", "hello", "helo", "hiya", "yo",
+    "kumusta", "kamusta", "musta",
+    "good", "thanks", "thank", "salamat", "bye", "goodbye",
+})
+
+
+def is_greeting_or_small_talk(message: str) -> bool:
+    """True for short greetings/thanks/name pings — never treat as off-topic."""
+    raw = (message or "").strip()
+    if not raw or len(raw) > 80:
+        return False
+    normalized = re.sub(r"[^\w\s]", " ", raw.lower())
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    if not normalized:
+        return False
+    words = normalized.split()
+    if len(words) > 8 or not all(w in _SOCIAL_TURN_WORDS for w in words):
+        return False
+    if any(w in _SOCIAL_OPENERS for w in words):
+        return True
+    return normalized in ("clair",)
+
 
 def _parse_scope_decision(raw: str) -> bool | None:
     """Return True if in-scope, False if out-of-scope, None if unparseable."""
@@ -95,6 +127,8 @@ async def is_message_in_scope(
 
     text = (message or "").strip()
     if not text:
+        return True
+    if is_greeting_or_small_talk(text):
         return True
 
     user_block = (
