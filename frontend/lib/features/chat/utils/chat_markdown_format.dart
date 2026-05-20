@@ -74,6 +74,36 @@ String _fixEmphasisArtifacts(String text) {
   return t;
 }
 
+/// Bold markers glued to adjacent letters drop the space between TextSpans in chat.
+String _ensureEmphasisBoundarySpaces(String text) {
+  var t = text;
+  for (var pass = 0; pass < 4; pass++) {
+    final before = t;
+    // word**word or word**Word — space on both sides of the marker pair
+    t = t.replaceAllMapped(
+      RegExp(r'([\w\)\]])\*\*(?=[\w\(])'),
+      (m) => '${m[1]} ** ',
+    );
+    t = t.replaceAllMapped(
+      RegExp(r'([.!?:;,])(\*\*)'),
+      (m) => '${m[1]} ${m[2]}',
+    );
+    if (t == before) break;
+  }
+  return t;
+}
+
+/// Single-asterisk disclaimer lines confuse list parsing; use underscore italics.
+String _normalizeDisclaimerItalic(String text) {
+  return text.replaceAllMapped(
+    RegExp(
+      r'^(\s*)\*([^*\n]{16,}?)\*\s*$',
+      multiLine: true,
+    ),
+    (m) => '${m[1]}_${m[2]!.trim()}_',
+  );
+}
+
 /// Opening line: drop mistaken list bullets and normalize the practice-area label.
 String _fixLeadingLine(String line) {
   final t = line.trim();
@@ -188,6 +218,8 @@ String normalizeChatMarkdown(String raw) {
   if (text.isEmpty) return text;
 
   text = _fixEmphasisArtifacts(text);
+  text = _ensureEmphasisBoundarySpaces(text);
+  text = _normalizeDisclaimerItalic(text);
   text = _fixLeadingCategoryLine(text);
   text = _separateDisclaimersFromListLines(text);
 
@@ -217,6 +249,7 @@ String normalizeChatMarkdown(String raw) {
     (m) => '${m.group(1)}* ${m.group(2)}',
   );
 
+  text = _ensureEmphasisBoundarySpaces(text);
   return text;
 }
 
