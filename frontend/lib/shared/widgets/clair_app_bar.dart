@@ -14,6 +14,8 @@ class ClairAppBar extends ConsumerWidget {
   final VoidCallback? onTitleTap;
   final VoidCallback? onActionsTap;
   final VoidCallback? onNewChat;
+  final VoidCallback? onDownloadTap;
+  final String? downloadTooltip;
 
   const ClairAppBar({
     super.key,
@@ -23,6 +25,8 @@ class ClairAppBar extends ConsumerWidget {
     this.onTitleTap,
     this.onActionsTap,
     this.onNewChat,
+    this.onDownloadTap,
+    this.downloadTooltip,
   });
 
   @override
@@ -226,7 +230,9 @@ class ClairAppBar extends ConsumerWidget {
                     ),
                   ),
                 ),
-                if (onNewChat != null || onActionsTap != null) ...[
+                if (onNewChat != null ||
+                    onDownloadTap != null ||
+                    onActionsTap != null) ...[
                   const SizedBox(width: 10),
                   Container(
                     height: 28,
@@ -245,6 +251,22 @@ class ClairAppBar extends ConsumerWidget {
                         Icons.edit_square,
                         size: 22,
                         color: cl.textDark.withOpacity(0.55),
+                      ),
+                    ),
+                  ),
+                if (onDownloadTap != null)
+                  Tooltip(
+                    message: downloadTooltip ?? 'Download as PDF',
+                    child: GestureDetector(
+                      onTap: onDownloadTap,
+                      behavior: HitTestBehavior.opaque,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Icon(
+                          Icons.download_rounded,
+                          size: 22,
+                          color: cl.textDark.withOpacity(0.55),
+                        ),
                       ),
                     ),
                   ),

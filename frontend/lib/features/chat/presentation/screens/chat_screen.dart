@@ -781,6 +781,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               chatTitle: chatState.conversationTitle ?? l10n.chatTitleNewChat,
               onTitleTap: _showConversationSwitcher,
               onNewChat: _newChat,
+              onDownloadTap: ref.watch(currentUserProvider)?.isAnonymous == true
+                  ? null
+                  : _generatePdf,
+              downloadTooltip: l10n.chatMenuDownloadPdf,
               onActionsTap: _showActionsMenu,
             ),
             Expanded(
