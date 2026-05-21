@@ -58,13 +58,13 @@ class _SavedScreenState extends ConsumerState<SavedScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text('Saved Chats', style: GoogleFonts.nunito(fontSize: 24, fontWeight: FontWeight.w800, color: cl.textDark)),
+              Text('Bookmarked Chats', style: GoogleFonts.nunito(fontSize: 24, fontWeight: FontWeight.w800, color: cl.textDark)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: cl.surface, borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: cl.border),
                     boxShadow: [BoxShadow(color: cl.cardShadow, blurRadius: 4, offset: const Offset(0, 1))]),
-                child: Text('${saved.length} saved', style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w600, color: cl.textMid)),
+                child: Text('${saved.length} bookmarked', style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w600, color: cl.textMid)),
               ),
             ]),
           ),
@@ -144,7 +144,7 @@ class _SavedScreenState extends ConsumerState<SavedScreen> {
                 child: Row(children: [
                   Icon(Icons.bookmark_rounded, size: 18, color: cl.textDark),
                   const SizedBox(width: 12),
-                  Text('Unsave', style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark)),
+                  Text('Remove Bookmark', style: GoogleFonts.nunito(fontSize: 13, color: cl.textDark)),
                 ]),
               ),
               PopupMenuItem(
@@ -180,9 +180,9 @@ class _SavedScreenState extends ConsumerState<SavedScreen> {
           decoration: BoxDecoration(color: cl.fieldBg, shape: BoxShape.circle),
           child: Icon(Icons.bookmark_outline_rounded, size: 28, color: cl.textLight)),
       const SizedBox(height: 16),
-      Text('No saved chats', style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w700, color: cl.textDark)),
+      Text('No bookmarked chats', style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w700, color: cl.textDark)),
       const SizedBox(height: 6),
-      Text('Save chats from History to access them here.', style: GoogleFonts.nunito(fontSize: 13, color: cl.textMid)),
+      Text('Bookmark chats from History to access them here.', style: GoogleFonts.nunito(fontSize: 13, color: cl.textMid)),
     ]));
   }
 

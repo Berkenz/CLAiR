@@ -45,9 +45,10 @@ class HistoryRemoteDataSource {
       if (data == null || data['messages'] == null) return [];
 
       final list = data['messages'] as List;
-      return list
+      final messages = list
           .map((m) => chatMessageFromApiMap(m as Map<String, dynamic>))
           .toList();
+      return orderChatMessages(messages);
     } on DioException catch (e) {
       throw HistoryException(_extractError(e));
     }

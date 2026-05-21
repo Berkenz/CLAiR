@@ -70,7 +70,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guestUpgradeMessage =>
-      'Create an account to save chats, book appointments, and more.';
+      'Create an account to bookmark chats, book appointments, and more.';
 
   @override
   String get guestAuthCreateAccount => 'Create a free account';
@@ -519,7 +519,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeGeneratedDocuments => 'Generated Documents';
 
   @override
-  String get homeSavedChats => 'Saved Chats';
+  String get homeSavedChats => 'Bookmarked Chats';
 
   @override
   String get homeViewAll => 'View All';
@@ -566,10 +566,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatNoConversationsYet => 'No conversations yet';
 
   @override
-  String get chatMenuSaveChat => 'Save Chat';
+  String get chatMenuSaveChat => 'Bookmark Chat';
 
   @override
-  String get chatMenuUnsaveChat => 'Unsave Chat';
+  String get chatMenuUnsaveChat => 'Remove Bookmark';
 
   @override
   String get chatMenuShare => 'Share';
@@ -649,28 +649,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatGuestClearBody =>
-      'Guest chats aren\'t saved. Starting a new chat will clear your messages from this session.';
+      'Guest chats aren\'t kept. Starting a new chat will clear your messages from this session.';
 
   @override
   String get chatGuestClearConfirm => 'Clear chat';
 
   @override
   String get chatGuestEphemeralBanner =>
-      'Guest chats aren\'t saved. Sign up or log in to keep your conversations.';
+      'Guest chats aren\'t kept. Sign up or log in to keep your conversations.';
 
   @override
   String get chatGuestSignInAction => 'Sign up or log in';
 
   @override
   String get chatGuestNoSavedChats =>
-      'Sign in to save conversations. Guest chats stay in this session only.';
+      'Sign in to bookmark conversations. Guest chats stay in this session only.';
 
   @override
-  String get histGuestEmptyTitle => 'No saved conversations';
+  String get histGuestEmptyTitle => 'No bookmarked conversations';
 
   @override
   String get histGuestEmptySubtitle =>
-      'Sign up or log in to save chats and view them here.';
+      'Sign up or log in to bookmark chats and view them here.';
 
   @override
   String get chatCopiedClipboard => 'Copied to clipboard';
@@ -731,7 +731,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get libTabHistory => 'History';
 
   @override
-  String get libTabSaved => 'Saved';
+  String get libTabSaved => 'Bookmarked';
 
   @override
   String get libSearchChatsHint => 'Search titles and messages...';
@@ -818,10 +818,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Start a chat and your conversations will appear here';
 
   @override
-  String get convSave => 'Save';
+  String get convSave => 'Bookmark';
 
   @override
-  String get convUnsave => 'Unsave';
+  String get convUnsave => 'Remove Bookmark';
 
   @override
   String get convRename => 'Rename';
@@ -1067,14 +1067,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apptDetailConfirmCancel => 'Confirm cancel';
 
   @override
-  String get libSavedEmptyTitle => 'No saved chats';
+  String get libSavedEmptyTitle => 'No bookmarked chats';
 
   @override
   String get libSavedEmptySubtitle =>
       'Bookmark chats to find\nthem easily later';
 
   @override
-  String get libSearchNoSaved => 'No saved chats found';
+  String get libSearchNoSaved => 'No bookmarked chats found';
 
   @override
   String get libSearchNoHistory => 'No chats found';
@@ -1404,7 +1404,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tutorialLibraryBody =>
-      'All your past conversations are saved here. Pin, search, or download them as PDFs.';
+      'All your past conversations are here. Bookmark, search, or download them as PDFs.';
 
   @override
   String get tutorialAppointmentsTitle => 'Appointments';

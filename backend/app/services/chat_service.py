@@ -20,8 +20,10 @@ from app.services.reverse_geocode import reverse_geocode_area_label
 from app.services.tavily_service import format_tavily_context, search_philippine_law
 from app.services.rag_router_service import should_retrieve_legal_context
 from app.services.scope_router_service import (
+    ScopeTier,
+    classify_message_scope,
+    generate_off_topic_redirect,
     is_greeting_or_small_talk,
-    is_message_in_scope,
 )
 from app.services.vector_service import (
     align_rag_sources_with_citations,
@@ -34,11 +36,13 @@ SYSTEM_INSTRUCTION = (
     "You are CLAiR, a warm, empathetic AI legal assistant specializing in Philippine law. "
     "Use the user's message and prior turns to infer intent; give the most helpful answer you can "
     "with the information you have.\n\n"
-    "## SCOPE (strict)\n"
-    "You answer **only** Philippine legal information: rights, laws, procedures, documents, "
-    "agencies, and when to consult a lawyer. **Refuse** non-legal requests. "
-    "When off-topic, do **not** explain the non-legal subject; briefly state what CLAiR is for, "
-    "say you cannot answer non-legal subjects (without listing examples), and invite a legal question.\n"
+    "## SCOPE\n"
+    "You specialize in **Philippine legal information**: rights, laws, procedures, documents, "
+    "agencies, and when to consult a lawyer. **Also answer** questions about what CLAiR can do "
+    "and its sources honestly.\n"
+    "For **borderline** topics (related but not mainly legal), give a **short** helpful answer "
+    "if you can, then warmly guide the user toward a **Philippine legal** question you can handle.\n"
+    "Far off-topic turns are handled separately — you will not see them here.\n"
     "**Greetings and thanks are in scope** — reply warmly (e.g. hi, hey, kumusta, salamat). "
     "Never open a greeting with refusal language or lead with *I cannot provide legal advice*; "
     "save disclaimers for substantive legal answers only.\n\n"
@@ -155,27 +159,25 @@ def _greeting_reply(locale: str) -> str:
     return _GREETING_REPLY.get(locale, _GREETING_REPLY["en"])
 
 
-_OFF_TOPIC_REPLY: dict[str, str] = {
+_PIVOT_TURN_RULE: dict[str, str] = {
     "en": (
-        "I'm here to help with **Philippine legal information** — your rights, procedures, "
-        "documents, and when to consult a lawyer.\n\n"
-        "I can't answer non-legal subjects. **What legal question can I help you with?**"
+        "\n\n## THIS TURN (borderline — not primarily legal)\n"
+        "The user's message is **somewhat related** but **not a legal question**. "
+        "Give a **brief, honest** answer (at most 3–4 sentences) if you can, then pivot to "
+        "**Philippine legal** topics you handle (rights, procedures, documents, lawyers). "
+        "Do **not** give an outright refusal or a long essay on the non-legal topic."
     ),
     "fil": (
-        "Nandito ako para tumulong sa **impormasyong legal sa Pilipinas** — mga karapatan, "
-        "proseso, dokumento, at kailan kumonsulta sa abogado.\n\n"
-        "Hindi ko masasagot ang mga hindi legal na paksa. **Anong legal na tanong ang maitutulong ko sa iyo?**"
+        "\n\n## TURN NA ITO (borderline — hindi pangunahing legal)\n"
+        "Ang tanong ay **may kaugnayan** ngunit **hindi legal**. Magbigay ng **maikli at tapat** "
+        "na sagot kung kaya, pagkatapos ay akayin sa **legal na paksa sa Pilipinas**."
     ),
     "ceb": (
-        "Ania ko aron motabang sa **legal nga impormasyon sa Pilipinas** — mga katungod, "
-        "proseso, dokumento, ug kanus-a magkonsulta sa abogado.\n\n"
-        "Dili ko masagot ang dili legal nga mga subject. **Unsa nga legal nga pangutana ang akong matabangan?**"
+        "\n\n## KINI NGA TURN (borderline — dili primarily legal)\n"
+        "Ang mensahe **may kalabutan** pero **dili legal**. Hatagi og **mubo nga tinuod** nga tubag "
+        "kung mahimo, unya itudlo sa **legal nga tema sa Pilipinas**."
     ),
 }
-
-
-def _off_topic_reply(locale: str) -> str:
-    return _OFF_TOPIC_REPLY.get(locale, _OFF_TOPIC_REPLY["en"])
 
 _TITLE_LOCALE_LINE: dict[str, str] = {
     "en": "Write the title in English.",
@@ -759,10 +761,14 @@ def _build_messages(
     rag_context: str,
     locale: str,
     lawyer_feedback_block: str = "",
+    *,
+    pivot_turn: bool = False,
 ) -> list[dict[str, str]]:
     """Convert CLAiR history format → Groq messages list, capping history length."""
+    pivot_block = _PIVOT_TURN_RULE.get(locale, _PIVOT_TURN_RULE["en"]) if pivot_turn else ""
     system_content = (
         SYSTEM_INSTRUCTION
+        + pivot_block
         + rag_context
         + lawyer_feedback_block
         + _locale_rule(locale)
@@ -834,8 +840,13 @@ async def get_chat_response(
         {"role": m["role"], "text": m["text"]}
         for m in history[-_MAX_HISTORY_MESSAGES:]
     ]
-    if not await is_message_in_scope(message, history_for_scope):
-        return _off_topic_reply(locale), [], [], rag_enabled, []
+    scope_tier = await classify_message_scope(message, history_for_scope)
+    if scope_tier == ScopeTier.REJECT:
+        redirect = await generate_off_topic_redirect(
+            message, history_for_scope, locale
+        )
+        return redirect, [], [], rag_enabled, []
+    pivot_turn = scope_tier == ScopeTier.PIVOT
 
     geo_task: asyncio.Task[str | None] | None = None
     if user_lat is not None and user_lng is not None:
@@ -903,7 +914,12 @@ async def get_chat_response(
     )
 
     messages = _build_messages(
-        message, history, rag_context, locale, lawyer_feedback_block
+        message,
+        history,
+        rag_context,
+        locale,
+        lawyer_feedback_block,
+        pivot_turn=pivot_turn,
     )
 
     preferred_groq: str | None = None

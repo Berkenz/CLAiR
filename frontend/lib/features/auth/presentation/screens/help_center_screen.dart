@@ -28,8 +28,8 @@ const _faqUsingItems = [
     'Tap the Chat tab at the bottom of the screen and type your legal question. CLAiR will respond based on current Philippine laws and legal resources.',
   ),
   _FaqItem(
-    'Can I save my conversations?',
-    'Yes. All conversations are saved automatically and accessible from the History tab. You can view, continue, or share any past conversation.',
+    'Can I bookmark my conversations?',
+    'Yes. All conversations are stored automatically and accessible from the History tab. Bookmark important ones from History or Library to find them quickly.',
   ),
   _FaqItem(
     'Is CLAiR\'s advice legally binding?',

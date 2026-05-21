@@ -5,6 +5,8 @@ class ChatMessageEntity {
   final String? id;
   final String text;
   final bool isUser;
+  /// Server timestamp for stable ordering when reopening history.
+  final DateTime? createdAt;
   final String? feedback; // 'like', 'dislike', or null
 
   /// Lawyers suggested by the AI — populated only on assistant messages
@@ -17,13 +19,14 @@ class ChatMessageEntity {
   /// Whether the server had RAG configured for this turn (`null` = e.g. history load).
   final bool? ragEnabled;
 
-  /// A lawyer flagged this assistant reply during QA (shown when reopening saved chats).
+  /// A lawyer flagged this assistant reply during QA (shown when reopening bookmarked chats).
   final bool lawyerReported;
 
   const ChatMessageEntity({
     this.id,
     required this.text,
     required this.isUser,
+    this.createdAt,
     this.feedback,
     this.suggestedLawyers = const [],
     this.ragSources = const [],
@@ -42,6 +45,8 @@ class ChatMessageEntity {
     String? id,
     String? text,
     bool? isUser,
+    DateTime? createdAt,
+    bool clearCreatedAt = false,
     String? feedback,
     bool clearFeedback = false,
     List<LawyerEntity>? suggestedLawyers,
@@ -54,6 +59,7 @@ class ChatMessageEntity {
       id: id ?? this.id,
       text: text ?? this.text,
       isUser: isUser ?? this.isUser,
+      createdAt: clearCreatedAt ? null : (createdAt ?? this.createdAt),
       feedback: clearFeedback ? null : (feedback ?? this.feedback),
       suggestedLawyers: suggestedLawyers ?? this.suggestedLawyers,
       ragSources: ragSources ?? this.ragSources,

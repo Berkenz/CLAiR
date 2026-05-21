@@ -9,12 +9,27 @@ void main() {
         'or apply** a particular law? **Would you like to know more about**recent '
         'changes?**';
     final out = normalizeChatMarkdown(raw);
-    expect(out, contains('specific ** Republic Act'));
-    expect(out, contains('how to ** interpret'));
-    expect(out, contains('about ** recent'));
     expect(out, isNot(contains('specificRepublic')));
     expect(out, isNot(contains('tointerpret')));
     expect(out, isNot(contains('aboutrecent')));
+    expect(out, contains('Republic Act'));
+    expect(out, contains('interpret or apply'));
+    expect(out, contains('recent changes'));
+  });
+
+  test('does not split bold opener after bullet markers', () {
+    const raw = '''Intro **Philippine legal information** here.
+
+• **Do you have a specific law or regulation in mind? **
+• **Are you looking for information on a particular court case or ruling? **
+• **Would you like to know about a recent change in Philippine law? **''';
+    final out = normalizeChatMarkdown(raw);
+    expect(out, isNot(contains('* **')));
+    expect(out, isNot(contains('• *')));
+    expect(out, contains('**Do you have a specific law or regulation in mind?**'));
+    expect(out, isNot(contains('in mind? **')));
+    expect(out, contains('- **Are you looking for information'));
+    expect(out, contains('- **Would you like to know'));
   });
 
   test('converts asterisk-wrapped disclaimer to underscore italics', () {

@@ -70,7 +70,7 @@ class AppLocalizationsCeb extends AppLocalizations {
 
   @override
   String get guestUpgradeMessage =>
-      'Paghimo og account aron ma-save ang mga chat, makabook og appointment, ug uban pa.';
+      'Paghimo og account aron ma-bookmark ang mga chat, makabook og appointment, ug uban pa.';
 
   @override
   String get guestAuthCreateAccount => 'Paghimo og libreng account';
@@ -520,7 +520,7 @@ class AppLocalizationsCeb extends AppLocalizations {
   String get homeGeneratedDocuments => 'Mga dokumentong gihimo';
 
   @override
-  String get homeSavedChats => 'Mga na-save nga chat';
+  String get homeSavedChats => 'Mga na-bookmark nga chat';
 
   @override
   String get homeViewAll => 'Tan-awa tanan';
@@ -567,10 +567,10 @@ class AppLocalizationsCeb extends AppLocalizations {
   String get chatNoConversationsYet => 'Walay panag-istorya pa';
 
   @override
-  String get chatMenuSaveChat => 'I-save ang chat';
+  String get chatMenuSaveChat => 'I-bookmark ang chat';
 
   @override
-  String get chatMenuUnsaveChat => 'Kuhaa ang save sa chat';
+  String get chatMenuUnsaveChat => 'Kuhaa ang bookmark';
 
   @override
   String get chatMenuShare => 'Ipaambit';
@@ -650,28 +650,28 @@ class AppLocalizationsCeb extends AppLocalizations {
 
   @override
   String get chatGuestClearBody =>
-      'Dili ma-save ang guest chat. Kung magsugod og bag-ong chat, mapapas ang imong mga mensahe niini nga session.';
+      'Dili mapadayon ang guest chat. Kung magsugod og bag-ong chat, mapapas ang imong mga mensahe niini nga session.';
 
   @override
   String get chatGuestClearConfirm => 'I-clear ang chat';
 
   @override
   String get chatGuestEphemeralBanner =>
-      'Dili ma-save ang guest chat. Mag-sign up o mag-log in aron mapadayon ang imong mga panag-istorya.';
+      'Dili mapadayon ang guest chat. Mag-sign up o mag-log in aron mapadayon ang imong mga panag-istorya.';
 
   @override
   String get chatGuestSignInAction => 'Mag-sign up o mag-log in';
 
   @override
   String get chatGuestNoSavedChats =>
-      'Mag-log in aron ma-save ang panag-istorya. Ang guest chat anaa ra niini nga session.';
+      'Mag-log in aron ma-bookmark ang panag-istorya. Ang guest chat anaa ra niini nga session.';
 
   @override
-  String get histGuestEmptyTitle => 'Walay na-save nga panag-istorya';
+  String get histGuestEmptyTitle => 'Walay na-bookmark nga panag-istorya';
 
   @override
   String get histGuestEmptySubtitle =>
-      'Mag-sign up o mag-log in aron ma-save ang chat ug makita dinhi.';
+      'Mag-sign up o mag-log in aron ma-bookmark ang chat ug makita dinhi.';
 
   @override
   String get chatCopiedClipboard => 'Nakopya sa clipboard';
@@ -732,7 +732,7 @@ class AppLocalizationsCeb extends AppLocalizations {
   String get libTabHistory => 'History';
 
   @override
-  String get libTabSaved => 'Saved';
+  String get libTabSaved => 'Na-bookmark';
 
   @override
   String get libSearchChatsHint => 'Pangitaa ang titulo ug mensahe...';
@@ -819,10 +819,10 @@ class AppLocalizationsCeb extends AppLocalizations {
       'Pagsugod og chat ug makita dinhi ang imong mga panag-istorya';
 
   @override
-  String get convSave => 'I-save';
+  String get convSave => 'I-bookmark';
 
   @override
-  String get convUnsave => 'Kuhaa ang save';
+  String get convUnsave => 'Kuhaa ang bookmark';
 
   @override
   String get convRename => 'Usba ang ngalan';
@@ -1070,14 +1070,14 @@ class AppLocalizationsCeb extends AppLocalizations {
   String get apptDetailConfirmCancel => 'Kumpirmahi ang pagkansela';
 
   @override
-  String get libSavedEmptyTitle => 'Walay na-save nga chat';
+  String get libSavedEmptyTitle => 'Walay na-bookmark nga chat';
 
   @override
   String get libSavedEmptySubtitle =>
       'I-bookmark ang mga chat aron sayon\npangitaon unya';
 
   @override
-  String get libSearchNoSaved => 'Walay nakit-an nga saved chat';
+  String get libSearchNoSaved => 'Walay nakit-an nga na-bookmark nga chat';
 
   @override
   String get libSearchNoHistory => 'Walay nakit-an nga chat';
@@ -1409,7 +1409,7 @@ class AppLocalizationsCeb extends AppLocalizations {
 
   @override
   String get tutorialLibraryBody =>
-      'Tanan nimong mga nangaging panagsultihanay na-save dinhi. I-pin, pangitaa, o i-download isip PDF.';
+      'Ania ang tanan nimong mga nangaging panagsultihanay. I-bookmark, pangitaa, o i-download isip PDF.';
 
   @override
   String get tutorialAppointmentsTitle => 'Mga Appointment';

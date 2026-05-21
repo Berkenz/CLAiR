@@ -223,7 +223,7 @@ abstract class AppLocalizations {
   /// No description provided for @guestUpgradeMessage.
   ///
   /// In en, this message translates to:
-  /// **'Create an account to save chats, book appointments, and more.'**
+  /// **'Create an account to bookmark chats, book appointments, and more.'**
   String get guestUpgradeMessage;
 
   /// No description provided for @guestAuthCreateAccount.
@@ -1015,7 +1015,7 @@ abstract class AppLocalizations {
   /// No description provided for @homeSavedChats.
   ///
   /// In en, this message translates to:
-  /// **'Saved Chats'**
+  /// **'Bookmarked Chats'**
   String get homeSavedChats;
 
   /// No description provided for @homeViewAll.
@@ -1105,13 +1105,13 @@ abstract class AppLocalizations {
   /// No description provided for @chatMenuSaveChat.
   ///
   /// In en, this message translates to:
-  /// **'Save Chat'**
+  /// **'Bookmark Chat'**
   String get chatMenuSaveChat;
 
   /// No description provided for @chatMenuUnsaveChat.
   ///
   /// In en, this message translates to:
-  /// **'Unsave Chat'**
+  /// **'Remove Bookmark'**
   String get chatMenuUnsaveChat;
 
   /// No description provided for @chatMenuShare.
@@ -1255,7 +1255,7 @@ abstract class AppLocalizations {
   /// No description provided for @chatGuestClearBody.
   ///
   /// In en, this message translates to:
-  /// **'Guest chats aren\'t saved. Starting a new chat will clear your messages from this session.'**
+  /// **'Guest chats aren\'t kept. Starting a new chat will clear your messages from this session.'**
   String get chatGuestClearBody;
 
   /// No description provided for @chatGuestClearConfirm.
@@ -1267,7 +1267,7 @@ abstract class AppLocalizations {
   /// No description provided for @chatGuestEphemeralBanner.
   ///
   /// In en, this message translates to:
-  /// **'Guest chats aren\'t saved. Sign up or log in to keep your conversations.'**
+  /// **'Guest chats aren\'t kept. Sign up or log in to keep your conversations.'**
   String get chatGuestEphemeralBanner;
 
   /// No description provided for @chatGuestSignInAction.
@@ -1279,19 +1279,19 @@ abstract class AppLocalizations {
   /// No description provided for @chatGuestNoSavedChats.
   ///
   /// In en, this message translates to:
-  /// **'Sign in to save conversations. Guest chats stay in this session only.'**
+  /// **'Sign in to bookmark conversations. Guest chats stay in this session only.'**
   String get chatGuestNoSavedChats;
 
   /// No description provided for @histGuestEmptyTitle.
   ///
   /// In en, this message translates to:
-  /// **'No saved conversations'**
+  /// **'No bookmarked conversations'**
   String get histGuestEmptyTitle;
 
   /// No description provided for @histGuestEmptySubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Sign up or log in to save chats and view them here.'**
+  /// **'Sign up or log in to bookmark chats and view them here.'**
   String get histGuestEmptySubtitle;
 
   /// No description provided for @chatCopiedClipboard.
@@ -1405,7 +1405,7 @@ abstract class AppLocalizations {
   /// No description provided for @libTabSaved.
   ///
   /// In en, this message translates to:
-  /// **'Saved'**
+  /// **'Bookmarked'**
   String get libTabSaved;
 
   /// No description provided for @libSearchChatsHint.
@@ -1567,13 +1567,13 @@ abstract class AppLocalizations {
   /// No description provided for @convSave.
   ///
   /// In en, this message translates to:
-  /// **'Save'**
+  /// **'Bookmark'**
   String get convSave;
 
   /// No description provided for @convUnsave.
   ///
   /// In en, this message translates to:
-  /// **'Unsave'**
+  /// **'Remove Bookmark'**
   String get convUnsave;
 
   /// No description provided for @convRename.
@@ -2005,7 +2005,7 @@ abstract class AppLocalizations {
   /// No description provided for @libSavedEmptyTitle.
   ///
   /// In en, this message translates to:
-  /// **'No saved chats'**
+  /// **'No bookmarked chats'**
   String get libSavedEmptyTitle;
 
   /// No description provided for @libSavedEmptySubtitle.
@@ -2017,7 +2017,7 @@ abstract class AppLocalizations {
   /// No description provided for @libSearchNoSaved.
   ///
   /// In en, this message translates to:
-  /// **'No saved chats found'**
+  /// **'No bookmarked chats found'**
   String get libSearchNoSaved;
 
   /// No description provided for @libSearchNoHistory.
@@ -2593,7 +2593,7 @@ abstract class AppLocalizations {
   /// No description provided for @tutorialLibraryBody.
   ///
   /// In en, this message translates to:
-  /// **'All your past conversations are saved here. Pin, search, or download them as PDFs.'**
+  /// **'All your past conversations are here. Bookmark, search, or download them as PDFs.'**
   String get tutorialLibraryBody;
 
   /// No description provided for @tutorialAppointmentsTitle.

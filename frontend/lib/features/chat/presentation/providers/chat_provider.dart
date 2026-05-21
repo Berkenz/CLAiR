@@ -38,6 +38,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
   final ChatRepository _repository;
   final HistoryRepository _historyRepository;
   final Ref _ref;
+  int _loadGeneration = 0;
 
   static ChatState _freshChatForRef(Ref ref) {
     final locale = ref.read(appLocaleProvider);
@@ -76,6 +77,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty || state.isLoading) return;
 
+    final activeConversationId = state.conversationId;
     final userMessage = ChatMessageEntity(text: text.trim(), isUser: true);
     state = state.copyWith(
       messages: [...state.messages, userMessage],
@@ -107,7 +109,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
       final response = await _repository.sendMessage(
         message: text.trim(),
         history: state.messages.where((m) => m != userMessage).toList(),
-        conversationId: state.conversationId,
+        conversationId: activeConversationId,
         userLat: loc.latitude,
         userLng: loc.longitude,
         locale: localeCode,
@@ -129,6 +131,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
               .toList();
         }
       }
+
+      if (state.conversationId != activeConversationId) return;
 
       final updatedMessages = [...state.messages];
       if (updatedMessages.isNotEmpty && updatedMessages.last.isUser) {
@@ -171,11 +175,12 @@ class ChatNotifier extends StateNotifier<ChatState> {
   /// Sync lawyer-report flags from the server into the current in-memory thread.
   Future<void> refreshLawyerReportFlags() async {
     final id = state.conversationId;
-    if (id == null || state.messages.isEmpty) return;
+    if (id == null || state.messages.isEmpty || state.isLoading) return;
 
     try {
       final serverMsgs =
           await _historyRepository.getConversationMessages(id);
+      if (id != state.conversationId) return;
       final reportedIds = <String>{};
       final reportedTexts = <String>{};
       for (final s in serverMsgs) {
@@ -210,20 +215,30 @@ class ChatNotifier extends StateNotifier<ChatState> {
     bool isPinned = false,
   }) async {
     if (_ref.read(currentUserProvider)?.isAnonymous == true) return;
-    state = state.copyWith(isLoading: true, error: null);
+    final generation = ++_loadGeneration;
+    state = state.copyWith(
+      isLoading: true,
+      error: null,
+      messages: const [],
+      conversationId: conversationId,
+      conversationTitle: title,
+      conversationIsPinned: isPinned,
+      isLoadedConversation: true,
+      showTermsDisclaimer: false,
+    );
     try {
       final messages =
           await _historyRepository.getConversationMessages(conversationId);
+      if (generation != _loadGeneration ||
+          state.conversationId != conversationId) {
+        return;
+      }
       state = state.copyWith(
         messages: messages,
-        conversationId: conversationId,
-        conversationTitle: title,
-        conversationIsPinned: isPinned,
         isLoading: false,
-        isLoadedConversation: true,
-        showTermsDisclaimer: false,
       );
     } catch (e) {
+      if (generation != _loadGeneration) return;
       state = state.copyWith(
         isLoading: false,
         error: friendlyErrorMessage(e),
@@ -298,6 +313,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
   }
 
   void reset() {
+    _loadGeneration++;
     state = _freshChatForRef(_ref);
   }
 }

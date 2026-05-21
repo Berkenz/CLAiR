@@ -84,13 +84,30 @@ String _ensureEmphasisBoundarySpaces(String text) {
       RegExp(r'([\w\)\]])\*\*(?=[\w\(])'),
       (m) => '${m[1]} ** ',
     );
+    // Only when `**` opens a new span (not when closing `**phrase?**`).
     t = t.replaceAllMapped(
-      RegExp(r'([.!?:;,])(\*\*)'),
+      RegExp(r'([.!?:;,])(\*\*)(?=[A-Za-z0-9\u00C0-\u024F])'),
       (m) => '${m[1]} ${m[2]}',
     );
     if (t == before) break;
   }
   return t;
+}
+
+/// Trim stray spaces inside `**...**` (e.g. `**question? **` breaks bold in lists).
+String _trimBoldMarkerPadding(String text) {
+  return text.replaceAllMapped(
+    RegExp(r'\*\*([^*]+?)\*\*'),
+    (m) => '**${m[1]!.trim()}**',
+  );
+}
+
+/// Unicode bullets → markdown `-` so list + bold parse reliably.
+String _normalizeBulletMarkers(String text) {
+  return text.replaceAllMapped(
+    RegExp(r'^(\s*)[•·]\s+', multiLine: true),
+    (m) => '${m.group(1)}- ',
+  );
 }
 
 /// Single-asterisk disclaimer lines confuse list parsing; use underscore italics.
@@ -218,6 +235,7 @@ String normalizeChatMarkdown(String raw) {
   if (text.isEmpty) return text;
 
   text = _fixEmphasisArtifacts(text);
+  text = _normalizeBulletMarkers(text);
   text = _ensureEmphasisBoundarySpaces(text);
   text = _normalizeDisclaimerItalic(text);
   text = _fixLeadingCategoryLine(text);
@@ -239,9 +257,9 @@ String normalizeChatMarkdown(String raw) {
 
   text = normalizedBlocks.join('\n\n');
 
-  // Never treat leading `**` as a list bullet (was turning **Label** into * *Label**).
+  // Glue bullet to word (•item → • item) but never split `• **` / `- **`.
   text = text.replaceAllMapped(
-    RegExp(r'^(\s*)([-•])\s*(\S)', multiLine: true),
+    RegExp(r'^(\s*)([-•])\s*(?!\*\*)(\S)', multiLine: true),
     (m) => '${m.group(1)}${m.group(2)} ${m.group(3)}',
   );
   text = text.replaceAllMapped(
@@ -249,6 +267,7 @@ String normalizeChatMarkdown(String raw) {
     (m) => '${m.group(1)}* ${m.group(2)}',
   );
 
+  text = _trimBoldMarkerPadding(text);
   text = _ensureEmphasisBoundarySpaces(text);
   return text;
 }

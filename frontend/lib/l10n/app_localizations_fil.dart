@@ -70,7 +70,7 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get guestUpgradeMessage =>
-      'Gumawa ng account para i-save ang mga chat, mag-book ng appointment, at higit pa.';
+      'Gumawa ng account para mag-bookmark ng mga chat, mag-book ng appointment, at higit pa.';
 
   @override
   String get guestAuthCreateAccount => 'Gumawa ng libreng account';
@@ -520,7 +520,7 @@ class AppLocalizationsFil extends AppLocalizations {
   String get homeGeneratedDocuments => 'Mga dokumentong ginawa';
 
   @override
-  String get homeSavedChats => 'Mga naka-save na chat';
+  String get homeSavedChats => 'Mga naka-bookmark na chat';
 
   @override
   String get homeViewAll => 'Tingnan lahat';
@@ -567,10 +567,10 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatNoConversationsYet => 'Walang usapan pa';
 
   @override
-  String get chatMenuSaveChat => 'I-save ang chat';
+  String get chatMenuSaveChat => 'I-bookmark ang chat';
 
   @override
-  String get chatMenuUnsaveChat => 'Alisin sa save ang chat';
+  String get chatMenuUnsaveChat => 'Alisin ang bookmark';
 
   @override
   String get chatMenuShare => 'I-share';
@@ -650,28 +650,28 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get chatGuestClearBody =>
-      'Hindi nase-save ang guest chat. Kapag nagsimula ng bagong chat, mabubura ang mga mensahe sa session na ito.';
+      'Hindi pinapanatili ang guest chat. Kapag nagsimula ng bagong chat, mabubura ang mga mensahe sa session na ito.';
 
   @override
   String get chatGuestClearConfirm => 'I-clear ang chat';
 
   @override
   String get chatGuestEphemeralBanner =>
-      'Hindi nase-save ang guest chat. Mag-sign up o mag-log in para mapanatili ang iyong mga usapan.';
+      'Hindi pinapanatili ang guest chat. Mag-sign up o mag-log in para mapanatili ang iyong mga usapan.';
 
   @override
   String get chatGuestSignInAction => 'Mag-sign up o mag-log in';
 
   @override
   String get chatGuestNoSavedChats =>
-      'Mag-log in para mag-save ng usapan. Mananatili lang sa session na ito ang guest chat.';
+      'Mag-log in para mag-bookmark ng usapan. Mananatili lang sa session na ito ang guest chat.';
 
   @override
-  String get histGuestEmptyTitle => 'Walang naka-save na usapan';
+  String get histGuestEmptyTitle => 'Walang naka-bookmark na usapan';
 
   @override
   String get histGuestEmptySubtitle =>
-      'Mag-sign up o mag-log in para mag-save ng chat at makita ang mga ito dito.';
+      'Mag-sign up o mag-log in para mag-bookmark ng chat at makita ang mga ito dito.';
 
   @override
   String get chatCopiedClipboard => 'Nakopya sa clipboard';
@@ -732,7 +732,7 @@ class AppLocalizationsFil extends AppLocalizations {
   String get libTabHistory => 'History';
 
   @override
-  String get libTabSaved => 'Saved';
+  String get libTabSaved => 'Naka-bookmark';
 
   @override
   String get libSearchChatsHint => 'Maghanap sa pamagat at mensahe...';
@@ -819,10 +819,10 @@ class AppLocalizationsFil extends AppLocalizations {
       'Magsimula ng chat at lalabas dito ang iyong mga usapan';
 
   @override
-  String get convSave => 'I-save';
+  String get convSave => 'I-bookmark';
 
   @override
-  String get convUnsave => 'Alisin sa save';
+  String get convUnsave => 'Alisin ang bookmark';
 
   @override
   String get convRename => 'Palitan ang pangalan';
@@ -1068,14 +1068,14 @@ class AppLocalizationsFil extends AppLocalizations {
   String get apptDetailConfirmCancel => 'Kumpirmahin ang pagkansela';
 
   @override
-  String get libSavedEmptyTitle => 'Walang naka-save na chat';
+  String get libSavedEmptyTitle => 'Walang naka-bookmark na chat';
 
   @override
   String get libSavedEmptySubtitle =>
       'I-bookmark ang mga chat para madaling\nhanapin mamaya';
 
   @override
-  String get libSearchNoSaved => 'Walang nahanap na saved chat';
+  String get libSearchNoSaved => 'Walang nahanap na naka-bookmark na chat';
 
   @override
   String get libSearchNoHistory => 'Walang nahanap na chat';
@@ -1407,7 +1407,7 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get tutorialLibraryBody =>
-      'Lahat ng iyong mga nakaraang usapan ay naka-save dito. I-pin, maghanap, o i-download bilang PDF.';
+      'Narito ang lahat ng iyong mga nakaraang usapan. I-bookmark, maghanap, o i-download bilang PDF.';
 
   @override
   String get tutorialAppointmentsTitle => 'Mga Appointment';

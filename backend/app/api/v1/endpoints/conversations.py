@@ -80,7 +80,14 @@ async def get_conversation(
     reported_ids = await lawyer_ai_assessment_service.get_reported_message_ids_for_conversation(
         db, conv.id
     )
-    ordered_messages = sorted(conv.messages, key=lambda m: m.created_at)
+    ordered_messages = sorted(
+        conv.messages,
+        key=lambda m: (
+            m.created_at,
+            0 if m.role == "user" else 1,
+            str(m.id),
+        ),
+    )
     return ConversationDetail(
         id=conv.id,
         title=conv.title,

@@ -2,6 +2,26 @@ import 'package:clair/features/chat/domain/entities/chat_message_entity.dart';
 import 'package:clair/features/chat/domain/entities/rag_source_entity.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 
+DateTime? _parseCreatedAt(dynamic raw) {
+  if (raw == null) return null;
+  if (raw is String) return DateTime.tryParse(raw);
+  return null;
+}
+
+/// Chronological order for history reloads (ties: user before assistant, then id).
+List<ChatMessageEntity> orderChatMessages(List<ChatMessageEntity> messages) {
+  final sorted = [...messages];
+  sorted.sort((a, b) {
+    final aAt = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final bAt = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final byTime = aAt.compareTo(bAt);
+    if (byTime != 0) return byTime;
+    if (a.isUser != b.isUser) return a.isUser ? -1 : 1;
+    return (a.id ?? '').compareTo(b.id ?? '');
+  });
+  return sorted;
+}
+
 /// Maps API message JSON (conversation detail or chat send) to [ChatMessageEntity].
 ChatMessageEntity chatMessageFromApiMap(Map<String, dynamic> map) {
   final role = map['role'] as String?;
@@ -38,6 +58,7 @@ ChatMessageEntity chatMessageFromApiMap(Map<String, dynamic> map) {
     id: map['id']?.toString(),
     text: map['text'] as String,
     isUser: isUser,
+    createdAt: _parseCreatedAt(map['created_at']),
     lawyerReported: map['lawyer_reported'] == true,
     suggestedLawyers: suggestedLawyers,
     ragSources: ragSources,
