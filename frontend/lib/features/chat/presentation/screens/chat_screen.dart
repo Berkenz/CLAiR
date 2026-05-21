@@ -12,7 +12,6 @@ import 'package:speech_to_text/speech_to_text.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:clair/app/main_shell_tab.dart';
-import 'package:clair/core/locale/app_locale_provider.dart';
 import 'package:clair/core/services/location_service.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/core/utils/error_helpers.dart';
@@ -720,10 +719,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final hasUserMessages = chatState.messages.any((m) => m.isUser);
     final cl = context.c;
     final l10n = AppLocalizations.of(context)!;
-
-    ref.listen<Locale>(appLocaleProvider, (prev, next) {
-      ref.read(chatProvider.notifier).refreshStarterGreetingIfApplicable();
-    });
 
     ref.listen<int>(mainShellTabProvider, (prev, next) {
       final currentMessages = ref.read(chatProvider).messages;

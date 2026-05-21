@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:clair/core/locale/app_locale_provider.dart';
@@ -59,17 +60,23 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   /// Syncs the placeholder greeting when the user changes app language (new chat only).
   void refreshStarterGreetingIfApplicable() {
-    if (state.conversationId != null) return;
-    if (state.messages.length != 1) return;
-    final first = state.messages.first;
-    if (first.isUser) return;
+    if (state.conversationId != null || state.isLoadedConversation) return;
+    if (state.messages.any((m) => m.isUser)) return;
+
+    final aiMessages =
+        state.messages.where((m) => !m.isUser).toList(growable: false);
+    if (aiMessages.length != 1) return;
+
     final locale = _ref.read(appLocaleProvider);
     final greeting =
         lookupAppLocalizations(locale).chatAssistantGreeting;
-    if (first.text == greeting) return;
+    if (aiMessages.first.text == greeting) return;
+
+    final userMessages = state.messages.where((m) => m.isUser);
     state = state.copyWith(
       messages: [
         ChatMessageEntity(text: greeting, isUser: false),
+        ...userMessages,
       ],
     );
   }
@@ -380,5 +387,15 @@ class ChatState {
 final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>((ref) {
   final repository = ref.watch(chatRepositoryProvider);
   final historyRepository = ref.watch(_historyRepoProvider);
-  return ChatNotifier(repository, historyRepository, ref);
+  final notifier = ChatNotifier(repository, historyRepository, ref);
+
+  // ChatScreen is not always mounted (tab switcher disposes off-screen tabs), so
+  // listen here to refresh the starter greeting as soon as language changes.
+  ref.listen<Locale>(appLocaleProvider, (previous, next) {
+    if (previous != next) {
+      notifier.refreshStarterGreetingIfApplicable();
+    }
+  });
+
+  return notifier;
 });
