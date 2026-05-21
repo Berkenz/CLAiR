@@ -77,8 +77,10 @@ async def upload_profile_photo_endpoint(
     try:
         from app.services.storage_service import upload_profile_photo, upload_http_exception
 
-        photo_url = upload_profile_photo(
-            str(current_user.id), content, content_type
+        from app.utils.photo_url import photo_url_strip_cache_bust
+
+        photo_url = photo_url_strip_cache_bust(
+            upload_profile_photo(str(current_user.id), content, content_type)
         )
     except HTTPException:
         raise

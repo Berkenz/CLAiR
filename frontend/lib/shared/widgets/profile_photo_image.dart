@@ -36,6 +36,8 @@ class ProfilePhotoImage extends StatelessWidget {
       fit: fit,
       width: width,
       height: height,
+      // Avoid reusing a stale decoded image when the storage path is unchanged.
+      gaplessPlayback: false,
       errorBuilder: (_, __, ___) => const SizedBox.shrink(),
     );
   }

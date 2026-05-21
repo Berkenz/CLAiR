@@ -1,5 +1,6 @@
 import logging
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -68,6 +69,8 @@ class UserService:
         update_dict = update_data.model_dump(exclude_unset=True)
         for key, value in update_dict.items():
             setattr(user, key, value)
+        if "photo_url" in update_dict:
+            user.updated_at = datetime.now(timezone.utc)
 
         await db.flush()
         await db.refresh(user)

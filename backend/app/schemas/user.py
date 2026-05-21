@@ -1,7 +1,10 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
+from typing import Self
+
+from app.utils.photo_url import photo_url_with_cache_bust
 
 
 # --- Request schemas ---
@@ -59,6 +62,14 @@ class UserResponse(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime | None = None
+
+    @model_validator(mode="after")
+    def bust_profile_photo_url(self) -> Self:
+        """Always bust profile photos from updated_at (stable storage path per user)."""
+        busted = photo_url_with_cache_bust(self.photo_url, self.updated_at)
+        if busted is not None:
+            self.photo_url = busted
+        return self
 
 
 class GoogleAuthResponse(BaseModel):

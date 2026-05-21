@@ -108,10 +108,7 @@ def _get_supabase_client() -> Client:
 
 
 def upload_profile_photo(user_id: str, content: bytes, content_type: str) -> str:
-    """Upload profile photo and return a public URL (with cache-bust query param)."""
-    from datetime import datetime, timezone
-
-    from app.utils.photo_url import photo_url_with_cache_bust
+    """Upload profile photo and return the canonical public URL (no cache-bust param)."""
     if content_type not in ALLOWED_CONTENT_TYPES:
         raise ValueError(f"Invalid content type. Allowed: {ALLOWED_CONTENT_TYPES}")
 
@@ -145,7 +142,7 @@ def upload_profile_photo(user_id: str, content: bytes, content_type: str) -> str
         )
         base_url = client.storage.from_(BUCKET).get_public_url(path)
 
-    return photo_url_with_cache_bust(base_url, datetime.now(timezone.utc))
+    return base_url.strip()
 
 
 def upload_appointment_attachment(
