@@ -39,6 +39,7 @@ class _ProfileLocationFieldState extends ConsumerState<ProfileLocationField> {
   bool _resolvingGps = false;
   String? _searchError;
   Timer? _debounce;
+  int _searchGeneration = 0;
 
   @override
   void initState() {
@@ -125,19 +126,17 @@ class _ProfileLocationFieldState extends ConsumerState<ProfileLocationField> {
   }
 
   Future<void> _runSearch(String query) async {
+    final generation = ++_searchGeneration;
     setState(() {
       _loadingSuggestions = true;
       _searchError = null;
     });
 
     try {
-      final loc = ref.read(locationProvider);
-      final results = await ref.read(nominatimServiceProvider).searchPlaces(
-            query,
-            nearLat: loc.latitude,
-            nearLng: loc.longitude,
-          );
-      if (!mounted || widget.controller.text.trim() != query) return;
+      final results =
+          await ref.read(nominatimServiceProvider).searchPlaces(query);
+      if (!mounted || generation != _searchGeneration) return;
+      if (widget.controller.text.trim() != query) return;
       setState(() {
         _suggestions = results;
         _loadingSuggestions = false;
@@ -146,7 +145,8 @@ class _ProfileLocationFieldState extends ConsumerState<ProfileLocationField> {
         }
       });
     } catch (_) {
-      if (!mounted || widget.controller.text.trim() != query) return;
+      if (!mounted || generation != _searchGeneration) return;
+      if (widget.controller.text.trim() != query) return;
       setState(() {
         _suggestions = [];
         _loadingSuggestions = false;
@@ -155,9 +155,11 @@ class _ProfileLocationFieldState extends ConsumerState<ProfileLocationField> {
     }
   }
 
-  void _applySuggestion(String value) {
+  void _applySuggestion(PlaceSuggestion suggestion) {
+    final value = suggestion.profileValue;
     widget.controller.text = value;
-    widget.controller.selection = TextSelection.collapsed(offset: value.length);
+    widget.controller.selection =
+        TextSelection.collapsed(offset: value.length);
     setState(() {
       _suggestions = [];
       _gpsSuggestion = null;
@@ -197,7 +199,12 @@ class _ProfileLocationFieldState extends ConsumerState<ProfileLocationField> {
         });
         return;
       }
-      _applySuggestion(label);
+      _applySuggestion(PlaceSuggestion(
+        displayLabel: label,
+        profileValue: label,
+        lat: loc.latitude!,
+        lng: loc.longitude!,
+      ));
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -288,7 +295,12 @@ class _ProfileLocationFieldState extends ConsumerState<ProfileLocationField> {
             color: cl.accent.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
             child: InkWell(
-              onTap: () => _applySuggestion(_gpsSuggestion!),
+              onTap: () => _applySuggestion(PlaceSuggestion(
+                displayLabel: _gpsSuggestion!,
+                profileValue: _gpsSuggestion!,
+                lat: 0,
+                lng: 0,
+              )),
               borderRadius: BorderRadius.circular(12),
               child: Padding(
                 padding:
@@ -350,7 +362,7 @@ class _ProfileLocationFieldState extends ConsumerState<ProfileLocationField> {
                 for (var i = 0; i < _suggestions.length; i++) ...[
                   if (i > 0) Divider(height: 1, color: cl.border),
                   InkWell(
-                    onTap: () => _applySuggestion(_suggestions[i].label),
+                    onTap: () => _applySuggestion(_suggestions[i]),
                     borderRadius: BorderRadius.vertical(
                       top: i == 0 ? const Radius.circular(12) : Radius.zero,
                       bottom: i == _suggestions.length - 1
@@ -371,15 +383,30 @@ class _ProfileLocationFieldState extends ConsumerState<ProfileLocationField> {
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: Text(
-                              _suggestions[i].label,
-                              style: GoogleFonts.nunito(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: cl.textDark,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _suggestions[i].profileValue,
+                                  style: GoogleFonts.nunito(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: cl.textDark,
+                                  ),
+                                ),
+                                if (_suggestions[i].displayLabel !=
+                                    _suggestions[i].profileValue)
+                                  Text(
+                                    _suggestions[i].displayLabel,
+                                    style: GoogleFonts.nunito(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: cl.textMid,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                              ],
                             ),
                           ),
                         ],

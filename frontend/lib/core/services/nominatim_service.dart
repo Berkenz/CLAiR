@@ -22,43 +22,33 @@ class NominatimService {
 
   Future<List<PlaceSuggestion>> searchPlaces(
     String query, {
-    double? nearLat,
-    double? nearLng,
-    int limit = 5,
+    int limit = 6,
   }) async {
     final q = query.trim();
     if (q.length < 3) return [];
 
-    final params = <String, dynamic>{
-      'q': q,
-      'format': 'json',
-      'limit': limit,
-      'countrycodes': 'ph',
-      'addressdetails': 1,
-    };
-
-    if (nearLat != null && nearLng != null) {
-      // Bias results toward the user's area (~0.5° box).
-      const delta = 0.5;
-      final left = nearLng - delta;
-      final right = nearLng + delta;
-      final top = nearLat + delta;
-      final bottom = nearLat - delta;
-      params['viewbox'] = '$left,$top,$right,$bottom';
-      params['bounded'] = 0;
-    }
-
     final response = await _dio.get<List<dynamic>>(
       '$_baseUrl/search',
-      queryParameters: params,
+      queryParameters: {
+        'q': q,
+        'format': 'json',
+        'limit': limit * 2,
+        'countrycodes': 'ph',
+        'addressdetails': 1,
+        'dedupe': 1,
+      },
     );
 
     final rows = response.data ?? [];
-    return rows
+    final parsed = rows
         .whereType<Map<String, dynamic>>()
         .map(PlaceSuggestion.fromSearchJson)
-        .where((s) => s.label.isNotEmpty)
+        .where((s) => s.displayLabel.isNotEmpty)
         .toList();
+
+    final filtered = filterPlaceSuggestions(parsed, q);
+    final results = filtered.isNotEmpty ? filtered : parsed;
+    return results.take(limit).toList();
   }
 
   Future<String?> reverseGeocode(double lat, double lng) async {
@@ -82,30 +72,38 @@ class NominatimService {
     }
 
     final display = data['display_name'] as String?;
-    return display?.trim().isNotEmpty == true ? display!.trim() : null;
+    if (display == null || display.trim().isEmpty) return null;
+    return profileValueFromDisplayName(display.trim());
   }
 }
 
 class PlaceSuggestion {
   const PlaceSuggestion({
-    required this.label,
+    required this.displayLabel,
+    required this.profileValue,
     required this.lat,
     required this.lng,
   });
 
-  final String label;
+  /// Full place description shown in the autocomplete list.
+  final String displayLabel;
+
+  /// Shorter city/municipality value written into the profile field.
+  final String profileValue;
   final double lat;
   final double lng;
 
   factory PlaceSuggestion.fromSearchJson(Map<String, dynamic> json) {
+    final displayName = (json['display_name'] as String? ?? '').trim();
     final address = json['address'];
-    final label = address is Map<String, dynamic>
+    final profileValue = address is Map<String, dynamic>
         ? (formatProfileLocation(address) ??
-            (json['display_name'] as String? ?? '').trim())
-        : (json['display_name'] as String? ?? '').trim();
+            profileValueFromDisplayName(displayName))
+        : profileValueFromDisplayName(displayName);
 
     return PlaceSuggestion(
-      label: label,
+      displayLabel: displayName,
+      profileValue: profileValue,
       lat: double.parse(json['lat'] as String),
       lng: double.parse(json['lon'] as String),
     );
@@ -131,4 +129,60 @@ String? formatProfileLocation(Map<String, dynamic> address) {
   }
 
   return null;
+}
+
+/// Compact value when structured address fields are missing.
+String profileValueFromDisplayName(String displayName) {
+  final parts = displayName
+      .split(',')
+      .map((p) => p.trim())
+      .where((p) => p.isNotEmpty)
+      .toList();
+  if (parts.isEmpty) return displayName;
+  if (parts.length == 1) return parts.first;
+  // e.g. "Lahug, Cebu City, Central Visayas, Philippines" → "Cebu City"
+  if (parts.length >= 2) return parts[1];
+  return parts.first;
+}
+
+/// Keeps suggestions whose visible text actually relates to [query].
+List<PlaceSuggestion> filterPlaceSuggestions(
+  List<PlaceSuggestion> suggestions,
+  String query,
+) {
+  final q = query.trim().toLowerCase();
+  if (q.isEmpty) return suggestions;
+
+  final seen = <String>{};
+  final filtered = <PlaceSuggestion>[];
+
+  for (final s in suggestions) {
+    if (!placeMatchesQuery(s, q)) continue;
+
+    final key = s.profileValue.toLowerCase();
+    if (seen.contains(key)) continue;
+    seen.add(key);
+
+    filtered.add(s);
+  }
+
+  return filtered;
+}
+
+bool placeMatchesQuery(PlaceSuggestion suggestion, String queryLower) {
+  final display = suggestion.displayLabel.toLowerCase();
+  final profile = suggestion.profileValue.toLowerCase();
+
+  if (display.contains(queryLower) || profile.contains(queryLower)) {
+    return true;
+  }
+
+  final tokens =
+      queryLower.split(RegExp(r'\s+')).where((t) => t.length >= 2);
+  return tokens.every(
+    (token) =>
+        display.contains(token) ||
+        profile.contains(token) ||
+        display.split(',').any((part) => part.trim().startsWith(token)),
+  );
 }
