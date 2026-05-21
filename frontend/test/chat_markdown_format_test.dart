@@ -41,4 +41,29 @@ void main() {
     expect(out, endsWith('_'));
     expect(out, isNot(contains("* I'm")));
   });
+
+  test('pulls bold disclaimer off list bullet and demotes to italics', () {
+    const raw = '''Senator cases depend on pending charges and court orders.
+
+**If you want, tell me:**
+- **Are you asking about an active warrant or case?**
+- **Would you like an overview of arrest procedures? ** **Please note that this is a general information response and is not intended to be taken as legal advice. If you have specific concerns about Senator Bato Dela Rosa's situation, I recommend consulting a licensed attorney or seeking updates from reliable news sources.**''';
+    final out = normalizeChatMarkdown(raw);
+    expect(out, contains('**If you want, tell me:**'));
+    expect(out, contains('**Are you asking about an active warrant'));
+    expect(out, contains('**Would you like an overview'));
+    expect(out, isNot(contains('**Please note that this is a general')));
+    expect(out, contains('_Please note that this is a general'));
+    expect(out, isNot(contains('reliable news sources.**')));
+    final disclaimerLine = out
+        .split('\n')
+        .firstWhere((l) => l.contains('Please note'));
+    expect(disclaimerLine.startsWith('_'), isTrue);
+    expect(disclaimerLine.endsWith('_'), isTrue);
+    expect(
+      out.indexOf('Would you like an overview') <
+          out.indexOf('Please note that this is'),
+      isTrue,
+    );
+  });
 }

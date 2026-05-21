@@ -17,7 +17,11 @@ from app.services.lawyer_chat_feedback_context import (
 )
 from app.services.lawyer_service import lawyer_service
 from app.services.reverse_geocode import reverse_geocode_area_label
-from app.services.tavily_service import format_tavily_context, search_philippine_law
+from app.services.tavily_service import (
+    format_tavily_context,
+    plan_realtime_search,
+    search_for_chat,
+)
 from app.services.rag_router_service import should_retrieve_legal_context
 from app.services.scope_router_service import (
     ScopeTier,
@@ -80,7 +84,10 @@ SYSTEM_INSTRUCTION = (
     "that appear under **RETRIEVED PHILIPPINE LEGAL TEXT** in this prompt. If none apply, explain "
     "the topic in general terms without inventing a statute number. Always include the law number "
     "in your answer when you rely on retrieved text (e.g. **Republic Act No. 7610**) so sources "
-    "match what the user sees.\n\n"
+    "match what the user sees.\n"
+    "- When **REAL-TIME PHILIPPINE LEGAL INFORMATION** is provided below, use it for recent "
+    "developments and cite source URLs. Say plainly if excerpts do not answer the question — do "
+    "not tell the user to check news sites when real-time excerpts were already supplied.\n\n"
     "## PARTNER LAWYERS (only when the prompt lists nearby CLAiR partners)\n"
     "Infer the user's matter from their message and **recent turns**. If it plausibly involves work that "
     "matches a listed partner's **practice areas** (and showing local counsel would help — not for "
@@ -102,7 +109,8 @@ SYSTEM_INSTRUCTION = (
     "### headings for multi-topic answers, > blockquotes for statute citations. "
     "Keep paragraphs short. On substantive replies: main answer → optional lawyer mention → "
     "**conversation invitation** (rule 2) → italic disclaimer last. "
-    "End with an italicised disclaimer when appropriate. "
+    "End with an italicised disclaimer when appropriate — use underscore italics only "
+    "(`_Please note…_`), never `**bold**` for disclaimers. "
     "Put the disclaimer on its **own line**, separated from lists by a **blank line**. "
     "Never make the disclaimer a bullet or numbered list item, and never append it "
     "to the last list item on the same line."
@@ -828,7 +836,7 @@ async def get_chat_response(
     rag_enabled is True when SUPABASE_DB_URL and EMBED_SERVICE_URL are set
     (retrieval was attempted; rag_sources may still be empty).
 
-    tavily_sources lists real-time web results from trusted PH legal domains,
+    tavily_sources lists real-time web results from trusted PH legal and news domains,
     injected when the query is time-sensitive or RAG returned no chunks.
     """
     rag_enabled = bool(settings.SUPABASE_DB_URL and settings.EMBED_SERVICE_URL)
@@ -876,6 +884,9 @@ async def get_chat_response(
     router_task = asyncio.create_task(
         should_retrieve_legal_context(message, history_for_rag)
     )
+    tavily_plan_task = asyncio.create_task(
+        plan_realtime_search(message, history=history_for_rag)
+    )
     feedback_task = asyncio.create_task(_lawyer_feedback())
     location_task = asyncio.create_task(_location_bundle())
 
@@ -900,8 +911,14 @@ async def get_chat_response(
         should_rag,
     )
 
+    realtime_plan = await tavily_plan_task
     tavily_task = asyncio.create_task(
-        search_philippine_law(message, rag_chunk_count=len(chunks))
+        search_for_chat(
+            message,
+            rag_chunk_count=len(chunks),
+            history=history_for_rag,
+            realtime_plan=realtime_plan,
+        )
     )
 
     tavily_results, lawyer_feedback_block, (location_context, nearby_lawyers) = (

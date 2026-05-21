@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     CHAT_FAST_MODEL_MAX_CHARS: int = 200
     CHAT_FAST_MODEL_MAX_HISTORY: int = 4
     TAVILY_TIMEOUT_SECONDS: float = 2.5
+    # LLM decides whether to run Tavily for recent/real-time info (tavily_router_service.py).
+    TAVILY_ROUTER_ENABLED: bool = True
+    GROQ_TAVILY_ROUTER_MODEL: str = "llama-3.1-8b-instant"
     LAWYER_DIRECTORY_CACHE_TTL_SECONDS: int = 300
     CHAT_ALIGN_RAG_SOURCES: bool = True
     # LLM decides whether to query law_chunks (see rag_router_service.py).

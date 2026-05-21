@@ -66,7 +66,7 @@ Whether you need to understand your rights, find a lawyer near you, or get a qui
 CLAiR's AI is not just a generic chatbot — it is specifically trained to understand Philippine law:
 
 1. **Legal Knowledge Base** — We scraped and indexed thousands of Philippine statutes and Supreme Court decisions. When you ask a question, the AI searches this database first.
-2. **Web Search** — For recent developments, the AI can also search the web to supplement its answers.
+2. **Web Search** — For recent developments and legal news, the AI searches trusted Philippine government sites and major news outlets (via Tavily) to supplement its answers.
 3. **Suggested Lawyers** — Based on your question and location, the AI suggests relevant lawyers you can contact.
 4. **Multiple AI Models** — The backend can use Groq, Google Gemini, or OpenRouter models, giving us flexibility and reliability.
 

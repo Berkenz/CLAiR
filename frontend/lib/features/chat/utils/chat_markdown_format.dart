@@ -110,14 +110,46 @@ String _normalizeBulletMarkers(String text) {
   );
 }
 
+String _stripEmphasisMarkers(String text) =>
+    text.replaceAll(RegExp(r'^[\*_]+|[\*_]+$'), '').trim();
+
 /// Single-asterisk disclaimer lines confuse list parsing; use underscore italics.
 String _normalizeDisclaimerItalic(String text) {
-  return text.replaceAllMapped(
+  var t = text.replaceAllMapped(
     RegExp(
       r'^(\s*)\*([^*\n]{16,}?)\*\s*$',
       multiLine: true,
     ),
-    (m) => '${m[1]}_${m[2]!.trim()}_',
+    (m) {
+      final inner = m[2]!.trim();
+      if (!_looksLikeLegalDisclaimer(inner)) return m[0]!;
+      return '${m[1]}_${inner}_';
+    },
+  );
+  // Whole-line **disclaimer** → _disclaimer_ (model often bolds the entire block).
+  t = t.replaceAllMapped(
+    RegExp(
+      r'^(\s*)\*\*([^*\n]{16,}?)\*\*\s*$',
+      multiLine: true,
+    ),
+    (m) {
+      final inner = m[2]!.trim();
+      if (!_looksLikeLegalDisclaimer(inner)) return m[0]!;
+      return '${m[1]}_${inner}_';
+    },
+  );
+  return t;
+}
+
+/// Inline **Please note…** spans → _italics_ so disclaimers are not heavy bold blocks.
+String _convertBoldDisclaimerSpansToItalic(String text) {
+  return text.replaceAllMapped(
+    RegExp(r'\*\*([^*\n]{24,}?)\*\*'),
+    (m) {
+      final inner = m[1]!.trim();
+      if (!_looksLikeLegalDisclaimer(inner)) return m[0]!;
+      return '_${inner}_';
+    },
   );
 }
 
@@ -175,12 +207,13 @@ String _fixLeadingCategoryLine(String text) {
 final _listLinePrefix = RegExp(r'^\s*(\d+\.|[-*•])\s+');
 
 bool _looksLikeLegalDisclaimer(String text) {
-  final plain =
-      text.replaceAll(RegExp(r'^[\*_]+|[\*_]+$'), '').trim().toLowerCase();
+  final plain = _stripEmphasisMarkers(text).toLowerCase();
   if (plain.isEmpty) return false;
   return RegExp(
     r'(please note|not legal advice|information only|for information only|'
+    r'general information response|not intended to be taken as|'
     r'consult a licensed attorney|licensed attorney for personalized|'
+    r'reliable news sources|seeking updates from|'
     r"i'm here to provide|my responses are)",
     caseSensitive: false,
   ).hasMatch(plain);
@@ -192,8 +225,14 @@ String _stripListMarker(String line) =>
 /// Disclaimers must not be list items — pull them out as separate paragraphs.
 String _separateDisclaimersFromListLines(String text) {
   final disclaimerTail = RegExp(
-    r'\s+(\*(?:Please note|Note:|Disclaimer|My responses are|I[\u2019\x27]m here to provide)'
-    r'[\s\S]*?\*)',
+    r'\s+('
+    r'\*\*(?:Please note|Note:|Disclaimer|My responses are|I[\u2019\x27]m here to provide)'
+    r'[\s\S]*?\*\*'
+    r'|\*(?:Please note|Note:|Disclaimer|My responses are|I[\u2019\x27]m here to provide)'
+    r'[\s\S]*?\*'
+    r'|_(?:Please note|Note:|Disclaimer|My responses are|I[\u2019\x27]m here to provide)'
+    r'[\s\S]*?_'
+    r')',
     caseSensitive: false,
   );
 
@@ -206,25 +245,42 @@ String _separateDisclaimersFromListLines(String text) {
     }
 
     final itemBody = _stripListMarker(line);
+    final plainBody = _stripEmphasisMarkers(itemBody);
 
-    // Entire bullet/number is only the disclaimer → plain paragraph.
-    if (_looksLikeLegalDisclaimer(itemBody)) {
-      if (out.isNotEmpty && out.last.trim().isNotEmpty) out.add('');
-      out.add(itemBody);
-      continue;
-    }
-
-    // Disclaimer glued to the end of a real list item.
+    // Disclaimer glued to the end of a real list item (check before “entire bullet” rule).
     final match = disclaimerTail.firstMatch(line);
-    if (match == null) {
-      out.add(line);
+    if (match != null) {
+      var body = line.substring(0, match.start).trimRight();
+      var disclaimer = match.group(1)!.trim();
+      if (disclaimer.startsWith('**') && disclaimer.endsWith('**')) {
+        disclaimer = '_${_stripEmphasisMarkers(disclaimer)}_';
+      } else if (!disclaimer.startsWith('_')) {
+        disclaimer = '_${_stripEmphasisMarkers(disclaimer)}_';
+      }
+      // Trailing stray ** on the list question (e.g. `? **`).
+      body = body.replaceAll(RegExp(r'\s*\*\*\s*$'), '').trimRight();
+      if (body.isEmpty) {
+        out.add(disclaimer);
+        continue;
+      }
+      out.add(body);
+      if (out.isNotEmpty && out.last.trim().isNotEmpty) out.add('');
+      out.add(disclaimer);
       continue;
     }
-    final body = line.substring(0, match.start).trimRight();
-    final disclaimer = match.group(1)!.trim();
-    out.add(body);
-    out.add('');
-    out.add(disclaimer);
+
+    // Entire bullet/number is only the disclaimer → plain paragraph (italic).
+    if (_looksLikeLegalDisclaimer(plainBody) &&
+        !RegExp(r'\?\s*$').hasMatch(plainBody.trim())) {
+      if (out.isNotEmpty && out.last.trim().isNotEmpty) out.add('');
+      final normalized = itemBody.startsWith('_') && itemBody.endsWith('_')
+          ? itemBody
+          : '_${plainBody}_';
+      out.add(normalized);
+      continue;
+    }
+
+    out.add(line);
   }
   return out.join('\n');
 }
@@ -237,6 +293,7 @@ String normalizeChatMarkdown(String raw) {
   text = _fixEmphasisArtifacts(text);
   text = _normalizeBulletMarkers(text);
   text = _ensureEmphasisBoundarySpaces(text);
+  text = _convertBoldDisclaimerSpansToItalic(text);
   text = _normalizeDisclaimerItalic(text);
   text = _fixLeadingCategoryLine(text);
   text = _separateDisclaimersFromListLines(text);
