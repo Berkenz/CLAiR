@@ -87,7 +87,7 @@ class _ProfileLocationFieldState extends ConsumerState<ProfileLocationField> {
 
     try {
       var loc = ref.read(locationProvider);
-      if (!loc.hasLocation) {
+      if (!loc.hasLocation && !loc.hasFetched && !loc.loading) {
         await ref.read(locationProvider.notifier).fetchLocation();
         loc = ref.read(locationProvider);
       }
@@ -175,7 +175,8 @@ class _ProfileLocationFieldState extends ConsumerState<ProfileLocationField> {
       _suggestions = [];
     });
 
-    final ok = await ref.read(locationProvider.notifier).fetchLocation();
+    final ok =
+        await ref.read(locationProvider.notifier).fetchLocation(force: true);
     final loc = ref.read(locationProvider);
     if (!ok || !loc.hasLocation) {
       if (!mounted) return;

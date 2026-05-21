@@ -115,7 +115,7 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
       ..forward();
     Future.microtask(() async {
       await ref.read(lawyerProvider.notifier).loadLawyers();
-      await ref.read(locationProvider.notifier).fetchLocation();
+      ref.read(locationProvider.notifier).prefetchIfNeeded();
     });
   }
 
@@ -503,8 +503,9 @@ class _LawyerBodyState extends ConsumerState<_LawyerBody>
             _NearbyLocationPrompt(
               cl: cl,
               message: loc.error ?? l10n.lawyerNearYouEnableLocation,
-              onEnable: () =>
-                  ref.read(locationProvider.notifier).fetchLocation(),
+              onEnable: () => ref
+                  .read(locationProvider.notifier)
+                  .fetchLocation(force: true),
             )
           else if (nearby.isEmpty)
             Text(

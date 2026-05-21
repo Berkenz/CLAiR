@@ -422,7 +422,8 @@ class _FullMapScreenState extends ConsumerState<_FullMapScreen> {
   Future<void> _goToMyLocation() async {
     var loc = ref.read(locationProvider);
     if (!loc.hasLocation) {
-      final ok = await ref.read(locationProvider.notifier).fetchLocation();
+      final ok =
+          await ref.read(locationProvider.notifier).fetchLocation(force: true);
       if (!ok || !mounted) return;
       loc = ref.read(locationProvider);
     }
@@ -436,11 +437,8 @@ class _FullMapScreenState extends ConsumerState<_FullMapScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final loc = ref.read(locationProvider);
-      if (!loc.hasLocation && !loc.loading) {
-        await ref.read(locationProvider.notifier).fetchLocation();
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(locationProvider.notifier).prefetchIfNeeded();
       if (mounted) _frameMap();
     });
   }

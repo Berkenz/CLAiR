@@ -458,7 +458,8 @@ class _LawyerMapViewState extends ConsumerState<LawyerMapView> {
       _centerOnUser(force: true);
       return;
     }
-    final success = await ref.read(locationProvider.notifier).fetchLocation();
+    final success =
+        await ref.read(locationProvider.notifier).fetchLocation(force: true);
     if (success && mounted) {
       _centerOnUser(force: true);
     }
@@ -484,11 +485,8 @@ class _LawyerMapViewState extends ConsumerState<LawyerMapView> {
     _ownsMapController = widget.mapController == null;
     _mapCtrl = widget.mapController ?? MapController();
     _mapSheetOpenCtrl = ref.read(lawyerMapSheetOpenProvider.notifier);
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final loc = ref.read(locationProvider);
-      if (!loc.hasLocation && !loc.loading) {
-        await ref.read(locationProvider.notifier).fetchLocation();
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(locationProvider.notifier).prefetchIfNeeded();
       if (mounted) _frameMap();
     });
   }
