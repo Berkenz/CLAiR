@@ -8,7 +8,9 @@ import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/auth/presentation/dialogs/guest_auth_prompt.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/appointments/data/datasources/appointment_remote_datasource.dart';
+import 'package:clair/features/appointments/domain/entities/appointment_entity.dart';
 import 'package:clair/features/appointments/presentation/providers/appointment_provider.dart';
+import 'package:clair/features/appointments/presentation/screens/appointment_detail_screen.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
 import 'package:clair/features/lawyer/data/datasources/lawyer_remote_datasource.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
@@ -148,6 +150,14 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
     super.dispose();
   }
 
+  void _openBookedAppointment(NavigatorState nav, AppointmentEntity appointment) {
+    nav.push<bool>(
+      MaterialPageRoute(
+        builder: (_) => AppointmentDetailScreen(appointment: appointment),
+      ),
+    );
+  }
+
   // ── Submit ─────────────────────────────────────────────────────────────────
 
   Future<void> _submit(LawyerRemoteDataSource ds) async {
@@ -181,7 +191,7 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
     try {
-      await ds.bookAppointment(
+      final created = await ds.bookAppointment(
         lawyerProfileId: widget.lawyer.id.trim(),
         appointmentDate: bookingDate,
         appointmentTime: '00:00',
@@ -192,21 +202,33 @@ class _LawyerBookingSheetState extends ConsumerState<LawyerBookingSheet> {
         files: _pickedFiles,
       );
 
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      final rootNav = Navigator.of(context, rootNavigator: true);
+      final accent = context.c.accent;
+      Navigator.pop(context);
+
+      await ref.read(appointmentProvider.notifier).loadAppointments(force: true);
+
+      messenger.showSnackBar(
           SnackBar(
             content: Text(
-              'Appointment request sent!',
+              l10n.bookingSuccessSnackbar,
               style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
             ),
-            backgroundColor: context.c.accent,
+            backgroundColor: accent,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 6),
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            action: SnackBarAction(
+              label: l10n.bookingViewAppointmentAction,
+              textColor: Colors.white,
+              onPressed: () => _openBookedAppointment(rootNav, created),
+            ),
           ),
         );
-      }
     } on LawyerException catch (e) {
       if (mounted) setState(() { _loading = false; _error = e.message; });
     } catch (_) {

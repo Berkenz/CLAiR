@@ -931,6 +931,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Please select an appointment type.';
 
   @override
+  String get bookingSuccessSnackbar => 'Appointment request sent!';
+
+  @override
+  String get bookingViewAppointmentAction => 'View';
+
+  @override
   String get apptBadgeNew => 'NEW';
 
   @override

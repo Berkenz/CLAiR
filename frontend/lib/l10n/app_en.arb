@@ -387,6 +387,8 @@
   "bookingAppointmentTypeHint": "What kind of consultation?",
   "bookingAppointmentTypeLoadError": "Could not load types. Tap to retry.",
   "bookingAppointmentTypeRequired": "Please select an appointment type.",
+  "bookingSuccessSnackbar": "Appointment request sent!",
+  "bookingViewAppointmentAction": "View",
   "apptBadgeNew": "NEW",
   "apptStatusPending": "Pending",
   "apptStatusAccepted": "Accepted",

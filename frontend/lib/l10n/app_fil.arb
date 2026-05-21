@@ -387,6 +387,8 @@
   "bookingAppointmentTypeHint": "Anong uri ng konsultasyon?",
   "bookingAppointmentTypeLoadError": "Hindi ma-load ang mga uri. I-tap para subukan muli.",
   "bookingAppointmentTypeRequired": "Pumili ng uri ng appointment.",
+  "bookingSuccessSnackbar": "Naipadala ang appointment request!",
+  "bookingViewAppointmentAction": "Tingnan",
   "apptBadgeNew": "BAGO",
   "apptStatusPending": "Pending",
   "apptStatusAccepted": "Accepted",

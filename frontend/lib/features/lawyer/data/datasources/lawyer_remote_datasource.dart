@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 
 import 'package:clair/core/network/api_endpoints.dart';
+import 'package:clair/features/appointments/domain/entities/appointment_entity.dart';
 import 'package:clair/features/lawyer/domain/entities/lawyer_entity.dart';
 
 class LawyerRemoteDataSource {
@@ -36,7 +37,7 @@ class LawyerRemoteDataSource {
     }
   }
 
-  Future<void> bookAppointment({
+  Future<AppointmentEntity> bookAppointment({
     required String lawyerProfileId,
     String? appointmentDate,
     String? appointmentTime,
@@ -81,12 +82,23 @@ class LawyerRemoteDataSource {
         }
       }
 
-      await _dio.post<void>(
+      final response = await _dio.post<Map<String, dynamic>>(
         ApiEndpoints.appointments,
         data: formData,
       );
+      final data = response.data;
+      if (data == null) {
+        throw LawyerException(
+          'Appointment was created but the server returned no details.',
+        );
+      }
+      return AppointmentEntity.fromJson(data);
     } on DioException catch (e) {
       throw LawyerException(_extractError(e));
+    } on FormatException {
+      throw LawyerException(
+        'Appointment was created but the response could not be read.',
+      );
     }
   }
 

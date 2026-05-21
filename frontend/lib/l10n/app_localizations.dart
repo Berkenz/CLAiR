@@ -1762,6 +1762,18 @@ abstract class AppLocalizations {
   /// **'Please select an appointment type.'**
   String get bookingAppointmentTypeRequired;
 
+  /// No description provided for @bookingSuccessSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Appointment request sent!'**
+  String get bookingSuccessSnackbar;
+
+  /// No description provided for @bookingViewAppointmentAction.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get bookingViewAppointmentAction;
+
   /// No description provided for @apptBadgeNew.
   ///
   /// In en, this message translates to:

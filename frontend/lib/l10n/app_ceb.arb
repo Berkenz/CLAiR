@@ -387,6 +387,8 @@
   "bookingAppointmentTypeHint": "Unsa nga matang sa konsultasyon?",
   "bookingAppointmentTypeLoadError": "Dili ma-load ang mga matang. I-tap aron sulayan pag-usab.",
   "bookingAppointmentTypeRequired": "Palihug pagpili og matang sa appointment.",
+  "bookingSuccessSnackbar": "Gipadala ang appointment request!",
+  "bookingViewAppointmentAction": "Tan-awa",
   "apptBadgeNew": "BAG-O",
   "apptStatusPending": "Pending",
   "apptStatusAccepted": "Accepted",

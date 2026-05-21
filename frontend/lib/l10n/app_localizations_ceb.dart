@@ -933,6 +933,12 @@ class AppLocalizationsCeb extends AppLocalizations {
       'Palihug pagpili og matang sa appointment.';
 
   @override
+  String get bookingSuccessSnackbar => 'Gipadala ang appointment request!';
+
+  @override
+  String get bookingViewAppointmentAction => 'Tan-awa';
+
+  @override
   String get apptBadgeNew => 'BAG-O';
 
   @override

@@ -932,6 +932,12 @@ class AppLocalizationsFil extends AppLocalizations {
   String get bookingAppointmentTypeRequired => 'Pumili ng uri ng appointment.';
 
   @override
+  String get bookingSuccessSnackbar => 'Naipadala ang appointment request!';
+
+  @override
+  String get bookingViewAppointmentAction => 'Tingnan';
+
+  @override
   String get apptBadgeNew => 'BAGO';
 
   @override
