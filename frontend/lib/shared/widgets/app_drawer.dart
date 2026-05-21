@@ -151,6 +151,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               Navigator.pop(context);
               await ref.read(authRepositoryProvider).signOut();
               ref.read(currentUserProvider.notifier).state = null;
+              ref.read(historyProvider.notifier).reset();
               ref.read(chatProvider.notifier).reset();
               if (context.mounted) context.go('/login');
             }, isDestructive: true),

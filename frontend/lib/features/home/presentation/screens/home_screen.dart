@@ -63,10 +63,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       if (lawyerState.lawyers.isEmpty && !lawyerState.isLoading) {
         ref.read(lawyerProvider.notifier).loadLawyers();
       }
-      final historyState = ref.read(historyProvider);
-      if (!historyState.hasLoaded && !historyState.isLoading) {
-        ref.read(historyProvider.notifier).loadConversations();
-      }
+      final userId = ref.read(currentUserProvider)?.id;
+      ref.read(historyProvider.notifier).syncWithUser(userId);
     });
   }
 

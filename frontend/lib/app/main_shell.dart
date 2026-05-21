@@ -6,8 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/services/location_service.dart';
+import 'package:clair/core/session/user_session.dart';
 import 'package:clair/core/theme/app_colors.dart';
+import 'package:clair/features/auth/domain/entities/user_entity.dart';
+import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/l10n/app_localizations.dart';
+import 'package:clair/features/history/presentation/providers/history_provider.dart';
 import 'package:clair/features/home/presentation/screens/home_screen.dart';
 import 'package:clair/features/chat/presentation/screens/chat_screen.dart';
 import 'package:clair/features/chat/utils/guest_chat_reset.dart';
@@ -66,6 +70,8 @@ class _MainShellState extends ConsumerState<MainShell>
       duration: const Duration(milliseconds: 220),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = ref.read(currentUserProvider);
+      ref.read(historyProvider.notifier).syncWithUser(user?.id);
       ref.read(notificationInboxProvider.notifier).refresh();
       ref.read(locationProvider.notifier).prefetchIfNeeded();
       final pending = ref.read(pendingPushNotificationProvider);
@@ -187,6 +193,10 @@ class _MainShellState extends ConsumerState<MainShell>
     final currentIndex = ref.watch(mainShellTabProvider);
     final lawyerMapSheetOpen = ref.watch(lawyerMapSheetOpenProvider);
     final lawyerMapViewActive = ref.watch(lawyerMapViewActiveProvider);
+
+    ref.listen<UserEntity?>(currentUserProvider, (previous, next) {
+      applyUserSessionChange(ref, previous: previous, next: next);
+    });
 
     ref.listen<int>(mainShellTabProvider, (prev, next) {
       _closeFab();

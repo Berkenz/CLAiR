@@ -18,6 +18,29 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
 
   final HistoryRepository _repository;
   int _searchGeneration = 0;
+  String? _scopedUserId;
+
+  /// Ensures conversation list matches [userId]. Clears stale data when the
+  /// account changes (e.g. sign out and sign in as a different user).
+  Future<void> syncWithUser(String? userId) async {
+    if (userId == null || userId.isEmpty) {
+      reset();
+      return;
+    }
+    if (_scopedUserId == userId && state.hasLoaded) return;
+    if (_scopedUserId != userId) {
+      reset(keepScope: true);
+      _scopedUserId = userId;
+    }
+    await loadConversations();
+  }
+
+  /// Drops cached conversations (call on sign-out or account switch).
+  void reset({bool keepScope = false}) {
+    _searchGeneration++;
+    if (!keepScope) _scopedUserId = null;
+    state = const HistoryState();
+  }
 
   Future<void> loadConversations({bool silent = false}) async {
     if (state.isLoading) return;

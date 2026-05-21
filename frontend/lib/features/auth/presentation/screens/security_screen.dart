@@ -7,6 +7,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
+import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
+import 'package:clair/features/history/presentation/providers/history_provider.dart';
 
 class SecurityScreen extends ConsumerStatefulWidget {
   const SecurityScreen({super.key});
@@ -155,6 +157,8 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
     try {
       await ref.read(authRepositoryProvider).signOut();
       ref.read(currentUserProvider.notifier).state = null;
+      ref.read(historyProvider.notifier).reset();
+      ref.read(chatProvider.notifier).reset();
       if (mounted) context.go('/login');
     } catch (e) {
       _snack(friendlyErrorMessage(e), isError: true);

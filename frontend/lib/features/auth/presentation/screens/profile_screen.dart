@@ -19,6 +19,7 @@ import 'package:clair/features/auth/presentation/screens/terms_of_use_screen.dar
 import 'package:clair/features/auth/presentation/screens/language_screen.dart';
 import 'package:clair/features/auth/presentation/screens/notification_settings_screen.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
+import 'package:clair/features/history/presentation/providers/history_provider.dart';
 import 'package:clair/l10n/app_localizations.dart';
 import 'package:clair/shared/widgets/profile_photo_image.dart';
 
@@ -38,6 +39,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final repo = ref.read(authRepositoryProvider);
       await repo.deleteAccount(password: password);
       ref.read(currentUserProvider.notifier).state = null;
+      ref.read(historyProvider.notifier).reset();
       ref.read(chatProvider.notifier).reset();
       if (mounted) context.go('/login');
     } catch (e) {
@@ -425,6 +427,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     await repo.signOut();
                   }
                   ref.read(currentUserProvider.notifier).state = null;
+                  ref.read(historyProvider.notifier).reset();
                   ref.read(chatProvider.notifier).reset();
                   if (context.mounted) context.go('/login');
                 } catch (e) {

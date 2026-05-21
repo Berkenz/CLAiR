@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:clair/core/session/user_session.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
@@ -49,7 +50,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final repo = ref.read(authRepositoryProvider);
       final user = await repo.loginWithEmail(email: email, password: password);
+      final previous = ref.read(currentUserProvider);
       ref.read(currentUserProvider.notifier).state = user;
+      applyUserSessionChange(ref, previous: previous, next: user);
       if (mounted) context.go('/home');
     } catch (e) {
       if (mounted) {
@@ -86,7 +89,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           context.push('/signup/google');
         }
       } else if (result.user != null) {
+        final previous = ref.read(currentUserProvider);
         ref.read(currentUserProvider.notifier).state = result.user;
+        applyUserSessionChange(ref, previous: previous, next: result.user);
         if (mounted) context.go('/home');
       }
     } catch (e) {
@@ -113,7 +118,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final repo = ref.read(authRepositoryProvider);
       final user = await repo.signInAsGuest();
+      final previous = ref.read(currentUserProvider);
       ref.read(currentUserProvider.notifier).state = user;
+      applyUserSessionChange(ref, previous: previous, next: user);
       if (mounted) context.go('/home');
     } catch (e) {
       if (mounted) {
