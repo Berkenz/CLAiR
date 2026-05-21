@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  updateEmail,
   updatePassword,
   EmailAuthProvider,
   reauthenticateWithCredential,
@@ -118,7 +117,6 @@ export function ProfilePage() {
   const [bio, setBio] = useState("");
 
   // Account fields
-  const [newEmail, setNewEmail] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -195,10 +193,6 @@ export function ProfilePage() {
     setLongitude(p.longitude ?? null);
   }, [lawyerState]);
 
-  useEffect(() => {
-    setNewEmail(firebaseUser?.email ?? "");
-  }, [firebaseUser?.email]);
-
   function toggleArea(area: string) {
     setPracticeAreas((prev) =>
       prev.includes(area) ? prev.filter((a) => a !== area) : [...prev, area]
@@ -253,18 +247,6 @@ export function ProfilePage() {
       setSaveError(getApiErrorMessage(err, "Could not save profile. Please try again."));
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function handleUpdateEmail() {
-    setAccountError(""); setAccountMsg("");
-    const user = auth.currentUser;
-    if (!user) return;
-    try {
-      await updateEmail(user, newEmail);
-      setAccountMsg("Email updated successfully.");
-    } catch (e: any) {
-      setAccountError(e.message || "Failed to update email.");
     }
   }
 
@@ -747,9 +729,20 @@ export function ProfilePage() {
         <div className="space-y-5 pb-8">
           <div className="rounded-2xl border border-[#d9b8c4]/40 bg-white p-6">
             <h2 className="text-sm font-semibold text-[#241715] mb-5 pb-3 border-b border-[#d9b8c4]/30">Login Email</h2>
-            <div className="max-w-sm space-y-4">
-              <div><label className={labelCls}>Email address</label><input type="email" className={inputCls} value={newEmail} onChange={(e) => setNewEmail(e.target.value)} /></div>
-              <button onClick={handleUpdateEmail} className="px-5 py-2.5 rounded-xl bg-[#703d57] text-sm font-semibold text-white hover:bg-[#5a3046] transition">Update email</button>
+            <div className="max-w-sm space-y-3">
+              <div>
+                <label className={labelCls}>Email address</label>
+                <input
+                  type="email"
+                  readOnly
+                  disabled
+                  value={firebaseUser?.email ?? lawyerState?.user.email ?? ""}
+                  className={inputCls + " opacity-70 cursor-not-allowed"}
+                />
+              </div>
+              <p className="text-xs text-[#957186]">
+                Changing your login email is temporarily disabled. Contact your administrator if you need a different sign-in address.
+              </p>
             </div>
           </div>
           <div className="rounded-2xl border border-[#d9b8c4]/40 bg-white p-6">
