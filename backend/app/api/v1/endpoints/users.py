@@ -92,4 +92,4 @@ async def upload_profile_photo_endpoint(
     from app.services.lawyer_service import invalidate_lawyers_directory_cache
 
     invalidate_lawyers_directory_cache()
-    return updated
+    return UserResponse.model_validate(updated)

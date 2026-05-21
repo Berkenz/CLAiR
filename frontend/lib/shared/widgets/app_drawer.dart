@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/app/main_shell_tab.dart';
+import 'package:clair/core/session/profile_photo_session.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/chat/presentation/providers/chat_provider.dart';
@@ -150,6 +151,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
             child: _item(context, Icons.logout_rounded, l10n.drawerSignOut, false, () async {
               Navigator.pop(context);
               await ref.read(authRepositoryProvider).signOut();
+              resetProfilePhotoCache(ref);
               ref.read(currentUserProvider.notifier).state = null;
               ref.read(historyProvider.notifier).reset();
               ref.read(chatProvider.notifier).reset();

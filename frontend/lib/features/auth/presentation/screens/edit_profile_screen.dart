@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/shared/utils/profile_photo_crop.dart';
 import 'package:clair/core/utils/error_helpers.dart';
+import 'package:clair/core/session/profile_photo_session.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/shared/widgets/profile_photo_image.dart';
 import 'package:clair/shared/widgets/profile_location_field.dart';
@@ -66,11 +67,17 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     if (file == null) return;
 
     setState(() => _saving = true);
+    final previousUser = ref.read(currentUserProvider);
+    final previousCache = ref.read(profilePhotoCacheVersionProvider);
     try {
       final repo = ref.read(authRepositoryProvider);
       final updatedUser = await repo.updateProfilePhoto(file);
-      ref.read(currentUserProvider.notifier).state = updatedUser;
-      ref.read(profilePhotoCacheVersionProvider.notifier).state++;
+      evictProfilePhotoCache(
+        previousPhotoUrl: previousUser?.photoUrl,
+        previousUpdatedAt: previousUser?.updatedAt,
+        previousCacheVersion: previousCache,
+      );
+      applyProfilePhotoUpdate(ref, updatedUser);
       _showSnackBar('Photo updated');
     } catch (e) {
       _showSnackBar(friendlyErrorMessage(e), isError: true);

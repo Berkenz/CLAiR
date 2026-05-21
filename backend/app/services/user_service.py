@@ -9,6 +9,7 @@ from app.models.conversation import Conversation
 from app.models.lawyer_profile import LawyerProfile
 from app.models.user import User
 from app.schemas.user import UserUpdate
+from app.utils.photo_url import photo_url_strip_cache_bust
 
 logger = logging.getLogger(__name__)
 
@@ -67,10 +68,15 @@ class UserService:
             raise ValueError("User not found")
 
         update_dict = update_data.model_dump(exclude_unset=True)
+        if "photo_url" in update_dict:
+            raw = update_dict["photo_url"]
+            if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+                update_dict["photo_url"] = None
+            else:
+                update_dict["photo_url"] = photo_url_strip_cache_bust(str(raw))
+            user.updated_at = datetime.now(timezone.utc)
         for key, value in update_dict.items():
             setattr(user, key, value)
-        if "photo_url" in update_dict:
-            user.updated_at = datetime.now(timezone.utc)
 
         await db.flush()
         await db.refresh(user)

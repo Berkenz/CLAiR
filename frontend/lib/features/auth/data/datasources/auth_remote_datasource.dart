@@ -279,11 +279,20 @@ class AuthRemoteDataSource {
     final response = await _dio.post<Map<String, dynamic>>(
       ApiEndpoints.uploadProfilePhoto,
       data: formData,
+      options: Options(
+        contentType: 'multipart/form-data',
+        sendTimeout: const Duration(seconds: 60),
+        receiveTimeout: const Duration(seconds: 60),
+      ),
     );
 
     if (response.data == null) {
       throw AuthException('Something went wrong. Please try again.');
     }
+
+    // Prefer a fresh /auth/me so photo_url and updated_at match persisted state.
+    final refreshed = await getCurrentUser();
+    if (refreshed != null) return refreshed;
 
     return UserEntity.fromJson(response.data!);
   }
