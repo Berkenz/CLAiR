@@ -1,11 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-  signOut,
-  updatePassword,
-} from "firebase/auth";
+import { signOut, updatePassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { api } from "@/lib/api";
 import { useAuth, type LawyerState } from "@/features/auth/auth-provider";
@@ -28,27 +23,19 @@ const MIN_LENGTH = 8;
 export function ChangePasswordPage() {
   const navigate = useNavigate();
   const { setLawyerState } = useAuth();
-  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   function validate(): string | null {
-    if (!currentPassword.trim()) {
-      return "Enter your current (temporary) password.";
-    }
     if (newPassword.length < MIN_LENGTH) {
       return `Password must be at least ${MIN_LENGTH} characters.`;
     }
     if (newPassword !== confirmPassword) {
       return "Passwords do not match.";
-    }
-    if (newPassword === currentPassword) {
-      return "New password must be different from your current password.";
     }
     return null;
   }
@@ -80,11 +67,7 @@ export function ChangePasswordPage() {
         throw new Error("Not authenticated");
       }
 
-      const credential = EmailAuthProvider.credential(
-        currentUser.email,
-        currentPassword,
-      );
-      await reauthenticateWithCredential(currentUser, credential);
+      // Signed in with the temporary password on the previous screen — no need to re-enter it.
       await updatePassword(currentUser, newPassword);
 
       const token = await currentUser.getIdToken(true);
@@ -102,16 +85,9 @@ export function ChangePasswordPage() {
         err != null && typeof err === "object" && "code" in err
           ? String((err as { code?: string }).code)
           : "";
-      if (
-        code.includes("wrong-password") ||
-        code.includes("invalid-credential")
-      ) {
+      if (code.includes("requires-recent-login")) {
         setError(
-          "Current password is incorrect. Use the temporary password from your invite.",
-        );
-      } else if (code.includes("requires-recent-login")) {
-        setError(
-          "Your session has expired. Sign out below, sign in again with your temporary password, then set a new password.",
+          "Your session has expired. Sign out below, sign in again with your temporary password, then choose a new password.",
         );
       } else if (
         err != null &&
@@ -195,7 +171,7 @@ export function ChangePasswordPage() {
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-[#241715]">Set your password</h1>
             <p className="mt-1.5 text-sm text-[#957186]">
-              Your account was created with a temporary password. Enter it below, then choose a new password.
+              Your account was created with a temporary password. You already signed in with it — choose a new password below.
             </p>
           </div>
 
@@ -205,31 +181,6 @@ export function ChangePasswordPage() {
                 {error}
               </div>
             )}
-
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide">
-                Current password (temporary)
-              </label>
-              <div className="relative">
-                <input
-                  id="current-password"
-                  type={showCurrent ? "text" : "password"}
-                  required
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Temporary password from your invite"
-                  autoComplete="current-password"
-                  className="w-full rounded-xl border border-[#d9b8c4] bg-white px-4 py-3 pr-11 text-sm text-[#241715] placeholder-[#c490aa] outline-none transition focus:border-[#703d57] focus:ring-2 focus:ring-[#703d57]/10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrent((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#957186] hover:text-[#703d57] transition"
-                >
-                  {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
 
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide">

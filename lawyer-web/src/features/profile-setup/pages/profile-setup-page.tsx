@@ -354,32 +354,6 @@ export function ProfileSetupPage() {
                     className={inputCls + " resize-none"}
                   />
                 </div>
-
-                <div className="pt-2 border-t border-[#d9b8c4]/40">
-                  <p className="text-xs font-semibold text-[#5a3046] uppercase tracking-wide mb-3">Office / Contact</p>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5 col-span-2">
-                      <label className="block text-xs font-medium text-[#957186]">Firm / Office Name</label>
-                      <input type="text" value={firmName} onChange={(e) => setFirmName(e.target.value)} placeholder="Santos & Associates Law Office" className={inputCls} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-medium text-[#957186]">Mobile</label>
-                      <input type="text" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="+63 9XX XXX XXXX" className={inputCls} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-medium text-[#957186]">Office Phone</label>
-                      <input type="text" value={officePhone} onChange={(e) => setOfficePhone(e.target.value)} placeholder="+63 32 XXX XXXX" className={inputCls} />
-                    </div>
-                    <div className="space-y-1.5 col-span-2">
-                      <label className="block text-xs font-medium text-[#957186]">Office Email</label>
-                      <input type="email" value={officeEmail} onChange={(e) => setOfficeEmail(e.target.value)} placeholder="atty@lawoffice.com" className={inputCls} />
-                    </div>
-                    <div className="space-y-1.5 col-span-2">
-                      <label className="block text-xs font-medium text-[#957186]">Office Address</label>
-                      <textarea value={officeAddress} onChange={(e) => setOfficeAddress(e.target.value)} placeholder="Unit/Floor, Building, Street, Barangay, City, Province" rows={2} className={inputCls + " resize-none"} />
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -483,7 +457,61 @@ export function ProfileSetupPage() {
             <div className="space-y-6">
               <div>
                 <h2 className="text-xl font-bold text-[#241715]">Office Details</h2>
-                <p className="text-sm text-[#957186] mt-1">Set your office hours and pin your location. These are visible to clients in the CLAiR app.</p>
+                <p className="text-sm text-[#957186] mt-1">
+                  Add how clients can reach you, pin your office on the map, and set your hours.
+                </p>
+              </div>
+
+              {/* Contact */}
+              <div className="bg-white rounded-2xl border border-[#d9b8c4]/40 p-6 space-y-5">
+                <div>
+                  <h3 className="text-sm font-semibold text-[#241715]">Contact</h3>
+                  <p className="text-xs text-[#957186] mt-0.5">Firm name and phone numbers shown on your public profile.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5 col-span-2">
+                    <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide">Firm / Office Name</label>
+                    <input type="text" value={firmName} onChange={(e) => setFirmName(e.target.value)} placeholder="Santos & Associates Law Office" className={inputCls} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide">Mobile</label>
+                    <input type="text" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="+63 9XX XXX XXXX" className={inputCls} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide">Office Phone</label>
+                    <input type="text" value={officePhone} onChange={(e) => setOfficePhone(e.target.value)} placeholder="+63 32 XXX XXXX" className={inputCls} />
+                  </div>
+                  <div className="space-y-1.5 col-span-2">
+                    <label className="block text-xs font-semibold text-[#5a3046] uppercase tracking-wide">Office Email</label>
+                    <input type="email" value={officeEmail} onChange={(e) => setOfficeEmail(e.target.value)} placeholder="atty@lawoffice.com" className={inputCls} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Office address (map) */}
+              <div className="bg-white rounded-2xl border border-[#d9b8c4]/40 p-6 space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-[#241715]">Office Address</h3>
+                  <p className="text-xs text-[#957186] mt-0.5">
+                    Search your address or use &quot;My location&quot;, then click the map or drag the pin.
+                    Your address is filled in automatically from the pin.
+                  </p>
+                </div>
+                <LocationPicker
+                  lat={latitude}
+                  lng={longitude}
+                  onChange={(lat, lng) => {
+                    setLatitude(lat);
+                    setLongitude(lng);
+                  }}
+                  onAddressInferred={setOfficeAddress}
+                />
+                {officeAddress.trim() && (
+                  <div className="rounded-xl bg-[#f7f0f4] border border-[#d9b8c4]/50 px-4 py-3">
+                    <p className="text-[11px] font-semibold text-[#5a3046] uppercase tracking-wide mb-1">Saved address</p>
+                    <p className="text-sm text-[#241715] leading-relaxed">{officeAddress}</p>
+                  </div>
+                )}
               </div>
 
               {/* Office Hours */}
@@ -560,23 +588,6 @@ export function ProfileSetupPage() {
                     </div>
                   )}
                 </div>
-              </div>
-
-              {/* Office Location */}
-              <div className="bg-white rounded-2xl border border-[#d9b8c4]/40 p-6 space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-[#241715]">Office Location</h3>
-                  <p className="text-xs text-[#957186] mt-0.5">
-                    Pin your office so clients can find you on the map in the CLAiR app.
-                    Search an address or use "My location", then click or drag the pin to fine-tune.
-                  </p>
-                </div>
-                <LocationPicker
-                  lat={latitude}
-                  lng={longitude}
-                  onChange={(lat, lng) => { setLatitude(lat); setLongitude(lng); }}
-                  onAddressInferred={setOfficeAddress}
-                />
               </div>
 
               {error && (
