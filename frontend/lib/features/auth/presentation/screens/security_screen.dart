@@ -156,8 +156,9 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
 
     setState(() => _signingOutAll = true);
     try {
+      final userId = ref.read(currentUserProvider)?.id;
       await ref.read(authRepositoryProvider).signOut();
-      resetProfilePhotoCache(ref);
+      await resetProfilePhotoCache(ref, userId: userId);
       ref.read(currentUserProvider.notifier).state = null;
       ref.read(historyProvider.notifier).reset();
       ref.read(chatProvider.notifier).reset();

@@ -16,5 +16,5 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 /// Set after successful login/register/guest flows.
 final currentUserProvider = StateProvider<UserEntity?>((ref) => null);
 
-/// Bumped after profile photo upload so avatars refetch the same storage URL.
-final profilePhotoCacheVersionProvider = StateProvider<int>((ref) => 0);
+/// Cache-bust timestamp (ms) for profile photos; overrides stale CDN / Flutter cache.
+final profilePhotoCacheVersionProvider = StateProvider<int?>((ref) => null);

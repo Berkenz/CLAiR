@@ -1,5 +1,3 @@
-import 'package:clair/shared/utils/profile_photo_url.dart';
-
 class UserEntity {
   const UserEntity({
     required this.id,
@@ -40,16 +38,15 @@ class UserEntity {
 
   factory UserEntity.fromJson(Map<String, dynamic> json) {
     final rawPhoto = json['photo_url'] as String?;
-    final photoUrl = rawPhoto != null && rawPhoto.trim().isNotEmpty
-        ? profilePhotoCanonicalUrl(rawPhoto)
-        : null;
 
     return UserEntity(
       id: json['id'].toString(),
       email: json['email'] as String?,
       firstName: json['first_name'] as String?,
       lastName: json['last_name'] as String?,
-      photoUrl: photoUrl,
+      photoUrl: rawPhoto != null && rawPhoto.trim().isNotEmpty
+          ? rawPhoto.trim()
+          : null,
       location: json['location'] as String?,
       authProvider: json['auth_provider'] as String? ?? 'email',
       isEmailVerified: json['is_email_verified'] as bool? ?? false,

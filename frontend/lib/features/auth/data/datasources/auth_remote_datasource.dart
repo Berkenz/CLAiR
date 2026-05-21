@@ -74,7 +74,8 @@ class AuthRemoteDataSource {
         throw AuthException('Something went wrong. Please try again.');
       }
 
-      return UserEntity.fromJson(response.data!);
+      final refreshed = await getCurrentUser();
+      return refreshed ?? UserEntity.fromJson(response.data!);
     } catch (e) {
       if (firebaseUser != null) {
         try {
@@ -115,7 +116,8 @@ class AuthRemoteDataSource {
         throw AuthException('Something went wrong. Please try again.');
       }
 
-      return UserEntity.fromJson(response.data!);
+      final refreshed = await getCurrentUser();
+      return refreshed ?? UserEntity.fromJson(response.data!);
     } on DioException {
       await _firebaseAuth.signOut();
       rethrow;
@@ -175,8 +177,9 @@ class AuthRemoteDataSource {
       }
 
       final userData = response.data!['user'] as Map<String, dynamic>;
+      final refreshed = await getCurrentUser();
       return GoogleAuthResult(
-        user: UserEntity.fromJson(userData),
+        user: refreshed ?? UserEntity.fromJson(userData),
         isNewUser: false,
       );
     } on DioException {
@@ -214,7 +217,8 @@ class AuthRemoteDataSource {
       throw AuthException('Something went wrong. Please try again.');
     }
 
-    return UserEntity.fromJson(response.data!);
+    final refreshed = await getCurrentUser();
+    return refreshed ?? UserEntity.fromJson(response.data!);
   }
 
   /// Continue as anonymous guest.
@@ -465,14 +469,17 @@ class AuthRemoteDataSource {
     final firebaseUser = _firebaseAuth.currentUser;
     if (firebaseUser == null) return null;
 
-    try {
-      final response =
-          await _dio.get<Map<String, dynamic>>(ApiEndpoints.me);
-      if (response.data == null) return null;
-      return UserEntity.fromJson(response.data!);
-    } catch (_) {
-      return null;
+    for (final path in [ApiEndpoints.me, ApiEndpoints.updateProfile]) {
+      try {
+        final response = await _dio.get<Map<String, dynamic>>(path);
+        if (response.data != null) {
+          return UserEntity.fromJson(response.data!);
+        }
+      } catch (_) {
+        continue;
+      }
     }
+    return null;
   }
 }
 

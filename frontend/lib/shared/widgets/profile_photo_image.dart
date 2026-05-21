@@ -1,10 +1,11 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
 
 import 'package:clair/shared/utils/profile_photo_url.dart';
 
-/// Network profile photo that busts HTTP cache when [updatedAt] or [cacheVersion] changes.
-class ProfilePhotoImage extends StatefulWidget {
+/// Network profile photo with explicit cache keys so re-uploads at the same path
+/// do not show a previous image.
+class ProfilePhotoImage extends StatelessWidget {
   const ProfilePhotoImage({
     super.key,
     required this.photoUrl,
@@ -23,50 +24,40 @@ class ProfilePhotoImage extends StatefulWidget {
   final double? height;
 
   @override
-  State<ProfilePhotoImage> createState() => _ProfilePhotoImageState();
-}
-
-class _ProfilePhotoImageState extends State<ProfilePhotoImage> {
-  String? _displayUrl;
-
-  @override
-  void didUpdateWidget(ProfilePhotoImage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _evictUrl(_urlFor(oldWidget));
-  }
-
-  @override
-  void dispose() {
-    _evictUrl(_displayUrl);
-    super.dispose();
-  }
-
-  String? _urlFor(ProfilePhotoImage w) => profilePhotoDisplayUrl(
-        w.photoUrl,
-        updatedAt: w.updatedAt,
-        cacheVersion: w.cacheVersion,
-      );
-
-  void _evictUrl(String? url) {
-    if (url == null) return;
-    NetworkImage(url).evict();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final url = _urlFor(widget);
-    _displayUrl = url;
+    final url = profilePhotoDisplayUrl(
+      photoUrl,
+      updatedAt: updatedAt,
+      cacheVersion: cacheVersion,
+    );
     if (url == null) return const SizedBox.shrink();
 
-    return Image.network(
-      url,
-      key: ValueKey(url),
-      fit: widget.fit,
-      width: widget.width,
-      height: widget.height,
-      gaplessPlayback: false,
-      headers: const {'Cache-Control': 'no-cache'},
-      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+    final pixelWidth = width != null ? (width! * MediaQuery.devicePixelRatioOf(context)).round() : null;
+
+    return CachedNetworkImage(
+      imageUrl: url,
+      cacheKey: url,
+      fit: fit,
+      width: width,
+      height: height,
+      memCacheWidth: pixelWidth,
+      placeholder: (_, __) => const SizedBox.shrink(),
+      errorWidget: (_, __, ___) => const SizedBox.shrink(),
     );
+  }
+
+  /// Drop cached bytes for this avatar (call before changing [cacheVersion]).
+  static Future<void> evictUrl({
+    required String photoUrl,
+    DateTime? updatedAt,
+    int? cacheVersion,
+  }) async {
+    final url = profilePhotoDisplayUrl(
+      photoUrl,
+      updatedAt: updatedAt,
+      cacheVersion: cacheVersion,
+    );
+    if (url == null) return;
+    await CachedNetworkImage.evictFromCache(url);
   }
 }

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'package:clair/core/session/profile_photo_session.dart';
+import 'package:clair/core/session/profile_photo_session.dart' show refreshCurrentUser, resetProfilePhotoCache;
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/core/theme/appearance_provider.dart';
 import 'package:clair/core/utils/error_helpers.dart';
@@ -36,12 +36,21 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _isDeleting = false;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      refreshCurrentUser(ref);
+    });
+  }
+
   Future<void> _deleteAccount(String? password) async {
     setState(() => _isDeleting = true);
     try {
       final repo = ref.read(authRepositoryProvider);
       await repo.deleteAccount(password: password);
-      resetProfilePhotoCache(ref);
+      final userId = ref.read(currentUserProvider)?.id;
+      await resetProfilePhotoCache(ref, userId: userId);
       ref.read(currentUserProvider.notifier).state = null;
       ref.read(historyProvider.notifier).reset();
       ref.read(chatProvider.notifier).reset();
@@ -203,10 +212,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               )
             else
               GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                ),
+                onTap: () async {
+                  await Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                  );
+                  if (mounted) await refreshCurrentUser(ref);
+                },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   decoration: BoxDecoration(
@@ -430,7 +442,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   } else {
                     await repo.signOut();
                   }
-                  resetProfilePhotoCache(ref);
+                  final userId = ref.read(currentUserProvider)?.id;
+                  await resetProfilePhotoCache(ref, userId: userId);
                   ref.read(currentUserProvider.notifier).state = null;
                   ref.read(historyProvider.notifier).reset();
                   ref.read(chatProvider.notifier).reset();

@@ -67,17 +67,19 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     if (file == null) return;
 
     setState(() => _saving = true);
-    final previousUser = ref.read(currentUserProvider);
-    final previousCache = ref.read(profilePhotoCacheVersionProvider);
     try {
       final repo = ref.read(authRepositoryProvider);
+      final previous = ref.read(currentUserProvider);
+      final previousBust = ref.read(profilePhotoCacheVersionProvider);
+      if (previous?.photoUrl != null) {
+        await ProfilePhotoImage.evictUrl(
+          photoUrl: previous!.photoUrl!,
+          updatedAt: previous.updatedAt,
+          cacheVersion: previousBust,
+        );
+      }
       final updatedUser = await repo.updateProfilePhoto(file);
-      evictProfilePhotoCache(
-        previousPhotoUrl: previousUser?.photoUrl,
-        previousUpdatedAt: previousUser?.updatedAt,
-        previousCacheVersion: previousCache,
-      );
-      applyProfilePhotoUpdate(ref, updatedUser);
+      await applyProfilePhotoUpdate(ref, updatedUser);
       _showSnackBar('Photo updated');
     } catch (e) {
       _showSnackBar(friendlyErrorMessage(e), isError: true);

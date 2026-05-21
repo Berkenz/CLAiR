@@ -229,9 +229,9 @@ async def guest_auth(
 @router.get("/me", response_model=UserResponse)
 async def get_me(
     current_user: Annotated[User, Depends(get_current_user)],
-):
+) -> UserResponse:
     """Return the current authenticated user's info."""
-    return current_user
+    return UserResponse.model_validate(current_user)
 
 
 @router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)

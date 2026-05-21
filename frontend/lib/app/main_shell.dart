@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:clair/core/services/location_service.dart';
+import 'package:clair/core/session/profile_photo_session.dart';
 import 'package:clair/core/session/user_session.dart';
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/features/auth/domain/entities/user_entity.dart';
@@ -70,6 +71,7 @@ class _MainShellState extends ConsumerState<MainShell>
       duration: const Duration(milliseconds: 220),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      refreshCurrentUser(ref);
       final user = ref.read(currentUserProvider);
       ref.read(historyProvider.notifier).syncWithUser(user?.id);
       ref.read(notificationInboxProvider.notifier).refresh();
@@ -92,6 +94,7 @@ class _MainShellState extends ConsumerState<MainShell>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
+      refreshCurrentUser(ref);
       ref.read(notificationInboxProvider.notifier).pollSilently();
       ref.read(locationProvider.notifier).prefetchIfNeeded();
     }

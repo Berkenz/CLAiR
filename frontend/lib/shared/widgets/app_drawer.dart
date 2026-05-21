@@ -150,8 +150,9 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
             child: _item(context, Icons.logout_rounded, l10n.drawerSignOut, false, () async {
               Navigator.pop(context);
+              final userId = ref.read(currentUserProvider)?.id;
               await ref.read(authRepositoryProvider).signOut();
-              resetProfilePhotoCache(ref);
+              await resetProfilePhotoCache(ref, userId: userId);
               ref.read(currentUserProvider.notifier).state = null;
               ref.read(historyProvider.notifier).reset();
               ref.read(chatProvider.notifier).reset();

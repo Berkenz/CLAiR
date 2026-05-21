@@ -1,4 +1,4 @@
-/// Canonical storage URL without API cache-bust query params.
+/// Canonical storage URL without cache-bust query params.
 String? profilePhotoCanonicalUrl(String? photoUrl) {
   if (photoUrl == null || photoUrl.trim().isEmpty) return null;
   final uri = Uri.parse(photoUrl.trim());
@@ -9,8 +9,14 @@ String? profilePhotoCanonicalUrl(String? photoUrl) {
   return uri.replace(queryParameters: params).toString();
 }
 
-/// Profile photos are stored at a stable path per user; append a cache-buster
-/// so [Image.network] refetches after re-upload.
+/// Cache-bust key aligned with backend `photo_url_with_cache_bust` (ms since epoch).
+int? profilePhotoCacheBustKey(DateTime? updatedAt) {
+  if (updatedAt == null) return null;
+  return updatedAt.toUtc().millisecondsSinceEpoch;
+}
+
+/// Build display URL the same way appointment `client_photo_url` does on the backend:
+/// strip any stored `?v=` and always derive it from [updatedAt] / [cacheVersion].
 String? profilePhotoDisplayUrl(
   String? photoUrl, {
   DateTime? updatedAt,
@@ -18,10 +24,16 @@ String? profilePhotoDisplayUrl(
 }) {
   final canonical = profilePhotoCanonicalUrl(photoUrl);
   if (canonical == null) return null;
+
+  final bust = cacheVersion ?? profilePhotoCacheBustKey(updatedAt);
+  if (bust == null) {
+    // No timestamp (e.g. legacy row): use URL as returned by API.
+    final trimmed = photoUrl?.trim();
+    return trimmed != null && trimmed.isNotEmpty ? trimmed : canonical;
+  }
+
   final uri = Uri.parse(canonical);
   final params = Map<String, String>.from(uri.queryParameters);
-  final bust = cacheVersion ?? updatedAt?.toUtc().millisecondsSinceEpoch;
-  if (bust == null) return canonical;
   params['v'] = '$bust';
   return uri.replace(queryParameters: params).toString();
 }

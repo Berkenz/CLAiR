@@ -9,6 +9,7 @@ import 'package:video_player/video_player.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:clair/core/theme/appearance_provider.dart';
+import 'package:clair/core/session/profile_photo_session.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -108,6 +109,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             .timeout(const Duration(seconds: 4));
         if (user != null && mounted) {
           ref.read(currentUserProvider.notifier).state = user;
+          await syncProfilePhotoBust(ref, user);
+          if (!mounted) return;
           context.go('/home');
           return;
         }
