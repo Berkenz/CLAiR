@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -7,6 +8,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class Conversation(Base):
@@ -32,7 +36,11 @@ class Conversation(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    user = relationship("User", backref="conversations")
+    user: Mapped["User"] = relationship(
+        "User",
+        back_populates="conversations",
+        passive_deletes=True,
+    )
     messages: Mapped[list["Message"]] = relationship(
         "Message",
         back_populates="conversation",

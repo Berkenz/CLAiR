@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +8,7 @@ import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/core/theme/appearance_provider.dart';
 import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/auth/presentation/dialogs/guest_auth_prompt.dart';
+import 'package:clair/features/auth/utils/account_deletion_reauth.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/features/auth/presentation/screens/appearance_screen.dart';
 import 'package:clair/features/auth/presentation/screens/email_screen.dart';
@@ -477,14 +479,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     : () async {
                         final user = ref.read(currentUserProvider);
                         if (user == null) return;
+                        final firebaseUser =
+                            FirebaseAuth.instance.currentUser;
+                        final providerIds = firebaseUser?.providerData
+                                .map((p) => p.providerId)
+                                .toSet() ??
+                            {};
+                        final reauth = resolveAccountDeletionReauth(providerIds);
                         final passwordCompleter = _PasswordCompleter();
                         final confirmed = await showDialog<bool>(
                           context: context,
                           barrierDismissible: true,
                           builder: (_) => _DeleteAccountDialog(
-                            authProvider: user.authProvider,
+                            needsPasswordReauth: reauth.needsPassword,
+                            needsGoogleReauth: reauth.needsGoogle,
                             isAnonymous: user.isAnonymous,
-                            email: user.email,
                             onConfirm: (password) {
                               passwordCompleter.value = password;
                             },
@@ -711,15 +720,17 @@ class _PasswordCompleter {
 
 class _DeleteAccountDialog extends StatefulWidget {
   const _DeleteAccountDialog({
-    required this.authProvider,
+    required this.needsPasswordReauth,
+    required this.needsGoogleReauth,
     required this.isAnonymous,
-    this.email,
     required this.onConfirm,
   });
 
-  final String authProvider;
+  /// Matches Firebase `password` provider (email/password sign-in).
+  final bool needsPasswordReauth;
+  /// Matches Firebase `google.com` when password re-auth is not required.
+  final bool needsGoogleReauth;
   final bool isAnonymous;
-  final String? email;
   final void Function(String? password) onConfirm;
 
   @override
@@ -731,15 +742,11 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
   bool _obscurePassword = true;
   bool _confirmedWarning = false;
 
-  bool get _isEmailProvider =>
-      widget.authProvider == 'email' && !widget.isAnonymous;
-
-  bool get _isGoogleProvider =>
-      widget.authProvider == 'google' && !widget.isAnonymous;
-
   bool get _canProceed {
     if (!_confirmedWarning) return false;
-    if (_isEmailProvider) return _passwordController.text.isNotEmpty;
+    if (widget.needsPasswordReauth) {
+      return _passwordController.text.isNotEmpty;
+    }
     return true;
   }
 
@@ -753,16 +760,23 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
   Widget build(BuildContext context) {
     final cl = context.c;
 
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+
     return Dialog(
       backgroundColor: cl.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             // Header
             Row(
               children: [
@@ -819,7 +833,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
             const SizedBox(height: 16),
 
             // Provider-specific section
-            if (_isEmailProvider) ...[
+            if (widget.needsPasswordReauth) ...[
               Text(
                 'Enter your password to confirm',
                 style: GoogleFonts.nunito(
@@ -835,7 +849,6 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
                   return TextField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
-                    autofocus: true,
                     onChanged: (_) => setState(() {}),
                     style: TextStyle(
                       fontSize: 14,
@@ -891,7 +904,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
                 },
               ),
               const SizedBox(height: 16),
-            ] else if (_isGoogleProvider) ...[
+            ] else if (widget.needsGoogleReauth) ...[
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -1027,7 +1040,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
                       onTap: _canProceed
                           ? () {
                               widget.onConfirm(
-                                _isEmailProvider
+                                widget.needsPasswordReauth
                                     ? _passwordController.text
                                     : null,
                               );
@@ -1057,6 +1070,8 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
               ],
             ),
           ],
+        ),
+      ),
         ),
       ),
     );

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:clair/core/theme/app_colors.dart';
 import 'package:clair/core/utils/error_helpers.dart';
+import 'package:clair/core/session/user_session.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 
 /// Shown when a Google sign-in user is new and needs to provide their name.
@@ -33,7 +34,9 @@ class _GoogleCompleteScreenState extends ConsumerState<GoogleCompleteScreen> {
         firstName: widget.firstName,
         lastName: widget.lastName,
       );
+      final previous = ref.read(currentUserProvider);
       ref.read(currentUserProvider.notifier).state = user;
+      applyUserSessionChange(ref, previous: previous, next: user);
       if (mounted) context.go('/home');
     } catch (e) {
       if (mounted) {

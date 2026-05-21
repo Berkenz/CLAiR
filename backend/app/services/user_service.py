@@ -1,11 +1,15 @@
+import logging
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.conversation import Conversation
 from app.models.lawyer_profile import LawyerProfile
 from app.models.user import User
 from app.schemas.user import UserUpdate
+
+logger = logging.getLogger(__name__)
 
 
 class UserService:
@@ -95,11 +99,15 @@ class UserService:
 
     async def delete_user(self, db: AsyncSession, user: User) -> None:
         """
-        Remove the user row. Related rows with ON DELETE CASCADE are removed too
-        (conversations, messages, notifications, etc.).
+        Remove the user row and cascaded data (conversations, messages, notifications, etc.).
         """
+        user_id = user.id
+        # Explicit conversation delete avoids ORM nulling NOT NULL user_id on legacy paths.
+        await db.execute(delete(Conversation).where(Conversation.user_id == user_id))
+        await db.flush()
         await db.delete(user)
         await db.flush()
+        logger.info("Deleted user %s", user_id)
 
     async def delete_lawyer_user(
         self, db: AsyncSession, user: User, profile: LawyerProfile

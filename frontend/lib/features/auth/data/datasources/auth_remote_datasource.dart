@@ -366,23 +366,9 @@ class AuthRemoteDataSource {
     final providers =
         firebaseUser.providerData.map((p) => p.providerId).toList();
 
-    if (providers.contains('password')) {
-      if (password == null || password.isEmpty) {
-        throw AuthException('Please enter your password to confirm account deletion.');
-      }
-      final credential = EmailAuthProvider.credential(
-        email: firebaseUser.email!,
-        password: password,
-      );
-      try {
-        await firebaseUser.reauthenticateWithCredential(credential);
-      } on FirebaseAuthException catch (e) {
-        if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
-          throw AuthException('Incorrect password. Please try again.');
-        }
-        throw AuthException('Re-authentication failed. Please try again.');
-      }
-    } else if (providers.contains('google.com')) {
+    // Prefer Google when linked — Google Sign-In accounts may still list `password`
+    // in providerData if the email was used elsewhere.
+    if (providers.contains('google.com')) {
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         throw AuthException('Google re-authentication was cancelled.');
@@ -400,14 +386,36 @@ class AuthRemoteDataSource {
         }
         throw AuthException('Google re-authentication failed. Please try again.');
       }
+    } else if (providers.contains('password')) {
+      if (password == null || password.isEmpty) {
+        throw AuthException('Please enter your password to confirm account deletion.');
+      }
+      final credential = EmailAuthProvider.credential(
+        email: firebaseUser.email!,
+        password: password,
+      );
+      try {
+        await firebaseUser.reauthenticateWithCredential(credential);
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+          throw AuthException('Incorrect password. Please try again.');
+        }
+        throw AuthException('Re-authentication failed. Please try again.');
+      }
     }
 
+    // Backend must succeed first — otherwise re-sign-in can relink the old user by email.
     await _deleteBackendAccount();
-    await firebaseUser.delete();
-
     try {
-      await _googleSignIn.signOut();
-    } catch (_) {}
+      await firebaseUser.delete();
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(
+        e.message ??
+            'Your data was removed from our servers, but we could not finish '
+            'closing your sign-in session. Please sign out and try again.',
+      );
+    }
+    await signOut();
   }
 
   /// Ends a guest session: removes DB user (and cascaded chats), Firebase user, then signs out.
@@ -428,11 +436,7 @@ class AuthRemoteDataSource {
   }
 
   Future<void> _deleteBackendAccount() async {
-    try {
-      await _dio.delete<void>(ApiEndpoints.deleteAccount);
-    } catch (_) {
-      // Best-effort — still attempt Firebase deletion / sign-out.
-    }
+    await _dio.delete<void>(ApiEndpoints.deleteAccount);
   }
 
   Future<void> signOut() async {

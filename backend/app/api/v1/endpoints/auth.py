@@ -165,16 +165,28 @@ async def google_complete(
         existing_by_email = await user_service.get_user_by_email(db, email)
         if existing_by_email:
             await ensure_client_platform_user(db, existing_by_email)
-            existing_by_email.firebase_uid = firebase_uid
-            existing_by_email.auth_provider = "google"
-            existing_by_email.is_email_verified = True
-            existing_by_email.first_name = body.first_name
-            existing_by_email.last_name = body.last_name
-            if photo_url:
-                existing_by_email.photo_url = photo_url
-            await db.flush()
-            await db.refresh(existing_by_email)
-            return existing_by_email
+            if existing_by_email.firebase_uid == firebase_uid:
+                existing_by_email.first_name = body.first_name
+                existing_by_email.last_name = body.last_name
+                if photo_url:
+                    existing_by_email.photo_url = photo_url
+                await db.flush()
+                await db.refresh(existing_by_email)
+                return existing_by_email
+            if existing_by_email.auth_provider == "email":
+                # Same person: email/password account completing Google registration.
+                existing_by_email.firebase_uid = firebase_uid
+                existing_by_email.auth_provider = "google"
+                existing_by_email.is_email_verified = True
+                existing_by_email.first_name = body.first_name
+                existing_by_email.last_name = body.last_name
+                if photo_url:
+                    existing_by_email.photo_url = photo_url
+                await db.flush()
+                await db.refresh(existing_by_email)
+                return existing_by_email
+            # Stale row (e.g. account was deleted in Firebase but DB user remained).
+            await user_service.delete_user(db, existing_by_email)
 
     user = await user_service.create_user(
         db,
@@ -232,7 +244,20 @@ async def delete_account(
     messages, notifications, etc.). The client must delete the Firebase user
     after this call succeeds.
     """
+    import logging
+
+    from sqlalchemy.exc import SQLAlchemyError
+
     from app.core.platform_auth import ensure_client_platform_user
 
+    logger = logging.getLogger(__name__)
+
     await ensure_client_platform_user(db, current_user)
-    await user_service.delete_user(db, current_user)
+    try:
+        await user_service.delete_user(db, current_user)
+    except SQLAlchemyError:
+        logger.exception("Failed to delete user %s", current_user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not delete your account. Please try again.",
+        ) from None

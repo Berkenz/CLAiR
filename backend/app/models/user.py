@@ -11,6 +11,7 @@ from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.appointment import Appointment
+    from app.models.conversation import Conversation
     from app.models.lawyer_profile import LawyerProfile
     from app.models.user_notification import UserNotification
 
@@ -53,6 +54,12 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
+    conversations: Mapped[list["Conversation"]] = relationship(
+        "Conversation",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     lawyer_profile: Mapped["LawyerProfile | None"] = relationship(
         "LawyerProfile",
         back_populates="user",
@@ -61,7 +68,10 @@ class User(Base):
         passive_deletes=True,
     )
     appointments: Mapped[list["Appointment"]] = relationship(
-        "Appointment", back_populates="client_user", foreign_keys="Appointment.client_user_id"
+        "Appointment",
+        back_populates="client_user",
+        foreign_keys="Appointment.client_user_id",
+        passive_deletes=True,
     )
     notifications: Mapped[list["UserNotification"]] = relationship(
         "UserNotification", back_populates="user", cascade="all, delete-orphan"
