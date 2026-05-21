@@ -6,7 +6,9 @@ import 'package:clair/shared/utils/profile_photo_crop.dart';
 import 'package:clair/core/utils/error_helpers.dart';
 import 'package:clair/features/auth/presentation/providers/auth_provider.dart';
 import 'package:clair/shared/widgets/profile_photo_image.dart';
+import 'package:clair/shared/widgets/profile_location_field.dart';
 import 'package:clair/shared/widgets/spring_button.dart';
+import 'package:clair/core/services/location_service.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -28,6 +30,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _firstCtrl = TextEditingController(text: user?.firstName ?? '');
     _lastCtrl = TextEditingController(text: user?.lastName ?? '');
     _locationCtrl = TextEditingController(text: user?.location ?? '');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(locationProvider.notifier).prefetchIfNeeded();
+    });
   }
 
   @override
@@ -163,7 +168,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 Expanded(child: _field('Last Name', _lastCtrl, Icons.person_outline_rounded)),
               ]),
               const SizedBox(height: 12),
-              _field('Location', _locationCtrl, Icons.location_on_outlined, hint: 'e.g. Cebu City'),
+              ProfileLocationField(controller: _locationCtrl),
 
               const SizedBox(height: 32),
               SpringButton(

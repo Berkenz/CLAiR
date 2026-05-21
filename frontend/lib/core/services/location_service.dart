@@ -40,11 +40,12 @@ class LocationNotifier extends Notifier<LocationState> {
   @override
   LocationState build() => const LocationState();
 
-  /// Starts a one-shot background fetch. Skips if we already have a position,
-  /// a fetch is in flight, or a previous attempt has already completed (success
-  /// or denial) — preventing repeated permission dialogs or error flickers.
+  /// Starts a one-shot background fetch. Skips when a position is known, a
+  /// fetch is in flight, or a previous attempt succeeded. Retries after a failed
+  /// attempt so a later grant of location permission can still resolve coords.
   void prefetchIfNeeded() {
-    if (state.hasLocation || state.loading || state.hasFetched) return;
+    if (state.hasLocation || state.loading) return;
+    if (state.hasFetched && state.error == null) return;
     fetchLocation().ignore();
   }
 
