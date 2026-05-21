@@ -8,9 +8,10 @@ import {
   deleteUser,
   signOut,
 } from "firebase/auth";
+import axios from "axios";
 import { auth } from "@/lib/firebase";
 import { api } from "@/lib/api";
-import { getApiErrorMessage } from "@/lib/api-error";
+import { getApiErrorMessage, getApiErrorMessageWithNetworkHint } from "@/lib/api-error";
 import { useAuth, type LawyerState } from "@/features/auth/auth-provider";
 import { buildLawyerProfileUpdateBody } from "@/features/lawyer/profile-update-body";
 import { LocationPicker } from "@/features/profile/components/LocationPicker";
@@ -292,6 +293,28 @@ export function ProfilePage() {
     setAccountError("");
   }
 
+  function firebaseAuthErrorMessage(err: unknown): string | null {
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? String((err as { code: string }).code)
+        : "";
+    const message =
+      err && typeof err === "object" && "message" in err
+        ? String((err as { message: string }).message)
+        : "";
+    switch (code) {
+      case "auth/wrong-password":
+      case "auth/invalid-credential":
+        return "Incorrect password. Please try again.";
+      case "auth/requires-recent-login":
+        return "Session expired. Enter your password and try again.";
+      case "auth/too-many-requests":
+        return "Too many attempts. Please wait a moment and try again.";
+      default:
+        return message || null;
+    }
+  }
+
   async function handleDeleteAccount() {
     setAccountError("");
     const user = auth.currentUser;
@@ -312,22 +335,49 @@ export function ProfilePage() {
     try {
       const cred = EmailAuthProvider.credential(user.email, deletePassword);
       await reauthenticateWithCredential(user, cred);
+    } catch (err: unknown) {
+      setAccountError(
+        firebaseAuthErrorMessage(err) ?? "Could not verify your password. Please try again.",
+      );
+      setDeletingAccount(false);
+      return;
+    }
+
+    try {
       await api.delete("/lawyer/auth/account");
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        setAccountError(
+          "Delete account is not available on the server yet. Restart the API so it loads the latest code.",
+        );
+      } else {
+        setAccountError(
+          getApiErrorMessageWithNetworkHint(
+            err,
+            "Could not delete account on the server. Please try again.",
+          ),
+        );
+      }
+      setDeletingAccount(false);
+      return;
+    }
+
+    try {
       await deleteUser(user);
+    } catch (err: unknown) {
+      setAccountError(
+        firebaseAuthErrorMessage(err) ??
+          "Your data was removed, but we could not delete your sign-in. Contact support or try again.",
+      );
+      setDeletingAccount(false);
+      return;
+    }
+
+    try {
       await signOut(auth);
       navigate("/login", { replace: true });
-    } catch (err: unknown) {
-      const code =
-        err && typeof err === "object" && "code" in err
-          ? String((err as { code: string }).code)
-          : "";
-      if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
-        setAccountError("Incorrect password. Please try again.");
-      } else if (code === "auth/requires-recent-login") {
-        setAccountError("Session expired. Enter your password and try again.");
-      } else {
-        setAccountError(getApiErrorMessage(err, "Could not delete account. Please try again."));
-      }
+    } catch {
+      navigate("/login", { replace: true });
     } finally {
       setDeletingAccount(false);
     }

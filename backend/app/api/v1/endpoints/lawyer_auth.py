@@ -92,7 +92,7 @@ async def delete_lawyer_account(
     appointments, messages, notifications, etc.). The client must delete the
     Firebase user after this call succeeds.
     """
-    user, _profile = current
+    user, profile = current
     await ensure_lawyer_platform_user(db, user)
-    await user_service.delete_user(db, user)
+    await user_service.delete_lawyer_user(db, user, profile)
     invalidate_lawyers_directory_cache()

@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.lawyer_profile import LawyerProfile
 from app.models.user import User
 from app.schemas.user import UserUpdate
 
@@ -97,6 +98,18 @@ class UserService:
         Remove the user row. Related rows with ON DELETE CASCADE are removed too
         (conversations, messages, notifications, etc.).
         """
+        await db.delete(user)
+        await db.flush()
+
+    async def delete_lawyer_user(
+        self, db: AsyncSession, user: User, profile: LawyerProfile
+    ) -> None:
+        """
+        Remove a lawyer account. Deletes the profile first so SQLAlchemy does not
+        try to null out lawyer_profiles.user_id when the user row is removed.
+        """
+        await db.delete(profile)
+        await db.flush()
         await db.delete(user)
         await db.flush()
 

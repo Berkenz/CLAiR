@@ -54,7 +54,11 @@ class User(Base):
     )
 
     lawyer_profile: Mapped["LawyerProfile | None"] = relationship(
-        "LawyerProfile", back_populates="user", uselist=False
+        "LawyerProfile",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     appointments: Mapped[list["Appointment"]] = relationship(
         "Appointment", back_populates="client_user", foreign_keys="Appointment.client_user_id"

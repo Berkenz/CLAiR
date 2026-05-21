@@ -29,7 +29,8 @@ api.interceptors.response.use(
       // Global sign-out here sends users back to login after password change incorrectly.
       const skipLogout =
         url.includes("/lawyer/auth/login") ||
-        url.includes("/lawyer/auth/confirm-password-change");
+        url.includes("/lawyer/auth/confirm-password-change") ||
+        url.includes("/lawyer/auth/account");
       if (!skipLogout) {
         auth.signOut();
         window.location.href = "/login";
