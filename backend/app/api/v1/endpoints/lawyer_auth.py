@@ -10,7 +10,7 @@ from app.core.lawyer_security import get_current_lawyer
 from app.models.lawyer_profile import LawyerProfile
 from app.models.user import User
 from app.schemas.lawyer import LawyerLoginRequest, LawyerLoginResponse
-from app.services.lawyer_service import lawyer_service
+from app.services.lawyer_service import invalidate_lawyers_directory_cache, lawyer_service
 from app.services.user_service import user_service
 
 router = APIRouter(prefix="/lawyer/auth", tags=["lawyer-auth"])
@@ -80,3 +80,19 @@ async def confirm_password_change(
     user, profile = current
     profile = await lawyer_service.confirm_password_change(db, profile)
     return LawyerLoginResponse.model_validate({"user": user, "profile": profile})
+
+
+@router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_lawyer_account(
+    current: Annotated[tuple[User, LawyerProfile], Depends(get_current_lawyer)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """
+    Permanently delete the authenticated lawyer and cascaded data (profile,
+    appointments, messages, notifications, etc.). The client must delete the
+    Firebase user after this call succeeds.
+    """
+    user, _profile = current
+    await ensure_lawyer_platform_user(db, user)
+    await user_service.delete_user(db, user)
+    invalidate_lawyers_directory_cache()

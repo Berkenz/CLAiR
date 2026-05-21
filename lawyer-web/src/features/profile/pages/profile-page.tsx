@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { updateEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
+import {
+  updateEmail,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  deleteUser,
+  signOut,
+} from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { api } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -71,6 +79,7 @@ type Tab = "profile" | "account" | "hours" | "location";
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ProfilePage() {
+  const navigate = useNavigate();
   const {
     lawyerState,
     setLawyerState,
@@ -114,6 +123,10 @@ export function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [accountMsg, setAccountMsg] = useState("");
   const [accountError, setAccountError] = useState("");
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   // Office location coordinates — persisted with the profile
   const [latitude, setLatitude] = useState<number | null>(null);
@@ -268,6 +281,55 @@ export function ProfilePage() {
       setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
     } catch {
       setAccountError("Current password is incorrect or session expired.");
+    }
+  }
+
+  function closeDeleteModal() {
+    if (deletingAccount) return;
+    setDeleteModalOpen(false);
+    setDeletePassword("");
+    setDeleteConfirmed(false);
+    setAccountError("");
+  }
+
+  async function handleDeleteAccount() {
+    setAccountError("");
+    const user = auth.currentUser;
+    if (!user?.email) {
+      setAccountError("You are not signed in. Please sign in and try again.");
+      return;
+    }
+    if (!deletePassword.trim()) {
+      setAccountError("Please enter your password to confirm account deletion.");
+      return;
+    }
+    if (!deleteConfirmed) {
+      setAccountError("Please confirm that you understand this action is permanent.");
+      return;
+    }
+
+    setDeletingAccount(true);
+    try {
+      const cred = EmailAuthProvider.credential(user.email, deletePassword);
+      await reauthenticateWithCredential(user, cred);
+      await api.delete("/lawyer/auth/account");
+      await deleteUser(user);
+      await signOut(auth);
+      navigate("/login", { replace: true });
+    } catch (err: unknown) {
+      const code =
+        err && typeof err === "object" && "code" in err
+          ? String((err as { code: string }).code)
+          : "";
+      if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
+        setAccountError("Incorrect password. Please try again.");
+      } else if (code === "auth/requires-recent-login") {
+        setAccountError("Session expired. Enter your password and try again.");
+      } else {
+        setAccountError(getApiErrorMessage(err, "Could not delete account. Please try again."));
+      }
+    } finally {
+      setDeletingAccount(false);
     }
   }
 
@@ -654,7 +716,18 @@ export function ProfilePage() {
           <div className="rounded-2xl border border-red-200/60 bg-red-50/50 p-6">
             <h2 className="text-sm font-semibold text-red-800 mb-1">Danger zone</h2>
             <p className="text-xs text-red-600 mb-4">Deleting your account is permanent and cannot be undone.</p>
-            <button className="px-4 py-2 rounded-xl border border-red-300 bg-white text-sm font-medium text-red-600 hover:bg-red-50 transition">Delete account</button>
+            <button
+              type="button"
+              onClick={() => {
+                setAccountError("");
+                setDeletePassword("");
+                setDeleteConfirmed(false);
+                setDeleteModalOpen(true);
+              }}
+              className="px-4 py-2 rounded-xl border border-red-300 bg-white text-sm font-medium text-red-600 hover:bg-red-50 transition"
+            >
+              Delete account
+            </button>
           </div>
         </div>
       )}
@@ -806,6 +879,65 @@ export function ProfilePage() {
           onConfirm={onCropConfirmed}
           confirming={photoUploading}
         />
+      )}
+
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl p-6">
+            <h2 className="font-bold text-[#241715] text-lg mb-2">Delete account?</h2>
+            <p className="text-sm text-[#957186] mb-4">
+              This permanently removes your lawyer profile, appointments, messages, and
+              notifications. This cannot be undone.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className={labelCls}>Password</label>
+                <input
+                  type="password"
+                  className={inputCls}
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  placeholder="Enter your password to confirm"
+                  disabled={deletingAccount}
+                  autoComplete="current-password"
+                />
+              </div>
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={deleteConfirmed}
+                  onChange={(e) => setDeleteConfirmed(e.target.checked)}
+                  disabled={deletingAccount}
+                  className="mt-0.5 h-4 w-4 rounded border-[#d9b8c4] text-[#703d57] focus:ring-[#703d57]/30"
+                />
+                <span className="text-xs text-[#5a3046] leading-relaxed">
+                  I understand this will permanently delete my account and all associated data.
+                </span>
+              </label>
+            </div>
+            {accountError && deleteModalOpen && (
+              <p className="mt-4 text-sm text-red-600">{accountError}</p>
+            )}
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={deletingAccount}
+                className="flex-1 rounded-xl border border-[#d9b8c4]/60 py-2.5 text-sm font-semibold text-[#402a2c] hover:bg-[#f7f0f4] transition-colors disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDeleteAccount()}
+                disabled={deletingAccount || !deleteConfirmed || !deletePassword.trim()}
+                className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-60"
+              >
+                {deletingAccount ? "Deleting…" : "Delete account"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
