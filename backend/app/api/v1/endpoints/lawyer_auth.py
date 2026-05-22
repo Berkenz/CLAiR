@@ -92,7 +92,20 @@ async def delete_lawyer_account(
     appointments, messages, notifications, etc.). The client must delete the
     Firebase user after this call succeeds.
     """
+    import logging
+
+    from sqlalchemy.exc import SQLAlchemyError
+
+    logger = logging.getLogger(__name__)
+
     user, profile = current
     await ensure_lawyer_platform_user(db, user)
-    await user_service.delete_lawyer_user(db, user, profile)
+    try:
+        await user_service.delete_lawyer_user(db, user, profile)
+    except SQLAlchemyError:
+        logger.exception("Failed to delete lawyer user %s", user.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not delete your account. Please try again.",
+        ) from None
     invalidate_lawyers_directory_cache()

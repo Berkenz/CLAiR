@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.appointment import Appointment
 from app.models.conversation import Conversation
 from app.models.lawyer_profile import LawyerProfile
 from app.models.user import User
@@ -122,13 +123,22 @@ class UserService:
         self, db: AsyncSession, user: User, profile: LawyerProfile
     ) -> None:
         """
-        Remove a lawyer account. Deletes the profile first so SQLAlchemy does not
-        try to null out lawyer_profiles.user_id when the user row is removed.
+        Remove a lawyer account. Deletes conversations first (same as delete_user),
+        then the profile so SQLAlchemy does not null lawyer_profiles.user_id, then the user.
         """
+        user_id = user.id
+        profile_id = profile.id
+        await db.execute(delete(Conversation).where(Conversation.user_id == user_id))
+        await db.flush()
+        await db.execute(
+            delete(Appointment).where(Appointment.lawyer_profile_id == profile_id)
+        )
+        await db.flush()
         await db.delete(profile)
         await db.flush()
         await db.delete(user)
         await db.flush()
+        logger.info("Deleted lawyer user %s", user_id)
 
 
 user_service = UserService()

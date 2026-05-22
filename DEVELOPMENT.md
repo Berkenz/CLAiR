@@ -193,8 +193,8 @@ git push -u origin feature/my-feature
 ### Lawyer web (`lawyer-web`) shows “Backend not reachable” or empty lists
 
 1. **Run the API** — e.g. Docker (`docker-compose up`) or `uvicorn` on **port 8000** (matches `lawyer-web/vite.config.ts` proxy).
-2. **CORS** — The browser origin must be allowed. Defaults in `backend/app/config.py` include `http://localhost:5173` and `http://127.0.0.1:5173`. If your `backend/.env` sets `CORS_ORIGINS`, ensure those URLs are in the JSON list or the browser will block requests from the lawyer portal.
-3. **Dev proxy** — With `VITE_API_BASE_URL=/api/v1` (see `lawyer-web/.env.example`), requests go through Vite to `localhost:8000`. If you set `VITE_API_BASE_URL` to a full URL instead, CORS on the backend must allow `5173`.
+2. **CORS** — The browser origin must be allowed. Defaults in `backend/app/config.py` include `http://localhost:5173`, `http://127.0.0.1:5173`, `https://clair-ai.app`, and a regex for `*.vercel.app` lawyer deployments. If your `backend/.env` sets `CORS_ORIGINS`, ensure your portal URL is in the JSON list or the browser will block API calls (delete account often fails first with a generic network error).
+3. **Dev / production proxy** — With `VITE_API_BASE_URL=/api/v1` (see `lawyer-web/.env.example`), dev uses the Vite proxy to `localhost:8000` and production Vercel uses `lawyer-web/vercel.json` to proxy `/api` to the Render API. Prefer this over a full API URL in the browser so CORS is not required. If you set `VITE_API_BASE_URL` to `https://…onrender.com/api/v1` in Vercel, add your exact portal origin to `CORS_ORIGINS` on Render and redeploy the backend.
 
 ### App shows old/stale screens after code changes
 

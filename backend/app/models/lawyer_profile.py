@@ -63,5 +63,7 @@ class LawyerProfile(Base):
 
     user: Mapped["User"] = relationship("User", back_populates="lawyer_profile")  # type: ignore[name-defined]
     appointments: Mapped[list["Appointment"]] = relationship(
-        "Appointment", back_populates="lawyer_profile"
+        "Appointment",
+        back_populates="lawyer_profile",
+        passive_deletes=True,
     )

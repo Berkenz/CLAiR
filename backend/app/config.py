@@ -92,6 +92,8 @@ class Settings(BaseSettings):
         "https://clair-ai.app",
         "https://www.clair-ai.app",
     ]
+    # Lawyer web on Vercel (*.vercel.app). Set to empty string to disable.
+    CORS_ORIGIN_REGEX: str | None = r"https://[\w.-]+\.vercel\.app"
     # Mobile push (FCM) — requires FIREBASE_SERVICE_ACCOUNT_KEY with FCM scope.
     PUSH_NOTIFICATIONS_ENABLED: bool = True
     # Chat abuse protection (see app.core.rate_limit).
